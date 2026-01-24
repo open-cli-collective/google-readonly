@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/api/googleapi"
 
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
@@ -64,15 +66,40 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Step 3: Check if already authenticated
 	if keychain.HasStoredToken() {
-		fmt.Println("Token:       Already authenticated")
+		fmt.Println("Token:       Found")
 		fmt.Println()
 
 		if !noVerify {
-			return verifyConnectivity()
-		}
+			err := verifyConnectivity()
+			if err == nil {
+				return nil
+			}
 
-		fmt.Println("Setup complete! Try: gro mail search \"is:unread\"")
-		return nil
+			// Check if this is an auth error (401)
+			if isAuthError(err) {
+				fmt.Println()
+				fmt.Println("Your OAuth token appears to be expired or revoked.")
+
+				if promptReauth() {
+					fmt.Println()
+					fmt.Println("Clearing old token...")
+					if delErr := keychain.DeleteToken(); delErr != nil {
+						return fmt.Errorf("failed to clear token: %w", delErr)
+					}
+					// Fall through to OAuth flow below
+				} else {
+					fmt.Println()
+					fmt.Println("You can manually clear the token with: gro config clear")
+					return err
+				}
+			} else {
+				// Non-auth error, just return it
+				return err
+			}
+		} else {
+			fmt.Println("Setup complete! Try: gro mail search \"is:unread\"")
+			return nil
+		}
 	}
 
 	// Step 4: Guide through OAuth flow
@@ -193,4 +220,58 @@ func printCredentialsInstructions(credPath string) {
 	fmt.Printf("5. Save the downloaded file to:\n   %s\n", credPath)
 	fmt.Println()
 	fmt.Println("Then run 'gro init' again.")
+}
+
+// isAuthError checks if an error is a Google API authentication error (HTTP 401)
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check for googleapi.Error
+	var apiErr *googleapi.Error
+	if ok := errorAs(err, &apiErr); ok {
+		return apiErr.Code == http.StatusUnauthorized
+	}
+
+	// Also check error message for common auth error patterns
+	errStr := err.Error()
+	return strings.Contains(errStr, "401") &&
+		(strings.Contains(errStr, "Invalid Credentials") ||
+			strings.Contains(errStr, "invalid_grant") ||
+			strings.Contains(errStr, "Token has been expired or revoked"))
+}
+
+// errorAs is a wrapper for errors.As to make testing easier
+var errorAs = func(err error, target interface{}) bool {
+	switch t := target.(type) {
+	case **googleapi.Error:
+		for e := err; e != nil; {
+			if apiErr, ok := e.(*googleapi.Error); ok {
+				*t = apiErr
+				return true
+			}
+			if unwrapper, ok := e.(interface{ Unwrap() error }); ok {
+				e = unwrapper.Unwrap()
+			} else {
+				break
+			}
+		}
+	}
+	return false
+}
+
+// promptReauth asks the user if they want to re-authenticate
+func promptReauth() bool {
+	fmt.Print("Would you like to re-authenticate? [Y/n]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+
+	input = strings.TrimSpace(strings.ToLower(input))
+	// Empty input (just Enter) or "y" or "yes" means yes
+	return input == "" || input == "y" || input == "yes"
 }
