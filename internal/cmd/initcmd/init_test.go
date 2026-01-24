@@ -1,0 +1,114 @@
+package initcmd
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestInitCommand(t *testing.T) {
+	cmd := NewCommand()
+
+	t.Run("has correct use", func(t *testing.T) {
+		assert.Equal(t, "init", cmd.Use)
+	})
+
+	t.Run("requires no arguments", func(t *testing.T) {
+		err := cmd.Args(cmd, []string{})
+		assert.NoError(t, err)
+
+		err = cmd.Args(cmd, []string{"extra"})
+		assert.Error(t, err)
+	})
+
+	t.Run("has no-verify flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("no-verify")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+	})
+
+	t.Run("has short description", func(t *testing.T) {
+		assert.NotEmpty(t, cmd.Short)
+	})
+
+	t.Run("has long description", func(t *testing.T) {
+		assert.NotEmpty(t, cmd.Long)
+		assert.Contains(t, cmd.Long, "OAuth")
+	})
+}
+
+func TestExtractAuthCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "raw code",
+			input:    "4/0AQSTgQxyz123",
+			expected: "4/0AQSTgQxyz123",
+		},
+		{
+			name:     "localhost URL with code",
+			input:    "http://localhost/?code=4/0AQSTgQxyz123&scope=email",
+			expected: "4/0AQSTgQxyz123",
+		},
+		{
+			name:     "localhost URL with port",
+			input:    "http://localhost:8080/?code=ABC123&scope=email",
+			expected: "ABC123",
+		},
+		{
+			name:     "https localhost URL",
+			input:    "https://localhost/?code=SecureCode456",
+			expected: "SecureCode456",
+		},
+		{
+			name:     "URL without code param",
+			input:    "http://localhost/?error=access_denied",
+			expected: "",
+		},
+		{
+			name:     "whitespace trimmed",
+			input:    "  4/0AQSTgQxyz123  \n",
+			expected: "4/0AQSTgQxyz123",
+		},
+		{
+			name:     "whitespace trimmed from URL",
+			input:    "  http://localhost/?code=TrimMe  \n",
+			expected: "TrimMe",
+		},
+		{
+			name:     "empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "whitespace only",
+			input:    "   \n\t  ",
+			expected: "",
+		},
+		{
+			name:     "non-localhost URL treated as raw code",
+			input:    "http://example.com/?code=NotExtracted",
+			expected: "http://example.com/?code=NotExtracted",
+		},
+		{
+			name:     "code with special characters",
+			input:    "http://localhost/?code=4/P-abc_123.xyz~456",
+			expected: "4/P-abc_123.xyz~456",
+		},
+		{
+			name:     "URL encoded code",
+			input:    "http://localhost/?code=4%2F0AQSTgQ",
+			expected: "4/0AQSTgQ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractAuthCode(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
