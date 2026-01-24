@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
+	"google.golang.org/api/people/v1"
 
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
@@ -48,6 +49,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 	config, err := google.ConfigFromJSON(b,
 		gmail.GmailReadonlyScope,
 		calendar.CalendarReadonlyScope,
+		people.ContactsReadonlyScope,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse credentials: %w", err)
@@ -224,6 +226,7 @@ func GetOAuthConfig() (*oauth2.Config, error) {
 	return google.ConfigFromJSON(b,
 		gmail.GmailReadonlyScope,
 		calendar.CalendarReadonlyScope,
+		people.ContactsReadonlyScope,
 	)
 }
 

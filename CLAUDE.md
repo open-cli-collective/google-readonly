@@ -12,10 +12,10 @@ gro is a **read-only** command-line interface for Google services written in Go.
 ### Current Features
 - Gmail: Search, read, thread viewing, labels, attachments
 - Google Calendar: List calendars, view events, today/week shortcuts
+- Google Contacts: List contacts, search, view details, list groups
 
 ### Planned Features
 - Google Drive: List files, download content
-- Google Contacts: List contacts, search, view groups
 
 ## Quick Commands
 
@@ -74,13 +74,23 @@ google-readonly/
 │   │   │   ├── output.go            # Shared output helpers
 │   │   │   └── *_test.go
 │   │   │
-│   │   └── calendar/                # gro calendar {list,events,get,today,week}
-│   │       ├── calendar.go          # Parent command with 'cal' alias
+│   │   ├── calendar/                # gro calendar {list,events,get,today,week}
+│   │   │   ├── calendar.go          # Parent command with 'cal' alias
+│   │   │   ├── list.go
+│   │   │   ├── events.go
+│   │   │   ├── get.go
+│   │   │   ├── today.go
+│   │   │   ├── week.go
+│   │   │   ├── dates.go             # Date parsing/formatting helpers
+│   │   │   ├── output.go            # Shared output helpers
+│   │   │   └── *_test.go
+│   │   │
+│   │   └── contacts/                # gro contacts {list,search,get,groups}
+│   │       ├── contacts.go          # Parent command with 'ppl' alias
 │   │       ├── list.go
-│   │       ├── events.go
+│   │       ├── search.go
 │   │       ├── get.go
-│   │       ├── today.go
-│   │       ├── week.go
+│   │       ├── groups.go
 │   │       ├── output.go            # Shared output helpers
 │   │       └── *_test.go
 │   │
@@ -93,6 +103,11 @@ google-readonly/
 │   ├── calendar/                    # Google Calendar API client
 │   │   ├── client.go
 │   │   ├── events.go
+│   │   └── *_test.go
+│   │
+│   ├── contacts/                    # Google People API client (Contacts)
+│   │   ├── client.go
+│   │   ├── contacts.go
 │   │   └── *_test.go
 │   │
 │   ├── keychain/                    # Secure credential storage
@@ -237,6 +252,8 @@ Key dependencies:
 - `github.com/spf13/cobra` - CLI framework
 - `golang.org/x/oauth2` - OAuth2 client
 - `google.golang.org/api/gmail/v1` - Gmail API client
+- `google.golang.org/api/calendar/v3` - Calendar API client
+- `google.golang.org/api/people/v1` - People API client (Contacts)
 - `github.com/stretchr/testify` - Testing assertions (dev)
 
 ## Error Message Conventions

@@ -4,9 +4,10 @@ A read-only command-line interface for Google services. Search, read, and view G
 
 ## Features
 
-- **Read-only access** - Uses `gmail.readonly`, `calendar.readonly`, and `drive.readonly` OAuth scopes
+- **Read-only access** - Uses `gmail.readonly`, `calendar.readonly`, and `contacts.readonly` OAuth scopes
 - **Gmail support** - Search messages, read content, view threads, list labels, download attachments
 - **Calendar support** - List calendars, view events, today/week shortcuts
+- **Contacts support** - List contacts, search, view details, list groups
 - **JSON output** - Machine-readable output for scripting
 - **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
 
@@ -98,7 +99,8 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
 3. Enable the required APIs:
    - Go to **APIs & Services** > **Library**
    - Search for and enable: **Gmail API**
-   - (Optional for future features) Enable: **Google Calendar API**, **Google Drive API**
+   - Enable: **Google Calendar API**
+   - Enable: **People API** (for Contacts)
 
 ### 2. Create OAuth Credentials
 
@@ -109,8 +111,8 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
    - Fill in required fields (app name, support email)
    - Add scopes:
      - `https://www.googleapis.com/auth/gmail.readonly`
-     - `https://www.googleapis.com/auth/calendar.readonly` (optional)
-     - `https://www.googleapis.com/auth/drive.readonly` (optional)
+     - `https://www.googleapis.com/auth/calendar.readonly`
+     - `https://www.googleapis.com/auth/contacts.readonly`
    - Add your email as a test user
 4. For Application type, select **Desktop app**
 5. Click **Create**
@@ -405,6 +407,84 @@ Flags:
   -j, --json              Output as JSON
 ```
 
+### Contacts Commands
+
+All Contacts commands are under `gro contacts` (or `gro ppl`):
+
+```bash
+# List all contacts
+gro contacts list
+gro ppl list --max 20
+gro contacts list --json
+
+# Search contacts
+gro contacts search "John"
+gro ppl search "example.com" --max 20
+
+# Get contact details
+gro contacts get people/c123456789
+gro ppl get people/c123456789 --json
+
+# List contact groups
+gro contacts groups
+gro ppl groups --json
+```
+
+### gro contacts list
+
+List all contacts sorted by last name.
+
+```
+Usage: gro contacts list [flags]
+
+Aliases: gro ppl list
+
+Flags:
+  -m, --max int    Maximum number of contacts (default 10)
+  -j, --json       Output as JSON
+```
+
+### gro contacts search
+
+Search contacts by name, email, phone, or organization.
+
+```
+Usage: gro contacts search <query> [flags]
+
+Aliases: gro ppl search
+
+Flags:
+  -m, --max int    Maximum number of results (default 10)
+  -j, --json       Output as JSON
+```
+
+### gro contacts get
+
+Get the full details of a specific contact.
+
+```
+Usage: gro contacts get <resource-name> [flags]
+
+Aliases: gro ppl get
+
+Flags:
+  -j, --json       Output as JSON
+```
+
+### gro contacts groups
+
+List all contact groups (labels).
+
+```
+Usage: gro contacts groups [flags]
+
+Aliases: gro ppl groups
+
+Flags:
+  -m, --max int    Maximum number of groups (default 30)
+  -j, --json       Output as JSON
+```
+
 ## Search Query Reference
 
 gro supports all Gmail search operators:
@@ -523,7 +603,6 @@ Your OAuth consent screen may not be properly configured. Ensure:
 
 ## Future Features
 
-- **Google Calendar** - Read events, list calendars
 - **Google Drive** - List files, download content
 
 ## License
