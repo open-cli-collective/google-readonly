@@ -26,7 +26,7 @@ func TestRootCommand(t *testing.T) {
 
 	t.Run("has subcommands", func(t *testing.T) {
 		subcommands := rootCmd.Commands()
-		assert.GreaterOrEqual(t, len(subcommands), 4)
+		assert.GreaterOrEqual(t, len(subcommands), 5)
 
 		var names []string
 		for _, sub := range subcommands {
@@ -36,5 +36,6 @@ func TestRootCommand(t *testing.T) {
 		assert.Contains(t, names, "config")
 		assert.Contains(t, names, "mail")
 		assert.Contains(t, names, "calendar")
+		assert.Contains(t, names, "contacts")
 	})
 }

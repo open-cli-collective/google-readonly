@@ -14,6 +14,9 @@ Comprehensive integration test suite for gro. Tests are designed to work against
 - Access to Google Calendar with:
   - At least one calendar
   - At least one upcoming event
+- Access to Google Contacts with:
+  - At least some contacts
+  - At least one contact group (optional)
 
 ### Verification
 ```bash
@@ -259,12 +262,60 @@ ATTACHMENT_MSG_ID=$(gro mail search "has:attachment" --max 1 --json | jq -r '.[0
 
 ---
 
+## Contacts Operations
+
+### List Contacts
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| List all contacts | `gro contacts list` | Shows contacts with ID, Name, Email, Phone |
+| List with max | `gro ppl list --max 5` | Returns up to 5 contacts |
+| List JSON | `gro contacts list --json` | Valid JSON array with contact objects |
+| JSON has required fields | `gro ppl list --json \| jq -e '.[0] \| has("resourceName", "displayName")'` | Returns true |
+
+### Search Contacts
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Search by name | `gro contacts search "John"` | Contacts matching "John" |
+| Search by email | `gro ppl search "@gmail.com" --max 5` | Contacts with Gmail addresses |
+| Search JSON | `gro contacts search "test" --json` | Valid JSON array with contacts |
+| No results | `gro ppl search "xyznonexistent12345uniquequery67890"` | "No contacts found matching..." |
+
+### Get Contact Details
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Get contact by ID | `CONTACT_ID=$(gro ppl list --max 1 --json \| jq -r '.[0].resourceName'); gro contacts get "$CONTACT_ID"` | Shows full contact details |
+| Get contact JSON | `CONTACT_ID=$(gro ppl list --max 1 --json \| jq -r '.[0].resourceName'); gro ppl get "$CONTACT_ID" --json` | Valid JSON with all contact fields |
+
+### List Contact Groups
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| List all groups | `gro contacts groups` | Shows groups with ID, Name, Member count |
+| Groups JSON | `gro ppl groups --json` | Valid JSON array with group objects |
+| JSON has required fields | `gro contacts groups --json \| jq -e '.[0] \| has("resourceName", "name", "memberCount")'` | Returns true |
+
+### Alias Support
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Ppl alias for list | `gro ppl list` | Same as `gro contacts list` |
+| Ppl alias for search | `gro ppl search "test"` | Same as `gro contacts search` |
+| Ppl alias for get | `gro ppl get <id>` | Same as `gro contacts get` |
+| Ppl alias for groups | `gro ppl groups` | Same as `gro contacts groups` |
+
+---
+
 ## Error Handling
 
 | Test Case | Command | Expected Result |
 |-----------|---------|-----------------|
 | Missing required arg (search) | `gro mail search` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (calendar get) | `gro calendar get` | Error: accepts 1 arg(s), received 0 |
+| Missing required arg (contacts search) | `gro contacts search` | Error: accepts 1 arg(s), received 0 |
+| Missing required arg (contacts get) | `gro contacts get` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (read) | `gro mail read` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (thread) | `gro mail thread` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (attachments list) | `gro mail attachments list` | Error: accepts 1 arg(s), received 0 |
@@ -373,6 +424,21 @@ gro mail thread "$THREAD_ID" --json | jq -r '.[].body'
 - [ ] `smaller:` filter
 - [ ] `filename:` with pdf, xlsx, zip
 - [ ] Combined `filename:` + `larger:` search
+
+### Calendar
+- [ ] `gro calendar list` shows calendars
+- [ ] `gro cal events` lists events
+- [ ] `gro cal today` shows today's events
+- [ ] `gro cal week` shows this week's events
+- [ ] `gro cal get <id>` gets event details
+- [ ] Calendar alias works (`gro cal` = `gro calendar`)
+
+### Contacts
+- [ ] `gro contacts list` shows contacts
+- [ ] `gro ppl search "query"` searches contacts
+- [ ] `gro contacts get <id>` gets contact details
+- [ ] `gro ppl groups` lists contact groups
+- [ ] Contacts alias works (`gro ppl` = `gro contacts`)
 
 ### Output Formats
 - [ ] Text output for all commands
