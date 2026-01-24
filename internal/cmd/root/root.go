@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-cli-collective/google-readonly/internal/cmd/calendar"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/config"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/initcmd"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/mail"
@@ -43,4 +44,5 @@ func init() {
 	rootCmd.AddCommand(initcmd.NewCommand())
 	rootCmd.AddCommand(config.NewCommand())
 	rootCmd.AddCommand(mail.NewCommand())
+	rootCmd.AddCommand(calendar.NewCommand())
 }

@@ -6,6 +6,7 @@ A read-only command-line interface for Google services. Search, read, and view G
 
 - **Read-only access** - Uses `gmail.readonly`, `calendar.readonly`, and `drive.readonly` OAuth scopes
 - **Gmail support** - Search messages, read content, view threads, list labels, download attachments
+- **Calendar support** - List calendars, view events, today/week shortcuts
 - **JSON output** - Machine-readable output for scripting
 - **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
 
@@ -198,6 +199,33 @@ gro mail attachments download <message-id> --all --output ~/Downloads
 gro mail attachments download <message-id> --filename archive.zip --extract
 ```
 
+### Calendar Commands
+
+All Calendar commands are under `gro calendar` (or `gro cal`):
+
+```bash
+# List all calendars
+gro calendar list
+gro cal list --json
+
+# List upcoming events
+gro calendar events
+gro cal events --max 20
+gro cal events --from 2026-01-01 --to 2026-01-31
+
+# Get event details
+gro calendar get <event-id>
+gro cal get <event-id> --json
+
+# Today's events
+gro calendar today
+gro cal today --json
+
+# This week's events
+gro calendar week
+gro cal week --json
+```
+
 ## Command Reference
 
 ### gro init
@@ -303,6 +331,78 @@ Flags:
   -o, --output string     Output directory (default ".")
   -a, --all               Download all attachments
   -e, --extract           Extract zip files after download
+```
+
+### gro calendar list
+
+List all calendars the user has access to.
+
+```
+Usage: gro calendar list [flags]
+
+Aliases: gro cal list
+
+Flags:
+  -j, --json       Output as JSON
+```
+
+### gro calendar events
+
+List events from a calendar.
+
+```
+Usage: gro calendar events [calendar-id] [flags]
+
+Aliases: gro cal events
+
+Flags:
+  -c, --calendar string   Calendar ID to query (default "primary")
+  -m, --max int           Maximum number of events (default 10)
+      --from string       Start date (YYYY-MM-DD)
+      --to string         End date (YYYY-MM-DD)
+  -j, --json              Output as JSON
+```
+
+### gro calendar get
+
+Get the full details of a calendar event.
+
+```
+Usage: gro calendar get <event-id> [flags]
+
+Aliases: gro cal get
+
+Flags:
+  -c, --calendar string   Calendar ID containing the event (default "primary")
+  -j, --json              Output as JSON
+```
+
+### gro calendar today
+
+Show all events for today.
+
+```
+Usage: gro calendar today [flags]
+
+Aliases: gro cal today
+
+Flags:
+  -c, --calendar string   Calendar ID to query (default "primary")
+  -j, --json              Output as JSON
+```
+
+### gro calendar week
+
+Show all events for the current week (Monday to Sunday).
+
+```
+Usage: gro calendar week [flags]
+
+Aliases: gro cal week
+
+Flags:
+  -c, --calendar string   Calendar ID to query (default "primary")
+  -j, --json              Output as JSON
 ```
 
 ## Search Query Reference
