@@ -1,9 +1,12 @@
 package initcmd
 
 import (
+	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/api/googleapi"
 )
 
 func TestInitCommand(t *testing.T) {
@@ -108,6 +111,72 @@ func TestExtractAuthCode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractAuthCode(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsAuthError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("something went wrong"),
+			expected: false,
+		},
+		{
+			name:     "network error",
+			err:      errors.New("connection refused"),
+			expected: false,
+		},
+		{
+			name:     "googleapi 401 error",
+			err:      &googleapi.Error{Code: http.StatusUnauthorized, Message: "Invalid Credentials"},
+			expected: true,
+		},
+		{
+			name:     "googleapi 403 error",
+			err:      &googleapi.Error{Code: http.StatusForbidden, Message: "Access denied"},
+			expected: false,
+		},
+		{
+			name:     "googleapi 404 error",
+			err:      &googleapi.Error{Code: http.StatusNotFound, Message: "Not found"},
+			expected: false,
+		},
+		{
+			name:     "error message with 401 and Invalid Credentials",
+			err:      errors.New("googleapi: Error 401: Invalid Credentials"),
+			expected: true,
+		},
+		{
+			name:     "error message with 401 and invalid_grant",
+			err:      errors.New("oauth2: 401 invalid_grant: Token has been expired"),
+			expected: true,
+		},
+		{
+			name:     "error message with Token has been expired or revoked",
+			err:      errors.New("401: Token has been expired or revoked"),
+			expected: true,
+		},
+		{
+			name:     "error with 401 but no auth keywords",
+			err:      errors.New("HTTP 401 response"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isAuthError(tt.err)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
