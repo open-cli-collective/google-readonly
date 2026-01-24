@@ -43,11 +43,10 @@ func runToday(cmd *cobra.Command, args []string) error {
 	}
 
 	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	endOfDay := startOfDay.Add(24*time.Hour - time.Second)
+	startOfDay, endOfDayTime := todayBounds(now)
 
 	timeMin := startOfDay.Format(time.RFC3339)
-	timeMax := endOfDay.Format(time.RFC3339)
+	timeMax := endOfDayTime.Format(time.RFC3339)
 
 	events, err := client.ListEvents(todayCalendarID, timeMin, timeMax, 50)
 	if err != nil {

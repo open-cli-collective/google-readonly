@@ -43,18 +43,7 @@ func runWeek(cmd *cobra.Command, args []string) error {
 	}
 
 	now := time.Now()
-
-	// Find Monday of this week
-	weekday := int(now.Weekday())
-	if weekday == 0 {
-		weekday = 7 // Sunday becomes 7
-	}
-	monday := now.AddDate(0, 0, -weekday+1)
-	startOfWeek := time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, now.Location())
-
-	// Find Sunday of this week
-	sunday := startOfWeek.AddDate(0, 0, 6)
-	endOfWeek := time.Date(sunday.Year(), sunday.Month(), sunday.Day(), 23, 59, 59, 0, now.Location())
+	startOfWeek, endOfWeek := weekBounds(now)
 
 	timeMin := startOfWeek.Format(time.RFC3339)
 	timeMax := endOfWeek.Format(time.RFC3339)

@@ -61,9 +61,9 @@ func runEvents(cmd *cobra.Command, args []string) error {
 	var timeMin, timeMax string
 
 	if eventsFrom != "" {
-		t, err := time.Parse("2006-01-02", eventsFrom)
+		t, err := parseDate(eventsFrom)
 		if err != nil {
-			return fmt.Errorf("invalid --from date format (use YYYY-MM-DD): %w", err)
+			return fmt.Errorf("invalid --from date: %w", err)
 		}
 		timeMin = t.Format(time.RFC3339)
 	} else {
@@ -72,13 +72,12 @@ func runEvents(cmd *cobra.Command, args []string) error {
 	}
 
 	if eventsTo != "" {
-		t, err := time.Parse("2006-01-02", eventsTo)
+		t, err := parseDate(eventsTo)
 		if err != nil {
-			return fmt.Errorf("invalid --to date format (use YYYY-MM-DD): %w", err)
+			return fmt.Errorf("invalid --to date: %w", err)
 		}
 		// Set to end of day
-		t = t.Add(24*time.Hour - time.Second)
-		timeMax = t.Format(time.RFC3339)
+		timeMax = endOfDay(t).Format(time.RFC3339)
 	}
 
 	events, err := client.ListEvents(calendarID, timeMin, timeMax, eventsMaxResults)
