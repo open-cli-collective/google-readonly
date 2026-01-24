@@ -200,6 +200,41 @@ gro mail attachments download <message-id> --filename archive.zip --extract
 
 ## Command Reference
 
+### gro init
+
+Guided setup for Google API OAuth authentication.
+
+```
+Usage: gro init [flags]
+
+Flags:
+      --no-verify   Skip connectivity verification after setup
+```
+
+### gro config show
+
+Display current configuration status including credentials and token.
+
+```
+Usage: gro config show
+```
+
+### gro config test
+
+Test Gmail API connectivity with current credentials.
+
+```
+Usage: gro config test
+```
+
+### gro config clear
+
+Remove stored OAuth token (forces re-authentication).
+
+```
+Usage: gro config clear
+```
+
 ### gro mail search
 
 Search for Gmail messages using Gmail's search syntax.
