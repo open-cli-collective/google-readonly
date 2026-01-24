@@ -64,6 +64,23 @@ gro mail search "is:inbox" --max 1  # Quick connectivity check
 | Combined query | `gro mail search "is:inbox has:attachment" --max 3` | Inbox messages with attachments |
 | Label filter | `gro mail search "label:inbox" --max 3` | Messages in inbox |
 
+### Attachment Size and Type Search
+
+Use graduated size thresholds to find attachments in inboxes of varying sizes.
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Larger than 10M | `gro mail search "has:attachment larger:10M" --max 3` | Large attachments (if any) |
+| Larger than 5M | `gro mail search "has:attachment larger:5M" --max 3` | Medium-large attachments (if any) |
+| Larger than 1M | `gro mail search "has:attachment larger:1M" --max 3` | Medium attachments (if any) |
+| Larger than 500K | `gro mail search "has:attachment larger:500K" --max 3` | Small-medium attachments (if any) |
+| Larger than 100K | `gro mail search "has:attachment larger:100K" --max 3` | Small attachments (if any) |
+| Smaller than 1M | `gro mail search "has:attachment smaller:1M" --max 3` | Small attachments |
+| PDF attachments | `gro mail search "filename:pdf" --max 3` | Messages with PDF files |
+| Excel attachments | `gro mail search "filename:xlsx" --max 3` | Messages with Excel files |
+| Zip attachments | `gro mail search "filename:zip" --max 3` | Messages with ZIP files |
+| Combined size and type | `gro mail search "has:attachment filename:pdf larger:100K" --max 3` | PDFs over 100KB |
+
 ### JSON Validation
 
 | Test Case | Command | Expected Result |
@@ -300,6 +317,12 @@ gro mail thread "$THREAD_ID" --json | jq -r '.[].body'
 - [ ] `gro mail attachments download --all`
 - [ ] `gro mail attachments download --filename`
 - [ ] Zip extraction with `--extract`
+
+### Attachment Size and Type Search
+- [ ] `larger:` with graduated sizes (10M, 5M, 1M, 500K, 100K)
+- [ ] `smaller:` filter
+- [ ] `filename:` with pdf, xlsx, zip
+- [ ] Combined `filename:` + `larger:` search
 
 ### Output Formats
 - [ ] Text output for all commands
