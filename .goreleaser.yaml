@@ -1,0 +1,80 @@
+version: 2
+
+project_name: google-readonly
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: gro
+    main: ./cmd/gro
+    binary: gro
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/open-cli-collective/google-readonly/internal/version.Version={{.Version}}
+      - -X github.com/open-cli-collective/google-readonly/internal/version.Commit={{.Commit}}
+      - -X github.com/open-cli-collective/google-readonly/internal/version.Date={{.Date}}
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    # Use binary name with v prefix for archive filenames
+    name_template: "gro_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+# Linux packages (.deb and .rpm)
+nfpms:
+  - id: gro
+    package_name: gro
+    vendor: Open CLI Collective
+    homepage: https://github.com/open-cli-collective/google-readonly
+    maintainer: Open CLI Collective <https://github.com/open-cli-collective>
+    description: Read-only command-line interface for Google services
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    contents:
+      - src: LICENSE
+        dst: /usr/share/licenses/gro/LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "Merge pull request"
+  groups:
+    - title: Features
+      regexp: '^feat:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix:'
+      order: 1
+    - title: Other
+      order: 999

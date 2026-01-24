@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>google-readonly</id>
+    <version>0.0.0</version>
+    <title>Google Readonly CLI</title>
+    <authors>Open CLI Collective</authors>
+    <owners>rianjs</owners>
+    <licenseUrl>https://github.com/open-cli-collective/google-readonly/blob/main/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/open-cli-collective/google-readonly#readme</projectUrl>
+    <projectSourceUrl>https://github.com/open-cli-collective/google-readonly</projectSourceUrl>
+    <packageSourceUrl>https://github.com/open-cli-collective/google-readonly/tree/main/packaging/chocolatey</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/open-cli-collective/google-readonly/issues</bugTrackerUrl>
+    <copyright>Copyright (c) 2025 Open CLI Collective</copyright>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A read-only command-line interface for Google services. Provides secure, read-only access to Gmail, Google Calendar, and Google Drive.
+
+Features:
+- Search and read Gmail messages
+- List and read calendar events
+- Browse and download Google Drive files
+- Secure OAuth2 authentication
+- Secure credential storage (Windows Credential Manager)
+
+Binary: gro.exe</description>
+    <summary>Read-only command-line interface for Google services</summary>
+    <releaseNotes>https://github.com/open-cli-collective/google-readonly/releases</releaseNotes>
+    <tags>google gmail calendar drive cli api readonly automation</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
