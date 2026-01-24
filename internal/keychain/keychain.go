@@ -1,0 +1,191 @@
+// Package keychain provides secure storage for OAuth tokens using platform-native
+// secure storage mechanisms (macOS Keychain, Linux secret-tool) with file fallback.
+package keychain
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"golang.org/x/oauth2"
+)
+
+const (
+	serviceName = "google-readonly"
+	tokenKey    = "oauth_token"
+	tokenFile   = "token.json"
+)
+
+// StorageBackend represents where tokens are stored
+type StorageBackend string
+
+const (
+	BackendKeychain   StorageBackend = "Keychain"    // macOS Keychain
+	BackendSecretTool StorageBackend = "secret-tool" // Linux libsecret
+	BackendFile       StorageBackend = "config file" // File fallback
+)
+
+var (
+	// ErrTokenNotFound indicates no token exists in storage
+	ErrTokenNotFound = errors.New("no token found in secure storage")
+)
+
+// configDir returns the configuration directory path
+func configDir() (string, error) {
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, serviceName), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	return filepath.Join(home, ".config", serviceName), nil
+}
+
+// tokenFilePath returns the full path to the token file
+func tokenFilePath() (string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, tokenFile), nil
+}
+
+// GetToken retrieves the OAuth token from secure storage
+func GetToken() (*oauth2.Token, error) {
+	return getToken()
+}
+
+// SetToken stores the OAuth token in secure storage
+func SetToken(token *oauth2.Token) error {
+	return setToken(token)
+}
+
+// DeleteToken removes the OAuth token from secure storage
+func DeleteToken() error {
+	return deleteToken()
+}
+
+// HasStoredToken returns true if a token exists in secure storage
+func HasStoredToken() bool {
+	_, err := GetToken()
+	return err == nil
+}
+
+// GetStorageBackend returns the current storage backend being used
+func GetStorageBackend() StorageBackend {
+	return getStorageBackend()
+}
+
+// IsSecureStorage returns true if using secure storage (keychain/secret-tool)
+func IsSecureStorage() bool {
+	backend := GetStorageBackend()
+	return backend == BackendKeychain || backend == BackendSecretTool
+}
+
+// MigrateFromFile migrates token.json to secure storage if it exists
+func MigrateFromFile(tokenFilePath string) error {
+	// Check if token file exists
+	if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
+		return nil // Nothing to migrate
+	}
+
+	// Check if already migrated (token in secure storage)
+	if IsSecureStorage() && HasStoredToken() {
+		return nil // Already migrated
+	}
+
+	// Read token from file
+	f, err := os.Open(tokenFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open token file: %w", err)
+	}
+	defer f.Close()
+
+	var token oauth2.Token
+	if err := json.NewDecoder(f).Decode(&token); err != nil {
+		return fmt.Errorf("failed to parse token file: %w", err)
+	}
+
+	// Store in secure storage
+	if err := SetToken(&token); err != nil {
+		return fmt.Errorf("failed to store token in secure storage: %w", err)
+	}
+
+	// Rename old file to backup
+	backupPath := tokenFilePath + ".backup"
+	if err := os.Rename(tokenFilePath, backupPath); err != nil {
+		// Non-fatal - token is now in secure storage
+		fmt.Fprintf(os.Stderr, "Warning: could not backup old token file: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "Migrated token to secure storage. Backup: %s\n", backupPath)
+	}
+
+	return nil
+}
+
+// File-based storage implementation (fallback)
+
+func getFromConfigFile() (*oauth2.Token, error) {
+	path, err := tokenFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrTokenNotFound
+		}
+		return nil, fmt.Errorf("failed to open token file: %w", err)
+	}
+	defer f.Close()
+
+	var token oauth2.Token
+	if err := json.NewDecoder(f).Decode(&token); err != nil {
+		return nil, fmt.Errorf("failed to parse token file: %w", err)
+	}
+
+	return &token, nil
+}
+
+func setInConfigFile(token *oauth2.Token) error {
+	path, err := tokenFilePath()
+	if err != nil {
+		return err
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// Write token with restricted permissions
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to create token file: %w", err)
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(token); err != nil {
+		return fmt.Errorf("failed to write token: %w", err)
+	}
+
+	return nil
+}
+
+func deleteFromConfigFile() error {
+	path, err := tokenFilePath()
+	if err != nil {
+		return err
+	}
+
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete token file: %w", err)
+	}
+
+	return nil
+}
