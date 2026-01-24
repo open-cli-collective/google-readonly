@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 
@@ -43,8 +44,11 @@ func NewClient(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", credPath, err, credPath)
 	}
 
-	// Only request read-only scope
-	config, err := google.ConfigFromJSON(b, gmail.GmailReadonlyScope)
+	// Request read-only scopes for all supported services
+	config, err := google.ConfigFromJSON(b,
+		gmail.GmailReadonlyScope,
+		calendar.CalendarReadonlyScope,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse credentials: %w", err)
 	}
@@ -217,7 +221,10 @@ func GetOAuthConfig() (*oauth2.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read credentials file: %w", err)
 	}
-	return google.ConfigFromJSON(b, gmail.GmailReadonlyScope)
+	return google.ConfigFromJSON(b,
+		gmail.GmailReadonlyScope,
+		calendar.CalendarReadonlyScope,
+	)
 }
 
 // ExchangeAuthCode exchanges an authorization code for a token

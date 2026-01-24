@@ -11,10 +11,11 @@ gro is a **read-only** command-line interface for Google services written in Go.
 
 ### Current Features
 - Gmail: Search, read, thread viewing, labels, attachments
+- Google Calendar: List calendars, view events, today/week shortcuts
 
 ### Planned Features
-- Google Calendar: List calendars, view events
 - Google Drive: List files, download content
+- Google Contacts: List contacts, search, view groups
 
 ## Quick Commands
 
@@ -61,15 +62,25 @@ google-readonly/
 │   │   ├── config/                  # gro config {show,test,clear}
 │   │   │   ├── config.go
 │   │   │   └── config_test.go
-│   │   └── mail/                    # gro mail {search,read,thread,labels,attachments}
-│   │       ├── mail.go              # Parent command
-│   │       ├── search.go
-│   │       ├── read.go
-│   │       ├── thread.go
-│   │       ├── labels.go
-│   │       ├── attachments.go
-│   │       ├── attachments_list.go
-│   │       ├── attachments_download.go
+│   │   ├── mail/                    # gro mail {search,read,thread,labels,attachments}
+│   │   │   ├── mail.go              # Parent command
+│   │   │   ├── search.go
+│   │   │   ├── read.go
+│   │   │   ├── thread.go
+│   │   │   ├── labels.go
+│   │   │   ├── attachments.go
+│   │   │   ├── attachments_list.go
+│   │   │   ├── attachments_download.go
+│   │   │   ├── output.go            # Shared output helpers
+│   │   │   └── *_test.go
+│   │   │
+│   │   └── calendar/                # gro calendar {list,events,get,today,week}
+│   │       ├── calendar.go          # Parent command with 'cal' alias
+│   │       ├── list.go
+│   │       ├── events.go
+│   │       ├── get.go
+│   │       ├── today.go
+│   │       ├── week.go
 │   │       ├── output.go            # Shared output helpers
 │   │       └── *_test.go
 │   │
@@ -77,6 +88,11 @@ google-readonly/
 │   │   ├── client.go
 │   │   ├── messages.go
 │   │   ├── attachments.go
+│   │   └── *_test.go
+│   │
+│   ├── calendar/                    # Google Calendar API client
+│   │   ├── client.go
+│   │   ├── events.go
 │   │   └── *_test.go
 │   │
 │   ├── keychain/                    # Secure credential storage

@@ -11,6 +11,9 @@ Comprehensive integration test suite for gro. Tests are designed to work against
   - At least some messages in the inbox
   - At least one email with attachments (for attachment tests)
   - At least one email thread with multiple messages
+- Access to Google Calendar with:
+  - At least one calendar
+  - At least one upcoming event
 
 ### Verification
 ```bash
@@ -210,11 +213,58 @@ ATTACHMENT_MSG_ID=$(gro mail search "has:attachment" --max 1 --json | jq -r '.[0
 
 ---
 
+## Calendar Operations
+
+### List Calendars
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| List all calendars | `gro calendar list` | Shows calendars with ID, Name, Access role |
+| List JSON | `gro cal list --json` | Valid JSON array with calendar objects |
+| JSON has required fields | `gro cal list --json \| jq -e '.[0] \| has("id", "summary", "accessRole")'` | Returns true |
+
+### List Events
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| List upcoming events | `gro calendar events` | Shows events with ID, Summary, When |
+| List with max | `gro cal events --max 5` | Returns up to 5 events |
+| List with date range | `gro cal events --from 2026-01-01 --to 2026-12-31` | Events in date range |
+| List JSON | `gro cal events --json` | Valid JSON array with event objects |
+| JSON has required fields | `gro cal events --json \| jq -e '.[0] \| has("id", "summary", "start")'` | Returns true |
+
+### Get Event
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Get event by ID | `EVENT_ID=$(gro cal events --max 1 --json \| jq -r '.[0].id'); gro cal get "$EVENT_ID"` | Shows full event details |
+| Get event JSON | `EVENT_ID=$(gro cal events --max 1 --json \| jq -r '.[0].id'); gro cal get "$EVENT_ID" --json` | Valid JSON with event details |
+
+### Today and Week
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Today's events | `gro calendar today` | Shows today's events (if any) |
+| Today JSON | `gro cal today --json` | Valid JSON array |
+| This week's events | `gro calendar week` | Shows this week's events |
+| Week JSON | `gro cal week --json` | Valid JSON array |
+
+### Alias Support
+
+| Test Case | Command | Expected Result |
+|-----------|---------|-----------------|
+| Cal alias for list | `gro cal list` | Same as `gro calendar list` |
+| Cal alias for events | `gro cal events` | Same as `gro calendar events` |
+| Cal alias for today | `gro cal today` | Same as `gro calendar today` |
+
+---
+
 ## Error Handling
 
 | Test Case | Command | Expected Result |
 |-----------|---------|-----------------|
 | Missing required arg (search) | `gro mail search` | Error: accepts 1 arg(s), received 0 |
+| Missing required arg (calendar get) | `gro calendar get` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (read) | `gro mail read` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (thread) | `gro mail thread` | Error: accepts 1 arg(s), received 0 |
 | Missing required arg (attachments list) | `gro mail attachments list` | Error: accepts 1 arg(s), received 0 |
