@@ -316,6 +316,7 @@ gro supports all Gmail search operators:
 | `subject:` | `subject:meeting` | Subject contains word |
 | `is:` | `is:unread`, `is:starred` | Message state |
 | `has:` | `has:attachment` | Has attachment |
+| `filename:` | `filename:pdf`, `filename:xlsx` | Attachment file type |
 | `after:` | `after:2024/01/01` | After date |
 | `before:` | `before:2024/02/01` | Before date |
 | `label:` | `label:work` | Has label |
