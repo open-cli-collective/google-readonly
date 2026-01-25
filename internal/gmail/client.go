@@ -3,6 +3,7 @@ package gmail
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
@@ -17,6 +18,7 @@ type Client struct {
 	UserID       string
 	labels       map[string]*gmail.Label
 	labelsLoaded bool
+	labelsMu     sync.RWMutex
 }
 
 // NewClient creates a new Gmail client with OAuth2 authentication
@@ -39,6 +41,19 @@ func NewClient(ctx context.Context) (*Client, error) {
 
 // FetchLabels retrieves and caches all labels from the Gmail account
 func (c *Client) FetchLabels() error {
+	// Check with read lock first to avoid unnecessary API calls
+	c.labelsMu.RLock()
+	if c.labelsLoaded {
+		c.labelsMu.RUnlock()
+		return nil
+	}
+	c.labelsMu.RUnlock()
+
+	// Acquire write lock and check again (double-check locking)
+	c.labelsMu.Lock()
+	defer c.labelsMu.Unlock()
+
+	// Re-check after acquiring write lock
 	if c.labelsLoaded {
 		return nil
 	}
@@ -59,6 +74,9 @@ func (c *Client) FetchLabels() error {
 
 // GetLabelName resolves a label ID to its display name
 func (c *Client) GetLabelName(labelID string) string {
+	c.labelsMu.RLock()
+	defer c.labelsMu.RUnlock()
+
 	if label, ok := c.labels[labelID]; ok {
 		return label.Name
 	}
@@ -67,6 +85,9 @@ func (c *Client) GetLabelName(labelID string) string {
 
 // GetLabels returns all cached labels
 func (c *Client) GetLabels() []*gmail.Label {
+	c.labelsMu.RLock()
+	defer c.labelsMu.RUnlock()
+
 	if !c.labelsLoaded {
 		return nil
 	}
