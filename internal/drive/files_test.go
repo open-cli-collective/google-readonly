@@ -179,3 +179,123 @@ func TestIsGoogleWorkspaceFile(t *testing.T) {
 		}
 	})
 }
+
+func TestGetExportMimeType(t *testing.T) {
+	t.Run("returns correct MIME type for Document exports", func(t *testing.T) {
+		tests := []struct {
+			format   string
+			expected string
+		}{
+			{"pdf", "application/pdf"},
+			{"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+			{"txt", "text/plain"},
+			{"html", "text/html"},
+			{"md", "text/markdown"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.format, func(t *testing.T) {
+				result, err := GetExportMimeType(MimeTypeDocument, tt.format)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			})
+		}
+	})
+
+	t.Run("returns correct MIME type for Spreadsheet exports", func(t *testing.T) {
+		tests := []struct {
+			format   string
+			expected string
+		}{
+			{"pdf", "application/pdf"},
+			{"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+			{"csv", "text/csv"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.format, func(t *testing.T) {
+				result, err := GetExportMimeType(MimeTypeSpreadsheet, tt.format)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			})
+		}
+	})
+
+	t.Run("returns correct MIME type for Presentation exports", func(t *testing.T) {
+		result, err := GetExportMimeType(MimeTypePresentation, "pptx")
+		assert.NoError(t, err)
+		assert.Equal(t, "application/vnd.openxmlformats-officedocument.presentationml.presentation", result)
+	})
+
+	t.Run("returns correct MIME type for Drawing exports", func(t *testing.T) {
+		result, err := GetExportMimeType(MimeTypeDrawing, "png")
+		assert.NoError(t, err)
+		assert.Equal(t, "image/png", result)
+	})
+
+	t.Run("returns error for unsupported format", func(t *testing.T) {
+		_, err := GetExportMimeType(MimeTypeDocument, "xyz")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported")
+	})
+
+	t.Run("returns error for non-exportable file type", func(t *testing.T) {
+		_, err := GetExportMimeType("application/pdf", "docx")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "does not support export")
+	})
+
+	t.Run("returns error for format not matching file type", func(t *testing.T) {
+		// csv is valid for spreadsheets but not documents
+		_, err := GetExportMimeType(MimeTypeDocument, "csv")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported for Google Document")
+	})
+}
+
+func TestGetSupportedExportFormats(t *testing.T) {
+	t.Run("returns formats for Document", func(t *testing.T) {
+		formats := GetSupportedExportFormats(MimeTypeDocument)
+		assert.Contains(t, formats, "pdf")
+		assert.Contains(t, formats, "docx")
+		assert.Contains(t, formats, "txt")
+	})
+
+	t.Run("returns formats for Spreadsheet", func(t *testing.T) {
+		formats := GetSupportedExportFormats(MimeTypeSpreadsheet)
+		assert.Contains(t, formats, "xlsx")
+		assert.Contains(t, formats, "csv")
+	})
+
+	t.Run("returns nil for non-exportable file", func(t *testing.T) {
+		formats := GetSupportedExportFormats("application/pdf")
+		assert.Nil(t, formats)
+	})
+}
+
+func TestGetFileExtension(t *testing.T) {
+	tests := []struct {
+		format   string
+		expected string
+	}{
+		{"pdf", ".pdf"},
+		{"docx", ".docx"},
+		{"xlsx", ".xlsx"},
+		{"pptx", ".pptx"},
+		{"txt", ".txt"},
+		{"html", ".html"},
+		{"md", ".md"},
+		{"csv", ".csv"},
+		{"png", ".png"},
+		{"svg", ".svg"},
+		{"jpg", ".jpg"},
+		{"unknown", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format, func(t *testing.T) {
+			result := GetFileExtension(tt.format)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

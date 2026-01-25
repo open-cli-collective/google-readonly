@@ -29,6 +29,7 @@ Examples:
 	cmd.AddCommand(newListCommand())
 	cmd.AddCommand(newSearchCommand())
 	cmd.AddCommand(newGetCommand())
+	cmd.AddCommand(newDownloadCommand())
 
 	return cmd
 }
