@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
-	"github.com/open-cli-collective/google-readonly/internal/calendar"
 )
 
 func newWeekCommand() *cobra.Command {
@@ -36,37 +34,17 @@ Examples:
 			now := time.Now()
 			startOfWeek, endOfWeek := weekBounds(now)
 
-			timeMin := startOfWeek.Format(time.RFC3339)
-			timeMax := endOfWeek.Format(time.RFC3339)
-
-			events, err := client.ListEvents(calendarID, timeMin, timeMax, 100)
-			if err != nil {
-				return fmt.Errorf("failed to list week's events: %w", err)
-			}
-
-			if len(events) == 0 {
-				fmt.Println("No events this week.")
-				return nil
-			}
-
-			// Convert to our format
-			parsedEvents := make([]*calendar.Event, len(events))
-			for i, e := range events {
-				parsedEvents[i] = calendar.ParseEvent(e)
-			}
-
-			if jsonOutput {
-				return printJSON(parsedEvents)
-			}
-
-			fmt.Printf("This week's events (%s - %s):\n\n",
-				startOfWeek.Format("Mon, Jan 2"),
-				endOfWeek.Format("Mon, Jan 2, 2006"))
-			for _, event := range parsedEvents {
-				printEventSummary(event)
-			}
-
-			return nil
+			return listAndPrintEvents(client, EventListOptions{
+				CalendarID: calendarID,
+				TimeMin:    startOfWeek.Format(time.RFC3339),
+				TimeMax:    endOfWeek.Format(time.RFC3339),
+				MaxResults: 100,
+				JSONOutput: jsonOutput,
+				Header: fmt.Sprintf("This week's events (%s - %s):",
+					startOfWeek.Format("Mon, Jan 2"),
+					endOfWeek.Format("Mon, Jan 2, 2006")),
+				EmptyMessage: "No events this week.",
+			})
 		},
 	}
 

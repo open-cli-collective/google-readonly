@@ -7,8 +7,8 @@ import (
 )
 
 func TestClientStructure(t *testing.T) {
-	t.Run("Client has Service field", func(t *testing.T) {
+	t.Run("Client has private service field", func(t *testing.T) {
 		client := &Client{}
-		assert.Nil(t, client.Service)
+		assert.Nil(t, client.service)
 	})
 }

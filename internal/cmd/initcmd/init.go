@@ -191,7 +191,7 @@ func verifyConnectivity() error {
 	fmt.Println("  OAuth token: OK")
 
 	// Get profile to verify connectivity and get email address
-	profile, err := client.Service.Users.GetProfile("me").Do()
+	profile, err := client.GetProfile()
 	if err != nil {
 		fmt.Println("  Gmail API:   FAILED")
 		return fmt.Errorf("failed to access Gmail API: %w", err)
