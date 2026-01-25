@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 
+	internalgmail "github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
 
@@ -36,7 +37,8 @@ func NewClient(ctx context.Context) (*Client, error) {
 	credPath := filepath.Join(configDir, credentialsFile)
 	b, err := os.ReadFile(credPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", credPath, err, credPath)
+		shortPath := internalgmail.ShortenPath(credPath)
+		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", shortPath, err, shortPath)
 	}
 
 	// Request read-only scopes for all supported services
