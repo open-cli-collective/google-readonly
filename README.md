@@ -715,9 +715,29 @@ gro init
 ### "Access blocked: This app's request is invalid"
 
 Your OAuth consent screen may not be properly configured. Ensure:
-1. The Gmail API is enabled
+1. All required APIs are enabled (Gmail, Calendar, People, Drive)
 2. Your email is added as a test user (for apps in testing mode)
 3. The required scopes are added
+
+### "API has not been used in project" or "SERVICE_DISABLED"
+
+The specific Google API hasn't been enabled in your Cloud project:
+1. Check the error message for the activation URL
+2. Visit the URL and click **Enable**
+3. Wait a few minutes for propagation
+4. Clear your token and re-authenticate:
+   ```bash
+   gro config clear
+   gro init
+   ```
+
+### "Request had invalid authentication credentials"
+
+Your token may be missing scopes for a newly added service. Clear and re-authenticate:
+```bash
+gro config clear
+gro init
+```
 
 ## License
 
