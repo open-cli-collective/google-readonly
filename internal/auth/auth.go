@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/people/v1"
 
@@ -21,6 +22,7 @@ var AllScopes = []string{
 	gmail.GmailReadonlyScope,
 	calendar.CalendarReadonlyScope,
 	people.ContactsReadonlyScope,
+	drive.DriveReadonlyScope,
 }
 
 // GetOAuthConfig loads OAuth configuration from credentials file with all scopes

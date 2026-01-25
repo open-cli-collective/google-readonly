@@ -72,10 +72,11 @@ func TestDeprecatedWrappers(t *testing.T) {
 }
 
 func TestAllScopes(t *testing.T) {
-	assert.Len(t, AllScopes, 3)
+	assert.Len(t, AllScopes, 4)
 	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/gmail.readonly")
 	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/calendar.readonly")
 	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/contacts.readonly")
+	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/drive.readonly")
 }
 
 func TestTokenFromFile(t *testing.T) {
