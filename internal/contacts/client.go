@@ -12,7 +12,7 @@ import (
 
 // Client wraps the Google People API service for contacts
 type Client struct {
-	Service *people.Service
+	service *people.Service
 }
 
 // NewClient creates a new Contacts client with OAuth2 authentication
@@ -28,13 +28,13 @@ func NewClient(ctx context.Context) (*Client, error) {
 	}
 
 	return &Client{
-		Service: srv,
+		service: srv,
 	}, nil
 }
 
 // ListContacts retrieves contacts from the user's account
 func (c *Client) ListContacts(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error) {
-	call := c.Service.People.Connections.List("people/me").
+	call := c.service.People.Connections.List("people/me").
 		PersonFields("names,emailAddresses,phoneNumbers,organizations,addresses,biographies,photos").
 		PageSize(pageSize).
 		SortOrder("LAST_NAME_ASCENDING")
@@ -53,7 +53,7 @@ func (c *Client) ListContacts(pageToken string, pageSize int64) (*people.ListCon
 
 // SearchContacts searches for contacts matching a query
 func (c *Client) SearchContacts(query string, pageSize int64) (*people.SearchResponse, error) {
-	resp, err := c.Service.People.SearchContacts().
+	resp, err := c.service.People.SearchContacts().
 		Query(query).
 		ReadMask("names,emailAddresses,phoneNumbers,organizations,addresses,biographies,photos").
 		PageSize(int64(pageSize)).
@@ -67,7 +67,7 @@ func (c *Client) SearchContacts(query string, pageSize int64) (*people.SearchRes
 
 // GetContact retrieves a specific contact by resource name
 func (c *Client) GetContact(resourceName string) (*people.Person, error) {
-	resp, err := c.Service.People.Get(resourceName).
+	resp, err := c.service.People.Get(resourceName).
 		PersonFields("names,emailAddresses,phoneNumbers,organizations,addresses,biographies,urls,birthdays,events,relations,photos,metadata").
 		Do()
 	if err != nil {
@@ -79,7 +79,7 @@ func (c *Client) GetContact(resourceName string) (*people.Person, error) {
 
 // ListContactGroups retrieves all contact groups
 func (c *Client) ListContactGroups(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error) {
-	call := c.Service.ContactGroups.List().
+	call := c.service.ContactGroups.List().
 		PageSize(pageSize).
 		GroupFields("name,groupType,memberCount")
 

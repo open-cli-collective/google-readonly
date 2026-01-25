@@ -14,8 +14,8 @@ import (
 
 // Client wraps the Gmail API service
 type Client struct {
-	Service      *gmail.Service
-	UserID       string
+	service      *gmail.Service
+	userID       string
 	labels       map[string]*gmail.Label
 	labelsLoaded bool
 	labelsMu     sync.RWMutex
@@ -34,8 +34,8 @@ func NewClient(ctx context.Context) (*Client, error) {
 	}
 
 	return &Client{
-		Service: srv,
-		UserID:  "me",
+		service: srv,
+		userID:  "me",
 	}, nil
 }
 
@@ -58,7 +58,7 @@ func (c *Client) FetchLabels() error {
 		return nil
 	}
 
-	resp, err := c.Service.Users.Labels.List(c.UserID).Do()
+	resp, err := c.service.Users.Labels.List(c.userID).Do()
 	if err != nil {
 		return fmt.Errorf("failed to fetch labels: %w", err)
 	}
@@ -96,6 +96,19 @@ func (c *Client) GetLabels() []*gmail.Label {
 		labels = append(labels, label)
 	}
 	return labels
+}
+
+// GetProfile retrieves the authenticated user's profile
+func (c *Client) GetProfile() (*Profile, error) {
+	profile, err := c.service.Users.GetProfile(c.userID).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get profile: %w", err)
+	}
+	return &Profile{
+		EmailAddress:  profile.EmailAddress,
+		MessagesTotal: profile.MessagesTotal,
+		ThreadsTotal:  profile.ThreadsTotal,
+	}, nil
 }
 
 // GetConfigDir returns the configuration directory path

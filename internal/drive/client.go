@@ -13,7 +13,7 @@ import (
 
 // Client wraps the Google Drive API service
 type Client struct {
-	Service *drive.Service
+	service *drive.Service
 }
 
 // NewClient creates a new Drive client with OAuth2 authentication
@@ -29,7 +29,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 	}
 
 	return &Client{
-		Service: srv,
+		service: srv,
 	}, nil
 }
 
@@ -38,7 +38,7 @@ const fileFields = "id,name,mimeType,size,createdTime,modifiedTime,parents,owner
 
 // ListFiles returns files matching the query
 func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
-	call := c.Service.Files.List().
+	call := c.service.Files.List().
 		Fields("files(" + fileFields + ")").
 		OrderBy("modifiedTime desc")
 
@@ -63,7 +63,7 @@ func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
 
 // GetFile retrieves a single file by ID
 func (c *Client) GetFile(fileID string) (*File, error) {
-	f, err := c.Service.Files.Get(fileID).
+	f, err := c.service.Files.Get(fileID).
 		Fields(fileFields).
 		Do()
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *Client) GetFile(fileID string) (*File, error) {
 
 // DownloadFile downloads a regular (non-Google Workspace) file
 func (c *Client) DownloadFile(fileID string) ([]byte, error) {
-	resp, err := c.Service.Files.Get(fileID).Download()
+	resp, err := c.service.Files.Get(fileID).Download()
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}
@@ -89,7 +89,7 @@ func (c *Client) DownloadFile(fileID string) ([]byte, error) {
 
 // ExportFile exports a Google Workspace file to the specified MIME type
 func (c *Client) ExportFile(fileID string, mimeType string) ([]byte, error) {
-	resp, err := c.Service.Files.Export(fileID, mimeType).Download()
+	resp, err := c.service.Files.Export(fileID, mimeType).Download()
 	if err != nil {
 		return nil, fmt.Errorf("failed to export file: %w", err)
 	}

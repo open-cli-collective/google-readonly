@@ -12,7 +12,7 @@ import (
 
 // Client wraps the Google Calendar API service
 type Client struct {
-	Service *calendar.Service
+	service *calendar.Service
 }
 
 // NewClient creates a new Calendar client with OAuth2 authentication
@@ -28,13 +28,13 @@ func NewClient(ctx context.Context) (*Client, error) {
 	}
 
 	return &Client{
-		Service: srv,
+		service: srv,
 	}, nil
 }
 
 // ListCalendars returns all calendars the user has access to
 func (c *Client) ListCalendars() ([]*calendar.CalendarListEntry, error) {
-	resp, err := c.Service.CalendarList.List().Do()
+	resp, err := c.service.CalendarList.List().Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list calendars: %w", err)
 	}
@@ -43,7 +43,7 @@ func (c *Client) ListCalendars() ([]*calendar.CalendarListEntry, error) {
 
 // ListEvents returns events from the specified calendar within the given time range
 func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendar.Event, error) {
-	call := c.Service.Events.List(calendarID).
+	call := c.service.Events.List(calendarID).
 		SingleEvents(true).
 		OrderBy("startTime")
 
@@ -66,7 +66,7 @@ func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResul
 
 // GetEvent retrieves a single event by ID
 func (c *Client) GetEvent(calendarID, eventID string) (*calendar.Event, error) {
-	event, err := c.Service.Events.Get(calendarID, eventID).Do()
+	event, err := c.service.Events.Get(calendarID, eventID).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get event: %w", err)
 	}

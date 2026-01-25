@@ -4,6 +4,13 @@ import (
 	"google.golang.org/api/gmail/v1"
 )
 
+// Profile represents a Gmail user profile.
+type Profile struct {
+	EmailAddress  string
+	MessagesTotal int64
+	ThreadsTotal  int64
+}
+
 // GmailClientInterface defines the interface for Gmail client operations.
 // This enables unit testing through mock implementations.
 type GmailClientInterface interface {
@@ -33,6 +40,9 @@ type GmailClientInterface interface {
 
 	// DownloadInlineAttachment downloads an attachment that has inline data
 	DownloadInlineAttachment(messageID string, partID string) ([]byte, error)
+
+	// GetProfile retrieves the authenticated user's profile
+	GetProfile() (*Profile, error)
 }
 
 // Verify that Client implements GmailClientInterface

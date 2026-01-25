@@ -38,7 +38,7 @@ type Attachment struct {
 // SearchMessages searches for messages matching the query.
 // Returns messages, the count of messages that failed to fetch, and any error.
 func (c *Client) SearchMessages(query string, maxResults int64) ([]*Message, int, error) {
-	call := c.Service.Users.Messages.List(c.UserID).Q(query)
+	call := c.service.Users.Messages.List(c.userID).Q(query)
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}
@@ -79,7 +79,7 @@ func (c *Client) GetMessage(messageID string, includeBody bool) (*Message, error
 		return nil, err
 	}
 
-	msg, err := c.Service.Users.Messages.Get(c.UserID, messageID).Format(format).Do()
+	msg, err := c.service.Users.Messages.Get(c.userID, messageID).Format(format).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get message: %w", err)
 	}
@@ -96,16 +96,16 @@ func (c *Client) GetThread(id string) ([]*Message, error) {
 		return nil, err
 	}
 
-	thread, err := c.Service.Users.Threads.Get(c.UserID, id).Format("full").Do()
+	thread, err := c.service.Users.Threads.Get(c.userID, id).Format("full").Do()
 	if err != nil {
 		// If the ID wasn't found as a thread ID, try treating it as a message ID
-		msg, msgErr := c.Service.Users.Messages.Get(c.UserID, id).Format("minimal").Do()
+		msg, msgErr := c.service.Users.Messages.Get(c.userID, id).Format("minimal").Do()
 		if msgErr != nil {
 			// Return the original thread error if message lookup also fails
 			return nil, fmt.Errorf("failed to get thread: %w", err)
 		}
 		// Use the thread ID from the message
-		thread, err = c.Service.Users.Threads.Get(c.UserID, msg.ThreadId).Format("full").Do()
+		thread, err = c.service.Users.Threads.Get(c.userID, msg.ThreadId).Format("full").Do()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get thread: %w", err)
 		}
