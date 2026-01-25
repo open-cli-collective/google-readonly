@@ -97,21 +97,24 @@ func runDownloadAttachments(cmd *cobra.Command, args []string) error {
 
 	// Download each attachment
 	for _, att := range toDownload {
+		// Sanitize filename for display to prevent terminal injection
+		safeFilename := SanitizeFilename(att.Filename)
+
 		// Security: Validate output path to prevent path traversal attacks
 		outputPath, err := safeOutputPath(absDownloadDir, att.Filename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Skipping %s: %v\n", att.Filename, err)
+			fmt.Fprintf(os.Stderr, "Skipping %s: %v\n", safeFilename, err)
 			continue
 		}
 
 		data, err := downloadAttachment(client, messageID, att)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", att.Filename, err)
+			fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", safeFilename, err)
 			continue
 		}
 
 		if err := saveAttachment(outputPath, data); err != nil {
-			fmt.Fprintf(os.Stderr, "Error saving %s: %v\n", att.Filename, err)
+			fmt.Fprintf(os.Stderr, "Error saving %s: %v\n", safeFilename, err)
 			continue
 		}
 
@@ -122,7 +125,7 @@ func runDownloadAttachments(cmd *cobra.Command, args []string) error {
 			extractDir := filepath.Join(downloadDir,
 				strings.TrimSuffix(att.Filename, filepath.Ext(att.Filename)))
 			if err := ziputil.Extract(outputPath, extractDir, ziputil.DefaultOptions()); err != nil {
-				fmt.Fprintf(os.Stderr, "Error extracting %s: %v\n", att.Filename, err)
+				fmt.Fprintf(os.Stderr, "Error extracting %s: %v\n", safeFilename, err)
 			} else {
 				fmt.Printf("Extracted to: %s\n", extractDir)
 			}

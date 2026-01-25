@@ -36,11 +36,12 @@ func printMessageHeader(msg *gmail.Message, opts MessagePrintOptions) {
 	if opts.IncludeThreadID {
 		fmt.Printf("ThreadID: %s\n", msg.ThreadID)
 	}
-	fmt.Printf("From: %s\n", msg.From)
+	// Sanitize user-provided content to prevent terminal injection attacks
+	fmt.Printf("From: %s\n", SanitizeOutput(msg.From))
 	if opts.IncludeTo {
-		fmt.Printf("To: %s\n", msg.To)
+		fmt.Printf("To: %s\n", SanitizeOutput(msg.To))
 	}
-	fmt.Printf("Subject: %s\n", msg.Subject)
+	fmt.Printf("Subject: %s\n", SanitizeOutput(msg.Subject))
 	fmt.Printf("Date: %s\n", msg.Date)
 	if len(msg.Labels) > 0 {
 		fmt.Printf("Labels: %s\n", strings.Join(msg.Labels, ", "))
@@ -49,10 +50,10 @@ func printMessageHeader(msg *gmail.Message, opts MessagePrintOptions) {
 		fmt.Printf("Categories: %s\n", strings.Join(msg.Categories, ", "))
 	}
 	if opts.IncludeSnippet {
-		fmt.Printf("Snippet: %s\n", msg.Snippet)
+		fmt.Printf("Snippet: %s\n", SanitizeOutput(msg.Snippet))
 	}
 	if opts.IncludeBody {
 		fmt.Print("\n--- Body ---\n\n")
-		fmt.Println(msg.Body)
+		fmt.Println(SanitizeOutput(msg.Body))
 	}
 }

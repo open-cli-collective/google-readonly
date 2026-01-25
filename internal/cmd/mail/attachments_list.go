@@ -50,7 +50,8 @@ func runListAttachments(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Found %d attachment(s):\n\n", len(attachments))
 	for i, att := range attachments {
-		fmt.Printf("%d. %s\n", i+1, att.Filename)
+		// Sanitize filename to prevent terminal injection from malicious attachment names
+		fmt.Printf("%d. %s\n", i+1, SanitizeFilename(att.Filename))
 		fmt.Printf("   Type: %s\n", att.MimeType)
 		fmt.Printf("   Size: %s\n", formatSize(att.Size))
 		if att.IsInline {
