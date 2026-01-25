@@ -1,6 +1,8 @@
 package drive
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/api/drive/v3"
@@ -121,5 +123,112 @@ func IsGoogleWorkspaceFile(mimeType string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// Export format to MIME type mappings
+var documentExportFormats = map[string]string{
+	"pdf":  "application/pdf",
+	"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"txt":  "text/plain",
+	"html": "text/html",
+	"md":   "text/markdown",
+	"rtf":  "application/rtf",
+	"odt":  "application/vnd.oasis.opendocument.text",
+}
+
+var spreadsheetExportFormats = map[string]string{
+	"pdf":  "application/pdf",
+	"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"csv":  "text/csv",
+	"tsv":  "text/tab-separated-values",
+	"ods":  "application/vnd.oasis.opendocument.spreadsheet",
+}
+
+var presentationExportFormats = map[string]string{
+	"pdf":  "application/pdf",
+	"pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"odp":  "application/vnd.oasis.opendocument.presentation",
+}
+
+var drawingExportFormats = map[string]string{
+	"pdf": "application/pdf",
+	"png": "image/png",
+	"svg": "image/svg+xml",
+	"jpg": "image/jpeg",
+}
+
+// GetExportMimeType returns the MIME type for exporting a Google Workspace file
+// to the specified format. Returns an error if the format is not supported.
+func GetExportMimeType(sourceMimeType, format string) (string, error) {
+	var formats map[string]string
+	var typeName string
+
+	switch sourceMimeType {
+	case MimeTypeDocument:
+		formats = documentExportFormats
+		typeName = "Document"
+	case MimeTypeSpreadsheet:
+		formats = spreadsheetExportFormats
+		typeName = "Spreadsheet"
+	case MimeTypePresentation:
+		formats = presentationExportFormats
+		typeName = "Presentation"
+	case MimeTypeDrawing:
+		formats = drawingExportFormats
+		typeName = "Drawing"
+	default:
+		return "", fmt.Errorf("file type %s does not support export", GetTypeName(sourceMimeType))
+	}
+
+	mimeType, ok := formats[format]
+	if !ok {
+		return "", fmt.Errorf("format '%s' not supported for Google %s (supported: %s)",
+			format, typeName, getSupportedFormats(formats))
+	}
+	return mimeType, nil
+}
+
+// GetSupportedExportFormats returns the supported export formats for a Google Workspace file type
+func GetSupportedExportFormats(sourceMimeType string) []string {
+	var formats map[string]string
+
+	switch sourceMimeType {
+	case MimeTypeDocument:
+		formats = documentExportFormats
+	case MimeTypeSpreadsheet:
+		formats = spreadsheetExportFormats
+	case MimeTypePresentation:
+		formats = presentationExportFormats
+	case MimeTypeDrawing:
+		formats = drawingExportFormats
+	default:
+		return nil
+	}
+
+	result := make([]string, 0, len(formats))
+	for format := range formats {
+		result = append(result, format)
+	}
+	return result
+}
+
+func getSupportedFormats(formats map[string]string) string {
+	result := make([]string, 0, len(formats))
+	for format := range formats {
+		result = append(result, format)
+	}
+	return strings.Join(result, ", ")
+}
+
+// GetFileExtension returns the appropriate file extension for a format
+func GetFileExtension(format string) string {
+	switch format {
+	case "docx", "xlsx", "pptx", "pdf", "txt", "html", "rtf", "odt", "csv", "tsv", "ods", "odp", "png", "svg", "jpg":
+		return "." + format
+	case "md":
+		return ".md"
+	default:
+		return ""
 	}
 }

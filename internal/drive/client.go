@@ -3,6 +3,7 @@ package drive
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -69,4 +70,34 @@ func (c *Client) GetFile(fileID string) (*File, error) {
 		return nil, fmt.Errorf("failed to get file: %w", err)
 	}
 	return ParseFile(f), nil
+}
+
+// DownloadFile downloads a regular (non-Google Workspace) file
+func (c *Client) DownloadFile(fileID string) ([]byte, error) {
+	resp, err := c.Service.Files.Get(fileID).Download()
+	if err != nil {
+		return nil, fmt.Errorf("failed to download file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file content: %w", err)
+	}
+	return data, nil
+}
+
+// ExportFile exports a Google Workspace file to the specified MIME type
+func (c *Client) ExportFile(fileID string, mimeType string) ([]byte, error) {
+	resp, err := c.Service.Files.Export(fileID, mimeType).Download()
+	if err != nil {
+		return nil, fmt.Errorf("failed to export file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read exported content: %w", err)
+	}
+	return data, nil
 }

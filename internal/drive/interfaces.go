@@ -8,6 +8,12 @@ type DriveClientInterface interface {
 
 	// GetFile retrieves a single file by ID
 	GetFile(fileID string) (*File, error)
+
+	// DownloadFile downloads a regular (non-Google Workspace) file
+	DownloadFile(fileID string) ([]byte, error)
+
+	// ExportFile exports a Google Workspace file to the specified MIME type
+	ExportFile(fileID string, mimeType string) ([]byte, error)
 }
 
 // Verify that Client implements DriveClientInterface
