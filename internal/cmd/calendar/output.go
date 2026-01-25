@@ -2,11 +2,10 @@ package calendar
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
+	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // ClientFactory is the function used to create Calendar clients.
@@ -22,9 +21,7 @@ func newCalendarClient() (calendar.CalendarClientInterface, error) {
 
 // printJSON outputs data as indented JSON
 func printJSON(data any) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(data)
+	return output.JSONStdout(data)
 }
 
 // printEvent prints a single event in text format

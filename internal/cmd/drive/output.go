@@ -2,10 +2,9 @@ package drive
 
 import (
 	"context"
-	"encoding/json"
-	"os"
 
 	"github.com/open-cli-collective/google-readonly/internal/drive"
+	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // ClientFactory is the function used to create Drive clients.
@@ -21,7 +20,5 @@ func newDriveClient() (drive.DriveClientInterface, error) {
 
 // printJSON encodes data as indented JSON to stdout
 func printJSON(data any) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(data)
+	return output.JSONStdout(data)
 }

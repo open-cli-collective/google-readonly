@@ -2,12 +2,11 @@ package mail
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
+	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // ClientFactory is the function used to create Gmail clients.
@@ -23,9 +22,7 @@ func newGmailClient() (gmail.GmailClientInterface, error) {
 
 // printJSON encodes data as indented JSON to stdout
 func printJSON(data any) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(data)
+	return output.JSONStdout(data)
 }
 
 // MessagePrintOptions controls which fields to include in message output
