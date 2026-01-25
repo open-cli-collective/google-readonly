@@ -9,12 +9,12 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
 )
 
-var (
-	todayCalendarID string
-	todayJSONOutput bool
-)
-
 func newTodayCommand() *cobra.Command {
+	var (
+		calendarID string
+		jsonOutput bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "today",
 		Short: "Show today's events",
@@ -27,51 +27,49 @@ Examples:
   gro cal today --json
   gro cal today --calendar work@group.calendar.google.com`,
 		Args: cobra.NoArgs,
-		RunE: runToday,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newCalendarClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Calendar client: %w", err)
+			}
+
+			now := time.Now()
+			startOfDay, endOfDayTime := todayBounds(now)
+
+			timeMin := startOfDay.Format(time.RFC3339)
+			timeMax := endOfDayTime.Format(time.RFC3339)
+
+			events, err := client.ListEvents(calendarID, timeMin, timeMax, 50)
+			if err != nil {
+				return fmt.Errorf("failed to list today's events: %w", err)
+			}
+
+			if len(events) == 0 {
+				fmt.Println("No events today.")
+				return nil
+			}
+
+			// Convert to our format
+			parsedEvents := make([]*calendar.Event, len(events))
+			for i, e := range events {
+				parsedEvents[i] = calendar.ParseEvent(e)
+			}
+
+			if jsonOutput {
+				return printJSON(parsedEvents)
+			}
+
+			fmt.Printf("Today's events (%s):\n\n", now.Format("Mon, Jan 2, 2006"))
+			for _, event := range parsedEvents {
+				printEventSummary(event)
+			}
+
+			return nil
+		},
 	}
 
-	cmd.Flags().StringVarP(&todayCalendarID, "calendar", "c", "primary", "Calendar ID to query")
-	cmd.Flags().BoolVarP(&todayJSONOutput, "json", "j", false, "Output as JSON")
+	cmd.Flags().StringVarP(&calendarID, "calendar", "c", "primary", "Calendar ID to query")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
-}
-
-func runToday(cmd *cobra.Command, args []string) error {
-	client, err := newCalendarClient()
-	if err != nil {
-		return fmt.Errorf("failed to create Calendar client: %w", err)
-	}
-
-	now := time.Now()
-	startOfDay, endOfDayTime := todayBounds(now)
-
-	timeMin := startOfDay.Format(time.RFC3339)
-	timeMax := endOfDayTime.Format(time.RFC3339)
-
-	events, err := client.ListEvents(todayCalendarID, timeMin, timeMax, 50)
-	if err != nil {
-		return fmt.Errorf("failed to list today's events: %w", err)
-	}
-
-	if len(events) == 0 {
-		fmt.Println("No events today.")
-		return nil
-	}
-
-	// Convert to our format
-	parsedEvents := make([]*calendar.Event, len(events))
-	for i, e := range events {
-		parsedEvents[i] = calendar.ParseEvent(e)
-	}
-
-	if todayJSONOutput {
-		return printJSON(parsedEvents)
-	}
-
-	fmt.Printf("Today's events (%s):\n\n", now.Format("Mon, Jan 2, 2006"))
-	for _, event := range parsedEvents {
-		printEventSummary(event)
-	}
-
-	return nil
 }

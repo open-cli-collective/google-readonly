@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var readJSONOutput bool
-
 func newReadCommand() *cobra.Command {
+	var jsonOutput bool
+
 	cmd := &cobra.Command{
 		Use:   "read <message-id>",
 		Short: "Read a single message",
@@ -20,33 +20,31 @@ Examples:
   gro mail read 18abc123def456
   gro mail read 18abc123def456 --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: runRead,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newGmailClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Gmail client: %w", err)
+			}
+
+			msg, err := client.GetMessage(args[0], true)
+			if err != nil {
+				return fmt.Errorf("failed to read message: %w", err)
+			}
+
+			if jsonOutput {
+				return printJSON(msg)
+			}
+
+			printMessageHeader(msg, MessagePrintOptions{
+				IncludeTo:   true,
+				IncludeBody: true,
+			})
+
+			return nil
+		},
 	}
 
-	cmd.Flags().BoolVarP(&readJSONOutput, "json", "j", false, "Output result as JSON")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output result as JSON")
 
 	return cmd
-}
-
-func runRead(cmd *cobra.Command, args []string) error {
-	client, err := newGmailClient()
-	if err != nil {
-		return fmt.Errorf("failed to create Gmail client: %w", err)
-	}
-
-	msg, err := client.GetMessage(args[0], true)
-	if err != nil {
-		return fmt.Errorf("failed to read message: %w", err)
-	}
-
-	if readJSONOutput {
-		return printJSON(msg)
-	}
-
-	printMessageHeader(msg, MessagePrintOptions{
-		IncludeTo:   true,
-		IncludeBody: true,
-	})
-
-	return nil
 }

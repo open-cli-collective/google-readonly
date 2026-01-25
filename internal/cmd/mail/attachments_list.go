@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listAttachmentsJSON bool
-
 func newListAttachmentsCommand() *cobra.Command {
+	var jsonOutput bool
+
 	cmd := &cobra.Command{
 		Use:   "list <message-id>",
 		Short: "List attachments in a message",
@@ -20,47 +20,45 @@ Examples:
   gro mail attachments list 18abc123def456
   gro mail attachments list 18abc123def456 --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: runListAttachments,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newGmailClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Gmail client: %w", err)
+			}
+
+			attachments, err := client.GetAttachments(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to get attachments: %w", err)
+			}
+
+			if len(attachments) == 0 {
+				fmt.Println("No attachments found for message.")
+				return nil
+			}
+
+			if jsonOutput {
+				return printJSON(attachments)
+			}
+
+			fmt.Printf("Found %d attachment(s):\n\n", len(attachments))
+			for i, att := range attachments {
+				// Sanitize filename to prevent terminal injection from malicious attachment names
+				fmt.Printf("%d. %s\n", i+1, SanitizeFilename(att.Filename))
+				fmt.Printf("   Type: %s\n", att.MimeType)
+				fmt.Printf("   Size: %s\n", formatSize(att.Size))
+				if att.IsInline {
+					fmt.Printf("   Inline: yes\n")
+				}
+				fmt.Println()
+			}
+
+			return nil
+		},
 	}
 
-	cmd.Flags().BoolVarP(&listAttachmentsJSON, "json", "j", false, "Output as JSON")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
-}
-
-func runListAttachments(cmd *cobra.Command, args []string) error {
-	client, err := newGmailClient()
-	if err != nil {
-		return fmt.Errorf("failed to create Gmail client: %w", err)
-	}
-
-	attachments, err := client.GetAttachments(args[0])
-	if err != nil {
-		return fmt.Errorf("failed to get attachments: %w", err)
-	}
-
-	if len(attachments) == 0 {
-		fmt.Println("No attachments found for message.")
-		return nil
-	}
-
-	if listAttachmentsJSON {
-		return printJSON(attachments)
-	}
-
-	fmt.Printf("Found %d attachment(s):\n\n", len(attachments))
-	for i, att := range attachments {
-		// Sanitize filename to prevent terminal injection from malicious attachment names
-		fmt.Printf("%d. %s\n", i+1, SanitizeFilename(att.Filename))
-		fmt.Printf("   Type: %s\n", att.MimeType)
-		fmt.Printf("   Size: %s\n", formatSize(att.Size))
-		if att.IsInline {
-			fmt.Printf("   Inline: yes\n")
-		}
-		fmt.Println()
-	}
-
-	return nil
 }
 
 // formatSize converts bytes to human-readable format

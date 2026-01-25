@@ -7,18 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	searchMaxResults int64
-	searchNameOnly   bool
-	searchFileType   string
-	searchOwner      string
-	searchModAfter   string
-	searchModBefore  string
-	searchInFolder   string
-	searchJSONOutput bool
-)
-
 func newSearchCommand() *cobra.Command {
+	var (
+		maxResults int64
+		nameOnly   bool
+		fileType   string
+		owner      string
+		modAfter   string
+		modBefore  string
+		inFolder   string
+		jsonOutput bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "search [query]",
 		Short: "Search for files",
@@ -36,62 +36,60 @@ Examples:
 
 File types: document, spreadsheet, presentation, folder, pdf, image, video, audio`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: runSearch,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newDriveClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Drive client: %w", err)
+			}
+
+			query := ""
+			if len(args) > 0 {
+				query = args[0]
+			}
+
+			searchQuery, err := buildSearchQuery(query, nameOnly, fileType, owner, modAfter, modBefore, inFolder)
+			if err != nil {
+				return fmt.Errorf("failed to build search query: %w", err)
+			}
+
+			files, err := client.ListFiles(searchQuery, maxResults)
+			if err != nil {
+				return fmt.Errorf("failed to search files: %w", err)
+			}
+
+			if len(files) == 0 {
+				if query != "" {
+					fmt.Printf("No files found matching \"%s\".\n", query)
+				} else {
+					fmt.Println("No files found.")
+				}
+				return nil
+			}
+
+			if jsonOutput {
+				return printJSON(files)
+			}
+
+			if query != "" {
+				fmt.Printf("Found %d file(s) matching \"%s\":\n\n", len(files), query)
+			} else {
+				fmt.Printf("Found %d file(s):\n\n", len(files))
+			}
+			printFileTable(files)
+			return nil
+		},
 	}
 
-	cmd.Flags().Int64VarP(&searchMaxResults, "max", "m", 25, "Maximum number of results to return")
-	cmd.Flags().BoolVarP(&searchNameOnly, "name", "n", false, "Search filename only (not content)")
-	cmd.Flags().StringVarP(&searchFileType, "type", "t", "", "Filter by file type")
-	cmd.Flags().StringVar(&searchOwner, "owner", "", "Filter by owner (\"me\" or email address)")
-	cmd.Flags().StringVar(&searchModAfter, "modified-after", "", "Modified after date (YYYY-MM-DD)")
-	cmd.Flags().StringVar(&searchModBefore, "modified-before", "", "Modified before date (YYYY-MM-DD)")
-	cmd.Flags().StringVar(&searchInFolder, "in-folder", "", "Search within specific folder")
-	cmd.Flags().BoolVarP(&searchJSONOutput, "json", "j", false, "Output results as JSON")
+	cmd.Flags().Int64VarP(&maxResults, "max", "m", 25, "Maximum number of results to return")
+	cmd.Flags().BoolVarP(&nameOnly, "name", "n", false, "Search filename only (not content)")
+	cmd.Flags().StringVarP(&fileType, "type", "t", "", "Filter by file type")
+	cmd.Flags().StringVar(&owner, "owner", "", "Filter by owner (\"me\" or email address)")
+	cmd.Flags().StringVar(&modAfter, "modified-after", "", "Modified after date (YYYY-MM-DD)")
+	cmd.Flags().StringVar(&modBefore, "modified-before", "", "Modified before date (YYYY-MM-DD)")
+	cmd.Flags().StringVar(&inFolder, "in-folder", "", "Search within specific folder")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 
 	return cmd
-}
-
-func runSearch(cmd *cobra.Command, args []string) error {
-	client, err := newDriveClient()
-	if err != nil {
-		return fmt.Errorf("failed to create Drive client: %w", err)
-	}
-
-	query := ""
-	if len(args) > 0 {
-		query = args[0]
-	}
-
-	searchQuery, err := buildSearchQuery(query, searchNameOnly, searchFileType, searchOwner, searchModAfter, searchModBefore, searchInFolder)
-	if err != nil {
-		return fmt.Errorf("failed to build search query: %w", err)
-	}
-
-	files, err := client.ListFiles(searchQuery, searchMaxResults)
-	if err != nil {
-		return fmt.Errorf("failed to search files: %w", err)
-	}
-
-	if len(files) == 0 {
-		if query != "" {
-			fmt.Printf("No files found matching \"%s\".\n", query)
-		} else {
-			fmt.Println("No files found.")
-		}
-		return nil
-	}
-
-	if searchJSONOutput {
-		return printJSON(files)
-	}
-
-	if query != "" {
-		fmt.Printf("Found %d file(s) matching \"%s\":\n\n", len(files), query)
-	} else {
-		fmt.Printf("Found %d file(s):\n\n", len(files))
-	}
-	printFileTable(files)
-	return nil
 }
 
 // buildSearchQuery constructs a Drive API query string for searching files

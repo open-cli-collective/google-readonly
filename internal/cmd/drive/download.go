@@ -11,13 +11,13 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 )
 
-var (
-	downloadOutput string
-	downloadFormat string
-	downloadStdout bool
-)
-
 func newDownloadCommand() *cobra.Command {
+	var (
+		output string
+		format string
+		stdout bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "download <file-id>",
 		Short: "Download a file",
@@ -39,89 +39,87 @@ Export formats:
   Presentations: pdf, pptx, odp
   Drawings:      pdf, png, svg, jpg`,
 		Args: cobra.ExactArgs(1),
-		RunE: runDownload,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newDriveClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Drive client: %w", err)
+			}
+
+			fileID := args[0]
+
+			// Get file metadata first
+			file, err := client.GetFile(fileID)
+			if err != nil {
+				return fmt.Errorf("failed to get file info: %w", err)
+			}
+
+			var data []byte
+
+			if drive.IsGoogleWorkspaceFile(file.MimeType) {
+				// Google Workspace file - must export
+				if format == "" {
+					formats := drive.GetSupportedExportFormats(file.MimeType)
+					return fmt.Errorf("google %s requires --format flag (supported: %s)",
+						drive.GetTypeName(file.MimeType), strings.Join(formats, ", "))
+				}
+
+				exportMime, err := drive.GetExportMimeType(file.MimeType, format)
+				if err != nil {
+					return fmt.Errorf("failed to get export type: %w", err)
+				}
+
+				if !stdout {
+					fmt.Printf("Exporting: %s\n", file.Name)
+					fmt.Printf("Format: %s\n", format)
+				}
+
+				data, err = client.ExportFile(fileID, exportMime)
+				if err != nil {
+					return fmt.Errorf("failed to export file: %w", err)
+				}
+			} else {
+				// Regular file - download directly
+				if format != "" {
+					return fmt.Errorf("--format flag is only for Google Workspace files; %s is a %s",
+						file.Name, drive.GetTypeName(file.MimeType))
+				}
+
+				if !stdout {
+					fmt.Printf("Downloading: %s\n", file.Name)
+				}
+
+				data, err = client.DownloadFile(fileID)
+				if err != nil {
+					return fmt.Errorf("failed to download file: %w", err)
+				}
+			}
+
+			// Output to stdout or file
+			if stdout {
+				_, err = os.Stdout.Write(data)
+				if err != nil {
+					return fmt.Errorf("failed to write to stdout: %w", err)
+				}
+				return nil
+			}
+
+			outputPath := determineOutputPath(file.Name, format, output)
+
+			if err := os.WriteFile(outputPath, data, 0644); err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+
+			fmt.Printf("Size: %s\n", formatSize(int64(len(data))))
+			fmt.Printf("Saved to: %s\n", outputPath)
+			return nil
+		},
 	}
 
-	cmd.Flags().StringVarP(&downloadOutput, "output", "o", "", "Output file path")
-	cmd.Flags().StringVarP(&downloadFormat, "format", "f", "", "Export format for Google Workspace files")
-	cmd.Flags().BoolVar(&downloadStdout, "stdout", false, "Write to stdout instead of file")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path")
+	cmd.Flags().StringVarP(&format, "format", "f", "", "Export format for Google Workspace files")
+	cmd.Flags().BoolVar(&stdout, "stdout", false, "Write to stdout instead of file")
 
 	return cmd
-}
-
-func runDownload(cmd *cobra.Command, args []string) error {
-	client, err := newDriveClient()
-	if err != nil {
-		return fmt.Errorf("failed to create Drive client: %w", err)
-	}
-
-	fileID := args[0]
-
-	// Get file metadata first
-	file, err := client.GetFile(fileID)
-	if err != nil {
-		return fmt.Errorf("failed to get file info: %w", err)
-	}
-
-	var data []byte
-
-	if drive.IsGoogleWorkspaceFile(file.MimeType) {
-		// Google Workspace file - must export
-		if downloadFormat == "" {
-			formats := drive.GetSupportedExportFormats(file.MimeType)
-			return fmt.Errorf("google %s requires --format flag (supported: %s)",
-				drive.GetTypeName(file.MimeType), strings.Join(formats, ", "))
-		}
-
-		exportMime, err := drive.GetExportMimeType(file.MimeType, downloadFormat)
-		if err != nil {
-			return fmt.Errorf("failed to get export type: %w", err)
-		}
-
-		if !downloadStdout {
-			fmt.Printf("Exporting: %s\n", file.Name)
-			fmt.Printf("Format: %s\n", downloadFormat)
-		}
-
-		data, err = client.ExportFile(fileID, exportMime)
-		if err != nil {
-			return fmt.Errorf("failed to export file: %w", err)
-		}
-	} else {
-		// Regular file - download directly
-		if downloadFormat != "" {
-			return fmt.Errorf("--format flag is only for Google Workspace files; %s is a %s",
-				file.Name, drive.GetTypeName(file.MimeType))
-		}
-
-		if !downloadStdout {
-			fmt.Printf("Downloading: %s\n", file.Name)
-		}
-
-		data, err = client.DownloadFile(fileID)
-		if err != nil {
-			return fmt.Errorf("failed to download file: %w", err)
-		}
-	}
-
-	// Output to stdout or file
-	if downloadStdout {
-		_, err = os.Stdout.Write(data)
-		if err != nil {
-			return fmt.Errorf("failed to write to stdout: %w", err)
-		}
-		return nil
-	}
-
-	outputPath := determineOutputPath(file.Name, downloadFormat, downloadOutput)
-
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	fmt.Printf("Size: %s\n", formatSize(int64(len(data))))
-	fmt.Printf("Saved to: %s\n", outputPath)
-	return nil
 }
 
 // determineOutputPath figures out where to save the downloaded file
