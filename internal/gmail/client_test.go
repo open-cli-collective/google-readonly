@@ -233,3 +233,47 @@ func TestGetLabels(t *testing.T) {
 		assert.Empty(t, result)
 	})
 }
+
+func TestShortenPath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "replaces home directory with tilde",
+			input:    filepath.Join(home, ".config", "google-readonly", "credentials.json"),
+			expected: "~/.config/google-readonly/credentials.json",
+		},
+		{
+			name:     "replaces home directory only",
+			input:    home,
+			expected: "~",
+		},
+		{
+			name:     "preserves path not under home",
+			input:    "/tmp/test/file.txt",
+			expected: "/tmp/test/file.txt",
+		},
+		{
+			name:     "preserves relative path",
+			input:    "relative/path/file.txt",
+			expected: "relative/path/file.txt",
+		},
+		{
+			name:     "handles path that starts with home prefix but is different",
+			input:    home + "extra/path",
+			expected: "~extra/path",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ShortenPath(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

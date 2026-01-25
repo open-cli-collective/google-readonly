@@ -50,13 +50,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get credentials path: %w", err)
 	}
 
+	shortPath := gmail.ShortenPath(credPath)
 	if _, err := os.Stat(credPath); os.IsNotExist(err) {
 		fmt.Println("Credentials file not found.")
 		fmt.Println()
-		printCredentialsInstructions(credPath)
-		return fmt.Errorf("credentials file not found at %s", credPath)
+		printCredentialsInstructions(shortPath)
+		return fmt.Errorf("credentials file not found at %s", shortPath)
 	}
-	fmt.Printf("Credentials: %s\n", credPath)
+	fmt.Printf("Credentials: %s\n", shortPath)
 
 	// Step 2: Load OAuth config
 	config, err := gmail.GetOAuthConfig()

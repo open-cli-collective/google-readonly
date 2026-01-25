@@ -42,7 +42,8 @@ func NewClient(ctx context.Context) (*Client, error) {
 	credPath := filepath.Join(configDir, credentialsFile)
 	b, err := os.ReadFile(credPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", credPath, err, credPath)
+		shortPath := ShortenPath(credPath)
+		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", shortPath, err, shortPath)
 	}
 
 	// Request read-only scopes for all supported services
@@ -238,4 +239,17 @@ func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (
 // GetAuthURL returns the OAuth authorization URL
 func GetAuthURL(config *oauth2.Config) string {
 	return config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+}
+
+// ShortenPath replaces the home directory prefix with ~ for display purposes.
+// This prevents exposing full paths including usernames in error messages.
+func ShortenPath(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if len(path) >= len(home) && path[:len(home)] == home {
+		return "~" + path[len(home):]
+	}
+	return path
 }

@@ -10,6 +10,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/people/v1"
 
+	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
 
@@ -33,7 +34,8 @@ func NewClient(ctx context.Context) (*Client, error) {
 	credPath := filepath.Join(configDir, credentialsFile)
 	b, err := os.ReadFile(credPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", credPath, err, credPath)
+		shortPath := gmail.ShortenPath(credPath)
+		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", shortPath, err, shortPath)
 	}
 
 	// Request read-only scope for contacts
