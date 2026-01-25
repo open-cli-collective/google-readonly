@@ -9,9 +9,9 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 )
 
-var getJSONOutput bool
-
 func newGetCommand() *cobra.Command {
+	var jsonOutput bool
+
 	cmd := &cobra.Command{
 		Use:   "get <file-id>",
 		Short: "Get file details",
@@ -21,32 +21,30 @@ Examples:
   gro drive get <file-id>        # Show file details
   gro drive get <file-id> --json # Output as JSON`,
 		Args: cobra.ExactArgs(1),
-		RunE: runGet,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newDriveClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Drive client: %w", err)
+			}
+
+			fileID := args[0]
+			file, err := client.GetFile(fileID)
+			if err != nil {
+				return fmt.Errorf("failed to get file %s: %w", fileID, err)
+			}
+
+			if jsonOutput {
+				return printJSON(file)
+			}
+
+			printFileDetails(file)
+			return nil
+		},
 	}
 
-	cmd.Flags().BoolVarP(&getJSONOutput, "json", "j", false, "Output results as JSON")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 
 	return cmd
-}
-
-func runGet(cmd *cobra.Command, args []string) error {
-	client, err := newDriveClient()
-	if err != nil {
-		return err
-	}
-
-	fileID := args[0]
-	file, err := client.GetFile(fileID)
-	if err != nil {
-		return fmt.Errorf("failed to get file %s: %w", fileID, err)
-	}
-
-	if getJSONOutput {
-		return printJSON(file)
-	}
-
-	printFileDetails(file)
-	return nil
 }
 
 // printFileDetails prints detailed file metadata in a formatted layout

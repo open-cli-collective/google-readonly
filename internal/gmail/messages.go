@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"google.golang.org/api/gmail/v1"
+
+	"github.com/open-cli-collective/google-readonly/internal/log"
 )
 
 // Message represents a simplified email message
@@ -52,9 +54,14 @@ func (c *Client) SearchMessages(query string, maxResults int64) ([]*Message, int
 		m, err := c.GetMessage(msg.Id, false)
 		if err != nil {
 			skipped++
+			log.Debug("skipped message %s: %v", msg.Id, err)
 			continue
 		}
 		messages = append(messages, m)
+	}
+
+	if skipped > 0 {
+		log.Warn("skipped %d message(s) due to fetch errors (use -v for details)", skipped)
 	}
 
 	return messages, skipped, nil

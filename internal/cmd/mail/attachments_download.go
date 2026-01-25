@@ -12,14 +12,14 @@ import (
 	ziputil "github.com/open-cli-collective/google-readonly/internal/zip"
 )
 
-var (
-	downloadFilename string
-	downloadDir      string
-	downloadExtract  bool
-	downloadAll      bool
-)
-
 func newDownloadAttachmentsCommand() *cobra.Command {
+	var (
+		filename  string
+		outputDir string
+		extract   bool
+		all       bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "download <message-id>",
 		Short: "Download attachments from a message",
@@ -36,103 +36,101 @@ Examples:
   gro mail attachments download 18abc123def456 --all --output ~/Downloads
   gro mail attachments download 18abc123def456 --filename archive.zip --extract`,
 		Args: cobra.ExactArgs(1),
-		RunE: runDownloadAttachments,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if filename == "" && !all {
+				return fmt.Errorf("must specify --filename or --all")
+			}
+
+			client, err := newGmailClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Gmail client: %w", err)
+			}
+
+			messageID := args[0]
+			attachments, err := client.GetAttachments(messageID)
+			if err != nil {
+				return fmt.Errorf("failed to get attachments: %w", err)
+			}
+
+			if len(attachments) == 0 {
+				fmt.Println("No attachments found for message.")
+				return nil
+			}
+
+			// Filter by filename if specified
+			var toDownload []*gmail.Attachment
+			for _, att := range attachments {
+				if filename == "" || att.Filename == filename {
+					toDownload = append(toDownload, att)
+				}
+			}
+
+			if len(toDownload) == 0 {
+				return fmt.Errorf("attachment not found: %s", filename)
+			}
+
+			// Create output directory if needed
+			if err := os.MkdirAll(outputDir, 0755); err != nil {
+				return fmt.Errorf("failed to create output directory: %w", err)
+			}
+
+			// Get absolute path of download directory for path validation
+			absOutputDir, err := filepath.Abs(outputDir)
+			if err != nil {
+				return fmt.Errorf("failed to resolve download directory: %w", err)
+			}
+
+			// Download each attachment
+			for _, att := range toDownload {
+				// Sanitize filename for display to prevent terminal injection
+				safeFilename := SanitizeFilename(att.Filename)
+
+				// Security: Validate output path to prevent path traversal attacks
+				outputPath, err := safeOutputPath(absOutputDir, att.Filename)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Skipping %s: %v\n", safeFilename, err)
+					continue
+				}
+
+				data, err := downloadAttachment(client, messageID, att)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", safeFilename, err)
+					continue
+				}
+
+				if err := saveAttachment(outputPath, data); err != nil {
+					fmt.Fprintf(os.Stderr, "Error saving %s: %v\n", safeFilename, err)
+					continue
+				}
+
+				fmt.Printf("Downloaded: %s (%s)\n", outputPath, formatSize(int64(len(data))))
+
+				// Extract if zip and --extract flag
+				if extract && isZipFile(att.Filename, att.MimeType) {
+					extractDir := filepath.Join(outputDir,
+						strings.TrimSuffix(att.Filename, filepath.Ext(att.Filename)))
+					if err := ziputil.Extract(outputPath, extractDir, ziputil.DefaultOptions()); err != nil {
+						fmt.Fprintf(os.Stderr, "Error extracting %s: %v\n", safeFilename, err)
+					} else {
+						fmt.Printf("Extracted to: %s\n", extractDir)
+					}
+				}
+			}
+
+			return nil
+		},
 	}
 
-	cmd.Flags().StringVarP(&downloadFilename, "filename", "f", "",
+	cmd.Flags().StringVarP(&filename, "filename", "f", "",
 		"Download only attachment with this filename")
-	cmd.Flags().StringVarP(&downloadDir, "output", "o", ".",
+	cmd.Flags().StringVarP(&outputDir, "output", "o", ".",
 		"Directory to save attachments")
-	cmd.Flags().BoolVarP(&downloadExtract, "extract", "e", false,
+	cmd.Flags().BoolVarP(&extract, "extract", "e", false,
 		"Extract zip files after download")
-	cmd.Flags().BoolVarP(&downloadAll, "all", "a", false,
+	cmd.Flags().BoolVarP(&all, "all", "a", false,
 		"Download all attachments (required if no --filename specified)")
 
 	return cmd
-}
-
-func runDownloadAttachments(cmd *cobra.Command, args []string) error {
-	if downloadFilename == "" && !downloadAll {
-		return fmt.Errorf("must specify --filename or --all")
-	}
-
-	client, err := newGmailClient()
-	if err != nil {
-		return err
-	}
-
-	messageID := args[0]
-	attachments, err := client.GetAttachments(messageID)
-	if err != nil {
-		return err
-	}
-
-	if len(attachments) == 0 {
-		fmt.Println("No attachments found for message.")
-		return nil
-	}
-
-	// Filter by filename if specified
-	var toDownload []*gmail.Attachment
-	for _, att := range attachments {
-		if downloadFilename == "" || att.Filename == downloadFilename {
-			toDownload = append(toDownload, att)
-		}
-	}
-
-	if len(toDownload) == 0 {
-		return fmt.Errorf("attachment not found: %s", downloadFilename)
-	}
-
-	// Create output directory if needed
-	if err := os.MkdirAll(downloadDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Get absolute path of download directory for path validation
-	absDownloadDir, err := filepath.Abs(downloadDir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve download directory: %w", err)
-	}
-
-	// Download each attachment
-	for _, att := range toDownload {
-		// Sanitize filename for display to prevent terminal injection
-		safeFilename := SanitizeFilename(att.Filename)
-
-		// Security: Validate output path to prevent path traversal attacks
-		outputPath, err := safeOutputPath(absDownloadDir, att.Filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Skipping %s: %v\n", safeFilename, err)
-			continue
-		}
-
-		data, err := downloadAttachment(client, messageID, att)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", safeFilename, err)
-			continue
-		}
-
-		if err := saveAttachment(outputPath, data); err != nil {
-			fmt.Fprintf(os.Stderr, "Error saving %s: %v\n", safeFilename, err)
-			continue
-		}
-
-		fmt.Printf("Downloaded: %s (%s)\n", outputPath, formatSize(int64(len(data))))
-
-		// Extract if zip and --extract flag
-		if downloadExtract && isZipFile(att.Filename, att.MimeType) {
-			extractDir := filepath.Join(downloadDir,
-				strings.TrimSuffix(att.Filename, filepath.Ext(att.Filename)))
-			if err := ziputil.Extract(outputPath, extractDir, ziputil.DefaultOptions()); err != nil {
-				fmt.Fprintf(os.Stderr, "Error extracting %s: %v\n", safeFilename, err)
-			} else {
-				fmt.Printf("Extracted to: %s\n", extractDir)
-			}
-		}
-	}
-
-	return nil
 }
 
 func downloadAttachment(client gmail.GmailClientInterface, messageID string, att *gmail.Attachment) ([]byte, error) {

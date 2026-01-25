@@ -12,8 +12,11 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/cmd/drive"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/initcmd"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/mail"
+	"github.com/open-cli-collective/google-readonly/internal/log"
 	"github.com/open-cli-collective/google-readonly/internal/version"
 )
+
+var verbose bool
 
 var rootCmd = &cobra.Command{
 	Use:   "gro",
@@ -28,6 +31,9 @@ To get started, run:
 
 This will guide you through OAuth setup for Google API access.`,
 	Version: version.Version,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		log.Verbose = verbose
+	},
 }
 
 // Execute runs the root command
@@ -41,6 +47,9 @@ func Execute() {
 func init() {
 	// Set custom version template to include commit and build date
 	rootCmd.SetVersionTemplate("gro " + version.Info() + "\n")
+
+	// Global flags
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output for debugging")
 
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())

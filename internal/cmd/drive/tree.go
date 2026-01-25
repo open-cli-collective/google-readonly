@@ -9,12 +9,6 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 )
 
-var (
-	treeDepth      int
-	treeFiles      bool
-	treeJSONOutput bool
-)
-
 // TreeNode represents a node in the folder tree
 type TreeNode struct {
 	ID       string      `json:"id"`
@@ -24,6 +18,12 @@ type TreeNode struct {
 }
 
 func newTreeCommand() *cobra.Command {
+	var (
+		depth      int
+		files      bool
+		jsonOutput bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "tree [folder-id]",
 		Short: "Display folder structure",
@@ -36,39 +36,37 @@ Examples:
   gro drive tree --files            # Include files, not just folders
   gro drive tree --json             # Output as JSON`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: runTree,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newDriveClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Drive client: %w", err)
+			}
+
+			folderID := "root"
+			if len(args) > 0 {
+				folderID = args[0]
+			}
+
+			// Build the tree
+			tree, err := buildTree(client, folderID, depth, files)
+			if err != nil {
+				return fmt.Errorf("failed to build folder tree: %w", err)
+			}
+
+			if jsonOutput {
+				return printJSON(tree)
+			}
+
+			printTree(tree, "", true)
+			return nil
+		},
 	}
 
-	cmd.Flags().IntVarP(&treeDepth, "depth", "d", 2, "Maximum depth to traverse")
-	cmd.Flags().BoolVar(&treeFiles, "files", false, "Include files in addition to folders")
-	cmd.Flags().BoolVarP(&treeJSONOutput, "json", "j", false, "Output results as JSON")
+	cmd.Flags().IntVarP(&depth, "depth", "d", 2, "Maximum depth to traverse")
+	cmd.Flags().BoolVar(&files, "files", false, "Include files in addition to folders")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 
 	return cmd
-}
-
-func runTree(cmd *cobra.Command, args []string) error {
-	client, err := newDriveClient()
-	if err != nil {
-		return err
-	}
-
-	folderID := "root"
-	if len(args) > 0 {
-		folderID = args[0]
-	}
-
-	// Build the tree
-	tree, err := buildTree(client, folderID, treeDepth, treeFiles)
-	if err != nil {
-		return err
-	}
-
-	if treeJSONOutput {
-		return printJSON(tree)
-	}
-
-	printTree(tree, "", true)
-	return nil
 }
 
 // buildTree recursively builds the folder tree structure

@@ -11,13 +11,13 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 )
 
-var (
-	listMaxResults int64
-	listFileType   string
-	listJSONOutput bool
-)
-
 func newListCommand() *cobra.Command {
+	var (
+		maxResults int64
+		fileType   string
+		jsonOutput bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "list [folder-id]",
 		Short: "List files in Drive",
@@ -32,48 +32,46 @@ Examples:
 
 File types: document, spreadsheet, presentation, folder, pdf, image, video, audio`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: runList,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newDriveClient()
+			if err != nil {
+				return fmt.Errorf("failed to create Drive client: %w", err)
+			}
+
+			folderID := ""
+			if len(args) > 0 {
+				folderID = args[0]
+			}
+
+			query, err := buildListQuery(folderID, fileType)
+			if err != nil {
+				return fmt.Errorf("failed to build query: %w", err)
+			}
+
+			files, err := client.ListFiles(query, maxResults)
+			if err != nil {
+				return fmt.Errorf("failed to list files: %w", err)
+			}
+
+			if len(files) == 0 {
+				fmt.Println("No files found.")
+				return nil
+			}
+
+			if jsonOutput {
+				return printJSON(files)
+			}
+
+			printFileTable(files)
+			return nil
+		},
 	}
 
-	cmd.Flags().Int64VarP(&listMaxResults, "max", "m", 25, "Maximum number of results to return")
-	cmd.Flags().StringVarP(&listFileType, "type", "t", "", "Filter by file type")
-	cmd.Flags().BoolVarP(&listJSONOutput, "json", "j", false, "Output results as JSON")
+	cmd.Flags().Int64VarP(&maxResults, "max", "m", 25, "Maximum number of results to return")
+	cmd.Flags().StringVarP(&fileType, "type", "t", "", "Filter by file type")
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 
 	return cmd
-}
-
-func runList(cmd *cobra.Command, args []string) error {
-	client, err := newDriveClient()
-	if err != nil {
-		return err
-	}
-
-	folderID := ""
-	if len(args) > 0 {
-		folderID = args[0]
-	}
-
-	query, err := buildListQuery(folderID, listFileType)
-	if err != nil {
-		return err
-	}
-
-	files, err := client.ListFiles(query, listMaxResults)
-	if err != nil {
-		return err
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No files found.")
-		return nil
-	}
-
-	if listJSONOutput {
-		return printJSON(files)
-	}
-
-	printFileTable(files)
-	return nil
 }
 
 // buildListQuery constructs a Drive API query string for listing files
