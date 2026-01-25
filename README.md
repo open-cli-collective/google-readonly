@@ -4,10 +4,11 @@ A read-only command-line interface for Google services. Search, read, and view G
 
 ## Features
 
-- **Read-only access** - Uses `gmail.readonly`, `calendar.readonly`, and `contacts.readonly` OAuth scopes
+- **Read-only access** - Uses `gmail.readonly`, `calendar.readonly`, `contacts.readonly`, and `drive.readonly` OAuth scopes
 - **Gmail support** - Search messages, read content, view threads, list labels, download attachments
 - **Calendar support** - List calendars, view events, today/week shortcuts
 - **Contacts support** - List contacts, search, view details, list groups
+- **Drive support** - List files, search, view metadata, download files, folder tree
 - **JSON output** - Machine-readable output for scripting
 - **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
 
@@ -101,6 +102,7 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
    - Search for and enable: **Gmail API**
    - Enable: **Google Calendar API**
    - Enable: **People API** (for Contacts)
+   - Enable: **Google Drive API**
 
 ### 2. Create OAuth Credentials
 
@@ -113,6 +115,7 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
      - `https://www.googleapis.com/auth/gmail.readonly`
      - `https://www.googleapis.com/auth/calendar.readonly`
      - `https://www.googleapis.com/auth/contacts.readonly`
+     - `https://www.googleapis.com/auth/drive.readonly`
    - Add your email as a test user
 4. For Application type, select **Desktop app**
 5. Click **Create**
@@ -485,6 +488,121 @@ Flags:
   -j, --json       Output as JSON
 ```
 
+### Drive Commands
+
+All Drive commands are under `gro drive` (or `gro files`):
+
+```bash
+# List files in root or folder
+gro drive list
+gro files list --max 20
+gro drive list <folder-id> --type document
+
+# Search files
+gro drive search "quarterly report"
+gro files search --name "budget" --type spreadsheet
+gro drive search --modified-after 2024-01-01
+
+# Get file metadata
+gro drive get <file-id>
+gro files get <file-id> --json
+
+# Download files
+gro drive download <file-id>
+gro files download <file-id> --output ./report.pdf
+gro drive download <file-id> --format pdf  # Export Google Doc as PDF
+gro drive download <file-id> --stdout       # Write to stdout
+
+# Show folder tree
+gro drive tree
+gro files tree <folder-id> --depth 3
+gro drive tree --files  # Include files, not just folders
+```
+
+### gro drive list
+
+List files in Google Drive root or a specific folder.
+
+```
+Usage: gro drive list [folder-id] [flags]
+
+Aliases: gro files list
+
+Flags:
+  -m, --max int      Maximum number of files (default 25)
+  -t, --type string  Filter by type (document, spreadsheet, presentation, folder, pdf, image, video, audio)
+  -j, --json         Output as JSON
+```
+
+### gro drive search
+
+Search for files in Google Drive.
+
+```
+Usage: gro drive search [query] [flags]
+
+Aliases: gro files search
+
+Flags:
+  -n, --name string            Search by filename only
+  -t, --type string            Filter by file type
+      --owner string           Filter by owner (me, or email)
+      --modified-after string  Modified after date (YYYY-MM-DD)
+      --modified-before string Modified before date (YYYY-MM-DD)
+      --in-folder string       Search within folder ID
+  -m, --max int                Maximum results (default 25)
+  -j, --json                   Output as JSON
+```
+
+### gro drive get
+
+Get detailed metadata for a file.
+
+```
+Usage: gro drive get <file-id> [flags]
+
+Aliases: gro files get
+
+Flags:
+  -j, --json       Output as JSON
+```
+
+### gro drive download
+
+Download a file or export a Google Workspace file.
+
+```
+Usage: gro drive download <file-id> [flags]
+
+Aliases: gro files download
+
+Flags:
+  -o, --output string   Output file path
+  -f, --format string   Export format for Google Workspace files
+      --stdout          Write to stdout instead of file
+```
+
+Export formats for Google Workspace files:
+- **Documents**: pdf, docx, txt, html, md, rtf, odt
+- **Spreadsheets**: pdf, xlsx, csv, tsv, ods
+- **Presentations**: pdf, pptx, odp
+- **Drawings**: pdf, png, svg, jpg
+
+### gro drive tree
+
+Display folder structure as a tree.
+
+```
+Usage: gro drive tree [folder-id] [flags]
+
+Aliases: gro files tree
+
+Flags:
+  -d, --depth int    Maximum depth to traverse (default 2)
+      --files        Include files in addition to folders
+  -j, --json         Output as JSON
+```
+
 ## Search Query Reference
 
 gro supports all Gmail search operators:
@@ -600,10 +718,6 @@ Your OAuth consent screen may not be properly configured. Ensure:
 1. The Gmail API is enabled
 2. Your email is added as a test user (for apps in testing mode)
 3. The required scopes are added
-
-## Future Features
-
-- **Google Drive** - List files, download content
 
 ## License
 

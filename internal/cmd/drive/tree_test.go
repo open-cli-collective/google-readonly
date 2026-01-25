@@ -2,11 +2,15 @@ package drive
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/open-cli-collective/google-readonly/internal/drive"
 )
 
 func TestTreeCommand(t *testing.T) {
@@ -209,5 +213,152 @@ func TestTreeNode(t *testing.T) {
 		}
 
 		assert.Nil(t, node.Children)
+	})
+}
+
+// mockDriveClient implements drive.DriveClientInterface for testing
+type mockDriveClient struct {
+	files    map[string]*drive.File   // fileID -> File
+	children map[string][]*drive.File // folderID -> children
+}
+
+func newMockDriveClient() *mockDriveClient {
+	return &mockDriveClient{
+		files:    make(map[string]*drive.File),
+		children: make(map[string][]*drive.File),
+	}
+}
+
+func (m *mockDriveClient) GetFile(fileID string) (*drive.File, error) {
+	if f, ok := m.files[fileID]; ok {
+		return f, nil
+	}
+	return nil, fmt.Errorf("file not found: %s", fileID)
+}
+
+func (m *mockDriveClient) ListFiles(query string, _ int64) ([]*drive.File, error) {
+	// Extract folderID from query like "'folder123' in parents and trashed = false"
+	// The query format is: "'<folderID>' in parents and trashed = false"
+	for folderID, files := range m.children {
+		searchPattern := fmt.Sprintf("'%s' in parents", folderID)
+		if strings.Contains(query, searchPattern) {
+			return files, nil
+		}
+	}
+	return []*drive.File{}, nil
+}
+
+func (m *mockDriveClient) DownloadFile(_ string) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockDriveClient) ExportFile(_ string, _ string) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func TestBuildTree(t *testing.T) {
+	t.Run("builds tree for root folder", func(t *testing.T) {
+		mock := newMockDriveClient()
+		// Set up child folders in both children and files maps
+		mock.children["root"] = []*drive.File{
+			{ID: "folder1", Name: "Documents", MimeType: drive.MimeTypeFolder},
+			{ID: "folder2", Name: "Photos", MimeType: drive.MimeTypeFolder},
+		}
+		// GetFile is called for each child folder during recursion
+		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "Documents", MimeType: drive.MimeTypeFolder}
+		mock.files["folder2"] = &drive.File{ID: "folder2", Name: "Photos", MimeType: drive.MimeTypeFolder}
+
+		tree, err := buildTree(mock, "root", 1, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "root", tree.ID)
+		assert.Equal(t, "My Drive", tree.Name)
+		assert.Equal(t, "Folder", tree.Type)
+		assert.Len(t, tree.Children, 2)
+	})
+
+	t.Run("builds tree for specific folder", func(t *testing.T) {
+		mock := newMockDriveClient()
+		mock.files["folder123"] = &drive.File{
+			ID:       "folder123",
+			Name:     "My Folder",
+			MimeType: drive.MimeTypeFolder,
+		}
+		mock.children["folder123"] = []*drive.File{
+			{ID: "doc1", Name: "Notes.txt", MimeType: "text/plain"},
+		}
+
+		tree, err := buildTree(mock, "folder123", 1, true)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "folder123", tree.ID)
+		assert.Equal(t, "My Folder", tree.Name)
+		assert.Len(t, tree.Children, 1)
+		assert.Equal(t, "Notes.txt", tree.Children[0].Name)
+	})
+
+	t.Run("respects depth limit", func(t *testing.T) {
+		mock := newMockDriveClient()
+		mock.children["root"] = []*drive.File{
+			{ID: "folder1", Name: "Level1", MimeType: drive.MimeTypeFolder},
+		}
+		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "Level1", MimeType: drive.MimeTypeFolder}
+		mock.children["folder1"] = []*drive.File{
+			{ID: "folder2", Name: "Level2", MimeType: drive.MimeTypeFolder},
+		}
+		mock.files["folder2"] = &drive.File{ID: "folder2", Name: "Level2", MimeType: drive.MimeTypeFolder}
+
+		// With depth 1, should not recurse into Level1
+		tree, err := buildTree(mock, "root", 1, false)
+
+		assert.NoError(t, err)
+		assert.Len(t, tree.Children, 1)
+		assert.Equal(t, "Level1", tree.Children[0].Name)
+		// Children of Level1 should be empty due to depth limit
+		assert.Empty(t, tree.Children[0].Children)
+	})
+
+	t.Run("returns node with no children at depth 0", func(t *testing.T) {
+		mock := newMockDriveClient()
+		mock.children["root"] = []*drive.File{
+			{ID: "folder1", Name: "Folder", MimeType: drive.MimeTypeFolder},
+		}
+
+		tree, err := buildTree(mock, "root", 0, false)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "My Drive", tree.Name)
+		assert.Nil(t, tree.Children)
+	})
+
+	t.Run("includes files when includeFiles is true", func(t *testing.T) {
+		mock := newMockDriveClient()
+		mock.children["root"] = []*drive.File{
+			{ID: "folder1", Name: "Docs", MimeType: drive.MimeTypeFolder},
+			{ID: "file1", Name: "readme.txt", MimeType: "text/plain"},
+		}
+		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "Docs", MimeType: drive.MimeTypeFolder}
+
+		tree, err := buildTree(mock, "root", 1, true)
+
+		assert.NoError(t, err)
+		assert.Len(t, tree.Children, 2)
+	})
+
+	t.Run("sorts folders before files", func(t *testing.T) {
+		mock := newMockDriveClient()
+		mock.children["root"] = []*drive.File{
+			{ID: "file1", Name: "aaa.txt", MimeType: "text/plain"},
+			{ID: "folder1", Name: "zzz-folder", MimeType: drive.MimeTypeFolder},
+		}
+		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "zzz-folder", MimeType: drive.MimeTypeFolder}
+
+		tree, err := buildTree(mock, "root", 1, true)
+
+		assert.NoError(t, err)
+		assert.Len(t, tree.Children, 2)
+		// Folder should come first despite alphabetical order
+		assert.Equal(t, "zzz-folder", tree.Children[0].Name)
+		assert.Equal(t, "aaa.txt", tree.Children[1].Name)
 	})
 }
