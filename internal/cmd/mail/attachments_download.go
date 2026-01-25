@@ -135,7 +135,7 @@ func runDownloadAttachments(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func downloadAttachment(client *gmail.Client, messageID string, att *gmail.Attachment) ([]byte, error) {
+func downloadAttachment(client gmail.GmailClientInterface, messageID string, att *gmail.Attachment) ([]byte, error) {
 	if att.AttachmentID != "" {
 		return client.DownloadAttachment(messageID, att.AttachmentID)
 	}

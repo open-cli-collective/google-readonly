@@ -9,9 +9,15 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
 )
 
-// newCalendarClient creates a new calendar client
-func newCalendarClient() (*calendar.Client, error) {
+// ClientFactory is the function used to create Calendar clients.
+// Override in tests to inject mocks.
+var ClientFactory = func() (calendar.CalendarClientInterface, error) {
 	return calendar.NewClient(context.Background())
+}
+
+// newCalendarClient creates a new calendar client
+func newCalendarClient() (calendar.CalendarClientInterface, error) {
+	return ClientFactory()
 }
 
 // printJSON outputs data as indented JSON

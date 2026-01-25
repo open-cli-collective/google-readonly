@@ -10,9 +10,15 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 )
 
-// newGmailClient creates and returns a new Gmail client
-func newGmailClient() (*gmail.Client, error) {
+// ClientFactory is the function used to create Gmail clients.
+// Override in tests to inject mocks.
+var ClientFactory = func() (gmail.GmailClientInterface, error) {
 	return gmail.NewClient(context.Background())
+}
+
+// newGmailClient creates and returns a new Gmail client
+func newGmailClient() (gmail.GmailClientInterface, error) {
+	return ClientFactory()
 }
 
 // printJSON encodes data as indented JSON to stdout

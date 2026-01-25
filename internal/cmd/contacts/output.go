@@ -9,9 +9,15 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/contacts"
 )
 
-// newContactsClient creates a new contacts client
-func newContactsClient() (*contacts.Client, error) {
+// ClientFactory is the function used to create Contacts clients.
+// Override in tests to inject mocks.
+var ClientFactory = func() (contacts.ContactsClientInterface, error) {
 	return contacts.NewClient(context.Background())
+}
+
+// newContactsClient creates a new contacts client
+func newContactsClient() (contacts.ContactsClientInterface, error) {
+	return ClientFactory()
 }
 
 // printJSON outputs data as indented JSON
