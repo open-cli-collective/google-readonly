@@ -2,26 +2,13 @@ package gmail
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"path/filepath"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
-	"google.golang.org/api/people/v1"
 
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
-)
-
-const (
-	configDirName   = "google-readonly"
-	credentialsFile = "credentials.json"
-	tokenFile       = "token.json"
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 )
 
 // Client wraps the Gmail API service
@@ -34,29 +21,7 @@ type Client struct {
 
 // NewClient creates a new Gmail client with OAuth2 authentication
 func NewClient(ctx context.Context) (*Client, error) {
-	configDir, err := getConfigDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get config directory: %w", err)
-	}
-
-	credPath := filepath.Join(configDir, credentialsFile)
-	b, err := os.ReadFile(credPath)
-	if err != nil {
-		shortPath := ShortenPath(credPath)
-		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", shortPath, err, shortPath)
-	}
-
-	// Request read-only scopes for all supported services
-	config, err := google.ConfigFromJSON(b,
-		gmail.GmailReadonlyScope,
-		calendar.CalendarReadonlyScope,
-		people.ContactsReadonlyScope,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse credentials: %w", err)
-	}
-
-	client, err := getHTTPClient(ctx, config, configDir)
+	client, err := auth.GetHTTPClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -70,94 +35,6 @@ func NewClient(ctx context.Context) (*Client, error) {
 		Service: srv,
 		UserID:  "me",
 	}, nil
-}
-
-func getConfigDir() (string, error) {
-	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		configHome = filepath.Join(home, ".config")
-	}
-	configDir := filepath.Join(configHome, configDirName)
-
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return "", err
-	}
-
-	return configDir, nil
-}
-
-func getHTTPClient(ctx context.Context, config *oauth2.Config, configDir string) (*http.Client, error) {
-	tokPath := filepath.Join(configDir, tokenFile)
-
-	// Attempt migration from file to keychain (idempotent)
-	_ = keychain.MigrateFromFile(tokPath)
-
-	// Try to load token: keychain first, then file fallback
-	tok, err := keychain.GetToken()
-	if err != nil {
-		tok, err = tokenFromFile(tokPath)
-	}
-
-	// No token found - need web auth flow
-	if err != nil {
-		tok, err = getTokenFromWeb(ctx, config)
-		if err != nil {
-			return nil, err
-		}
-		// Save new token to keychain (or file fallback)
-		if kerr := keychain.SetToken(tok); kerr != nil {
-			// Fall back to file storage
-			if serr := saveToken(tokPath, tok); serr != nil {
-				return nil, fmt.Errorf("failed to save token: %w", serr)
-			}
-		}
-	}
-
-	// Create persistent token source that saves refreshed tokens
-	tokenSource := keychain.NewPersistentTokenSource(config, tok)
-	return oauth2.NewClient(ctx, tokenSource), nil
-}
-
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
-}
-
-func getTokenFromWeb(ctx context.Context, config *oauth2.Config) (*oauth2.Token, error) {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser:\n\n%s\n\n", authURL)
-	fmt.Print("Enter the authorization code: ")
-
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		return nil, fmt.Errorf("unable to read authorization code: %w", err)
-	}
-
-	tok, err := config.Exchange(ctx, authCode)
-	if err != nil {
-		return nil, fmt.Errorf("unable to exchange authorization code: %w", err)
-	}
-	return tok, nil
-}
-
-func saveToken(path string, token *oauth2.Token) error {
-	fmt.Printf("Saving credential file to: %s\n", path)
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to save token: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-	return json.NewEncoder(f).Encode(token)
 }
 
 // FetchLabels retrieves and caches all labels from the Gmail account
@@ -201,55 +78,37 @@ func (c *Client) GetLabels() []*gmail.Label {
 }
 
 // GetConfigDir returns the configuration directory path
+// Deprecated: Use auth.GetConfigDir() instead
 func GetConfigDir() (string, error) {
-	return getConfigDir()
+	return auth.GetConfigDir()
 }
 
 // GetCredentialsPath returns the path to credentials.json
+// Deprecated: Use auth.GetCredentialsPath() instead
 func GetCredentialsPath() (string, error) {
-	dir, err := getConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, credentialsFile), nil
+	return auth.GetCredentialsPath()
 }
 
 // GetOAuthConfig loads OAuth config from credentials file
+// Deprecated: Use auth.GetOAuthConfig() instead
 func GetOAuthConfig() (*oauth2.Config, error) {
-	credPath, err := GetCredentialsPath()
-	if err != nil {
-		return nil, err
-	}
-	b, err := os.ReadFile(credPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read credentials file: %w", err)
-	}
-	return google.ConfigFromJSON(b,
-		gmail.GmailReadonlyScope,
-		calendar.CalendarReadonlyScope,
-		people.ContactsReadonlyScope,
-	)
+	return auth.GetOAuthConfig()
 }
 
 // ExchangeAuthCode exchanges an authorization code for a token
+// Deprecated: Use auth.ExchangeAuthCode() instead
 func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (*oauth2.Token, error) {
-	return config.Exchange(ctx, code)
+	return auth.ExchangeAuthCode(ctx, config, code)
 }
 
 // GetAuthURL returns the OAuth authorization URL
+// Deprecated: Use auth.GetAuthURL() instead
 func GetAuthURL(config *oauth2.Config) string {
-	return config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	return auth.GetAuthURL(config)
 }
 
 // ShortenPath replaces the home directory prefix with ~ for display purposes.
-// This prevents exposing full paths including usernames in error messages.
+// Deprecated: Use auth.ShortenPath() instead
 func ShortenPath(path string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path
-	}
-	if len(path) >= len(home) && path[:len(home)] == home {
-		return "~" + path[len(home):]
-	}
-	return path
+	return auth.ShortenPath(path)
 }
