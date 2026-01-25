@@ -95,12 +95,15 @@ func setInKeychain(token *oauth2.Token) error {
 	// Delete existing entry (ignore error if not exists)
 	_ = deleteFromKeychain()
 
-	// Add new entry
-	cmd := exec.Command("security", "add-generic-password",
-		"-s", serviceName,
-		"-a", tokenKey,
-		"-w", string(data),
-		"-U")
+	// Add new entry using interactive mode to avoid exposing token in process list.
+	// The -i flag reads commands from stdin, keeping sensitive data out of ps output.
+	cmd := exec.Command("security", "-i")
+
+	// Build the command to send via stdin
+	// Note: The password value is quoted to handle special characters in JSON
+	stdinCmd := fmt.Sprintf("add-generic-password -s %q -a %q -w %q -U\n",
+		serviceName, tokenKey, string(data))
+	cmd.Stdin = strings.NewReader(stdinCmd)
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to store in keychain: %w", err)
