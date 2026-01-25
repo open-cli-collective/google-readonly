@@ -27,6 +27,7 @@ Examples:
 	}
 
 	cmd.AddCommand(newListCommand())
+	cmd.AddCommand(newSearchCommand())
 
 	return cmd
 }
