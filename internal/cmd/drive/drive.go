@@ -26,7 +26,7 @@ Examples:
   gro drive download <file-id> --format pdf`,
 	}
 
-	// Subcommands will be added as they are implemented
+	cmd.AddCommand(newListCommand())
 
 	return cmd
 }

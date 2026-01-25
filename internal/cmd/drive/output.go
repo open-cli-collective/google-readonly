@@ -15,15 +15,11 @@ var ClientFactory = func() (drive.DriveClientInterface, error) {
 }
 
 // newDriveClient creates and returns a new Drive client
-//
-//nolint:unused // Will be used by subcommands
 func newDriveClient() (drive.DriveClientInterface, error) {
 	return ClientFactory()
 }
 
 // printJSON encodes data as indented JSON to stdout
-//
-//nolint:unused // Will be used by subcommands
 func printJSON(data any) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
