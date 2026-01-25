@@ -1,0 +1,117 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGetConfigDir(t *testing.T) {
+	t.Run("uses XDG_CONFIG_HOME if set", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+		dir, err := GetConfigDir()
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(tmpDir, DirName), dir)
+
+		// Verify directory was created
+		info, err := os.Stat(dir)
+		require.NoError(t, err)
+		assert.True(t, info.IsDir())
+	})
+
+	t.Run("uses ~/.config if XDG_CONFIG_HOME not set", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", "")
+
+		dir, err := GetConfigDir()
+		require.NoError(t, err)
+
+		home, _ := os.UserHomeDir()
+		expected := filepath.Join(home, ".config", DirName)
+		assert.Equal(t, expected, dir)
+	})
+
+	t.Run("creates directory with correct permissions", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+		dir, err := GetConfigDir()
+		require.NoError(t, err)
+
+		info, err := os.Stat(dir)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+	})
+}
+
+func TestGetCredentialsPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	path, err := GetCredentialsPath()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tmpDir, DirName, CredentialsFile), path)
+}
+
+func TestGetTokenPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	path, err := GetTokenPath()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tmpDir, DirName, TokenFile), path)
+}
+
+func TestShortenPath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "replaces home directory with tilde",
+			input:    filepath.Join(home, ".config", "google-readonly", "credentials.json"),
+			expected: "~/.config/google-readonly/credentials.json",
+		},
+		{
+			name:     "replaces home directory only",
+			input:    home,
+			expected: "~",
+		},
+		{
+			name:     "preserves path not under home",
+			input:    "/tmp/test/file.txt",
+			expected: "/tmp/test/file.txt",
+		},
+		{
+			name:     "preserves relative path",
+			input:    "relative/path/file.txt",
+			expected: "relative/path/file.txt",
+		},
+		{
+			name:     "handles path that starts with home prefix but is different",
+			input:    home + "extra/path",
+			expected: "~extra/path",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ShortenPath(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestConstants(t *testing.T) {
+	assert.Equal(t, "google-readonly", DirName)
+	assert.Equal(t, "credentials.json", CredentialsFile)
+	assert.Equal(t, "token.json", TokenFile)
+}

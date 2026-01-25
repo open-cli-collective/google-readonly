@@ -10,12 +10,13 @@ import (
 	"path/filepath"
 
 	"golang.org/x/oauth2"
+
+	"github.com/open-cli-collective/google-readonly/internal/config"
 )
 
 const (
-	serviceName = "google-readonly"
+	serviceName = config.DirName
 	tokenKey    = "oauth_token"
-	tokenFile   = "token.json"
 )
 
 // StorageBackend represents where tokens are stored
@@ -32,25 +33,9 @@ var (
 	ErrTokenNotFound = errors.New("no token found in secure storage")
 )
 
-// configDir returns the configuration directory path
-func configDir() (string, error) {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, serviceName), nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-	return filepath.Join(home, ".config", serviceName), nil
-}
-
 // tokenFilePath returns the full path to the token file
 func tokenFilePath() (string, error) {
-	dir, err := configDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, tokenFile), nil
+	return config.GetTokenPath()
 }
 
 // GetToken retrieves the OAuth token from secure storage

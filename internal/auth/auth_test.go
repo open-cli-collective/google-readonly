@@ -7,113 +7,68 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/open-cli-collective/google-readonly/internal/config"
 )
 
-func TestGetConfigDir(t *testing.T) {
-	t.Run("uses XDG_CONFIG_HOME if set", func(t *testing.T) {
+// TestDeprecatedWrappers verifies that auth package wrappers delegate to config package
+func TestDeprecatedWrappers(t *testing.T) {
+	t.Run("GetConfigDir delegates to config package", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
-		dir, err := GetConfigDir()
+		authDir, err := GetConfigDir()
 		require.NoError(t, err)
-		assert.Equal(t, filepath.Join(tmpDir, ConfigDirName), dir)
 
-		// Verify directory was created
-		info, err := os.Stat(dir)
+		configDir, err := config.GetConfigDir()
 		require.NoError(t, err)
-		assert.True(t, info.IsDir())
+
+		assert.Equal(t, configDir, authDir)
 	})
 
-	t.Run("uses ~/.config if XDG_CONFIG_HOME not set", func(t *testing.T) {
-		t.Setenv("XDG_CONFIG_HOME", "")
-
-		dir, err := GetConfigDir()
-		require.NoError(t, err)
-
-		home, _ := os.UserHomeDir()
-		expected := filepath.Join(home, ".config", ConfigDirName)
-		assert.Equal(t, expected, dir)
-	})
-
-	t.Run("creates directory with correct permissions", func(t *testing.T) {
+	t.Run("GetCredentialsPath delegates to config package", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
-		dir, err := GetConfigDir()
+		authPath, err := GetCredentialsPath()
 		require.NoError(t, err)
 
-		info, err := os.Stat(dir)
+		configPath, err := config.GetCredentialsPath()
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+
+		assert.Equal(t, configPath, authPath)
 	})
-}
 
-func TestGetCredentialsPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	t.Run("GetTokenPath delegates to config package", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
-	path, err := GetCredentialsPath()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, ConfigDirName, CredentialsFile), path)
-}
+		authPath, err := GetTokenPath()
+		require.NoError(t, err)
 
-func TestGetTokenPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		configPath, err := config.GetTokenPath()
+		require.NoError(t, err)
 
-	path, err := GetTokenPath()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, ConfigDirName, TokenFile), path)
-}
+		assert.Equal(t, configPath, authPath)
+	})
 
-func TestShortenPath(t *testing.T) {
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
+	t.Run("ShortenPath delegates to config package", func(t *testing.T) {
+		home, err := os.UserHomeDir()
+		require.NoError(t, err)
 
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "replaces home directory with tilde",
-			input:    filepath.Join(home, ".config", "google-readonly", "credentials.json"),
-			expected: "~/.config/google-readonly/credentials.json",
-		},
-		{
-			name:     "replaces home directory only",
-			input:    home,
-			expected: "~",
-		},
-		{
-			name:     "preserves path not under home",
-			input:    "/tmp/test/file.txt",
-			expected: "/tmp/test/file.txt",
-		},
-		{
-			name:     "preserves relative path",
-			input:    "relative/path/file.txt",
-			expected: "relative/path/file.txt",
-		},
-		{
-			name:     "handles path that starts with home prefix but is different",
-			input:    home + "extra/path",
-			expected: "~extra/path",
-		},
-	}
+		testPath := filepath.Join(home, ".config", "test")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ShortenPath(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
+		authResult := ShortenPath(testPath)
+		configResult := config.ShortenPath(testPath)
 
-func TestConstants(t *testing.T) {
-	assert.Equal(t, "google-readonly", ConfigDirName)
-	assert.Equal(t, "credentials.json", CredentialsFile)
-	assert.Equal(t, "token.json", TokenFile)
+		assert.Equal(t, configResult, authResult)
+	})
+
+	t.Run("Constants match config package", func(t *testing.T) {
+		assert.Equal(t, config.DirName, ConfigDirName)
+		assert.Equal(t, config.CredentialsFile, CredentialsFile)
+		assert.Equal(t, config.TokenFile, TokenFile)
+	})
 }
 
 func TestAllScopes(t *testing.T) {
