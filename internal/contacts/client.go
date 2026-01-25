@@ -3,20 +3,11 @@ package contacts
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"google.golang.org/api/people/v1"
 
-	"github.com/open-cli-collective/google-readonly/internal/gmail"
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
-)
-
-const (
-	configDirName   = "google-readonly"
-	credentialsFile = "credentials.json"
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 )
 
 // Client wraps the Google People API service for contacts
@@ -26,34 +17,12 @@ type Client struct {
 
 // NewClient creates a new Contacts client with OAuth2 authentication
 func NewClient(ctx context.Context) (*Client, error) {
-	configDir, err := getConfigDir()
+	client, err := auth.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get config directory: %w", err)
+		return nil, err
 	}
 
-	credPath := filepath.Join(configDir, credentialsFile)
-	b, err := os.ReadFile(credPath)
-	if err != nil {
-		shortPath := gmail.ShortenPath(credPath)
-		return nil, fmt.Errorf("unable to read credentials file at %s: %w\n\nPlease download your OAuth credentials from Google Cloud Console and save them to %s", shortPath, err, shortPath)
-	}
-
-	// Request read-only scope for contacts
-	config, err := google.ConfigFromJSON(b, people.ContactsReadonlyScope)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse credentials: %w", err)
-	}
-
-	// Get token from keychain
-	tok, err := keychain.GetToken()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get token: %w\n\nRun 'gro init' to authenticate", err)
-	}
-
-	// Create persistent token source that saves refreshed tokens
-	tokenSource := keychain.NewPersistentTokenSource(config, tok)
-
-	srv, err := people.NewService(ctx, option.WithTokenSource(tokenSource))
+	srv, err := people.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create People service: %w", err)
 	}
@@ -61,24 +30,6 @@ func NewClient(ctx context.Context) (*Client, error) {
 	return &Client{
 		Service: srv,
 	}, nil
-}
-
-func getConfigDir() (string, error) {
-	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		configHome = filepath.Join(home, ".config")
-	}
-	configDir := filepath.Join(configHome, configDirName)
-
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return "", err
-	}
-
-	return configDir, nil
 }
 
 // ListContacts retrieves contacts from the user's account
