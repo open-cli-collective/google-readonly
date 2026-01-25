@@ -89,15 +89,27 @@ func runDownloadAttachments(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
+	// Get absolute path of download directory for path validation
+	absDownloadDir, err := filepath.Abs(downloadDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve download directory: %w", err)
+	}
+
 	// Download each attachment
 	for _, att := range toDownload {
+		// Security: Validate output path to prevent path traversal attacks
+		outputPath, err := safeOutputPath(absDownloadDir, att.Filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Skipping %s: %v\n", att.Filename, err)
+			continue
+		}
+
 		data, err := downloadAttachment(client, messageID, att)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", att.Filename, err)
 			continue
 		}
 
-		outputPath := filepath.Join(downloadDir, att.Filename)
 		if err := saveAttachment(outputPath, data); err != nil {
 			fmt.Fprintf(os.Stderr, "Error saving %s: %v\n", att.Filename, err)
 			continue
@@ -136,4 +148,40 @@ func isZipFile(filename, mimeType string) bool {
 	return ext == ".zip" ||
 		mimeType == "application/zip" ||
 		mimeType == "application/x-zip-compressed"
+}
+
+// safeOutputPath validates that the output path for a filename stays within the
+// destination directory, preventing path traversal attacks from malicious filenames.
+func safeOutputPath(destDir, filename string) (string, error) {
+	// Clean the filename to normalize path separators and remove redundant elements
+	cleanName := filepath.Clean(filename)
+
+	// Reject absolute paths
+	if filepath.IsAbs(cleanName) {
+		return "", fmt.Errorf("invalid attachment filename: absolute path not allowed")
+	}
+
+	// Reject paths that try to escape with ..
+	if strings.HasPrefix(cleanName, ".."+string(filepath.Separator)) || cleanName == ".." {
+		return "", fmt.Errorf("invalid attachment filename: path traversal not allowed")
+	}
+
+	// Also check for .. anywhere in the path (after cleaning)
+	for _, part := range strings.Split(cleanName, string(filepath.Separator)) {
+		if part == ".." {
+			return "", fmt.Errorf("invalid attachment filename: path traversal not allowed")
+		}
+	}
+
+	// Build the full output path
+	outputPath := filepath.Join(destDir, cleanName)
+
+	// Final security check: ensure the resolved path is within destDir
+	// This handles edge cases like symlinks or other path manipulation
+	cleanOutput := filepath.Clean(outputPath)
+	if !strings.HasPrefix(cleanOutput, destDir+string(filepath.Separator)) && cleanOutput != destDir {
+		return "", fmt.Errorf("invalid attachment filename: path escapes destination directory")
+	}
+
+	return outputPath, nil
 }
