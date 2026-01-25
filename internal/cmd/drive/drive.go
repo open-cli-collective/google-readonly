@@ -30,6 +30,7 @@ Examples:
 	cmd.AddCommand(newSearchCommand())
 	cmd.AddCommand(newGetCommand())
 	cmd.AddCommand(newDownloadCommand())
+	cmd.AddCommand(newTreeCommand())
 
 	return cmd
 }
