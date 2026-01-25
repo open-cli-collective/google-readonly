@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
-	"github.com/open-cli-collective/google-readonly/internal/calendar"
 )
 
 func newTodayCommand() *cobra.Command {
@@ -36,35 +34,15 @@ Examples:
 			now := time.Now()
 			startOfDay, endOfDayTime := todayBounds(now)
 
-			timeMin := startOfDay.Format(time.RFC3339)
-			timeMax := endOfDayTime.Format(time.RFC3339)
-
-			events, err := client.ListEvents(calendarID, timeMin, timeMax, 50)
-			if err != nil {
-				return fmt.Errorf("failed to list today's events: %w", err)
-			}
-
-			if len(events) == 0 {
-				fmt.Println("No events today.")
-				return nil
-			}
-
-			// Convert to our format
-			parsedEvents := make([]*calendar.Event, len(events))
-			for i, e := range events {
-				parsedEvents[i] = calendar.ParseEvent(e)
-			}
-
-			if jsonOutput {
-				return printJSON(parsedEvents)
-			}
-
-			fmt.Printf("Today's events (%s):\n\n", now.Format("Mon, Jan 2, 2006"))
-			for _, event := range parsedEvents {
-				printEventSummary(event)
-			}
-
-			return nil
+			return listAndPrintEvents(client, EventListOptions{
+				CalendarID:   calendarID,
+				TimeMin:      startOfDay.Format(time.RFC3339),
+				TimeMax:      endOfDayTime.Format(time.RFC3339),
+				MaxResults:   50,
+				JSONOutput:   jsonOutput,
+				Header:       fmt.Sprintf("Today's events (%s):", now.Format("Mon, Jan 2, 2006")),
+				EmptyMessage: "No events today.",
+			})
 		},
 	}
 

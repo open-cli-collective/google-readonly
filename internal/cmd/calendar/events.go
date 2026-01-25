@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
-	"github.com/open-cli-collective/google-readonly/internal/calendar"
 )
 
 func newEventsCommand() *cobra.Command {
@@ -68,32 +66,15 @@ Examples:
 				timeMax = endOfDay(t).Format(time.RFC3339)
 			}
 
-			events, err := client.ListEvents(calID, timeMin, timeMax, maxResults)
-			if err != nil {
-				return fmt.Errorf("failed to list events: %w", err)
-			}
-
-			if len(events) == 0 {
-				fmt.Println("No events found.")
-				return nil
-			}
-
-			// Convert to our format
-			parsedEvents := make([]*calendar.Event, len(events))
-			for i, e := range events {
-				parsedEvents[i] = calendar.ParseEvent(e)
-			}
-
-			if jsonOutput {
-				return printJSON(parsedEvents)
-			}
-
-			fmt.Printf("Found %d event(s):\n\n", len(events))
-			for _, event := range parsedEvents {
-				printEventSummary(event)
-			}
-
-			return nil
+			return listAndPrintEvents(client, EventListOptions{
+				CalendarID:   calID,
+				TimeMin:      timeMin,
+				TimeMax:      timeMax,
+				MaxResults:   maxResults,
+				JSONOutput:   jsonOutput,
+				Header:       "", // Will be generated based on count
+				EmptyMessage: "No events found.",
+			})
 		},
 	}
 
