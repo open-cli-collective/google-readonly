@@ -99,16 +99,42 @@ func MigrateFromFile(tokenFilePath string) error {
 		return fmt.Errorf("failed to store token in secure storage: %w", err)
 	}
 
-	// Rename old file to backup
-	backupPath := tokenFilePath + ".backup"
-	if err := os.Rename(tokenFilePath, backupPath); err != nil {
+	// Securely delete old token file (overwrite with zeros before removal)
+	if err := secureDelete(tokenFilePath); err != nil {
 		// Non-fatal - token is now in secure storage
-		fmt.Fprintf(os.Stderr, "Warning: could not backup old token file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Warning: could not securely delete old token file: %v\n", err)
 	} else {
-		fmt.Fprintf(os.Stderr, "Migrated token to secure storage. Backup: %s\n", backupPath)
+		fmt.Fprintf(os.Stderr, "Migrated token to secure storage. Old token file securely deleted.\n")
 	}
 
 	return nil
+}
+
+// secureDelete overwrites a file with zeros before deleting it to prevent
+// forensic recovery of sensitive data.
+func secureDelete(path string) error {
+	// Get file size
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // Already gone
+		}
+		return err
+	}
+
+	// Overwrite with zeros
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		// If we can't open for writing, try to delete anyway
+		return os.Remove(path)
+	}
+
+	zeros := make([]byte, info.Size())
+	_, _ = f.Write(zeros) // Best effort overwrite
+	_ = f.Sync()          // Flush to disk
+	_ = f.Close()         // Ignore close error, we're deleting anyway
+
+	return os.Remove(path)
 }
 
 // File-based storage implementation (fallback)
