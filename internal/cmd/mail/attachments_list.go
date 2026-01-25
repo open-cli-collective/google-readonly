@@ -31,12 +31,12 @@ Examples:
 func runListAttachments(cmd *cobra.Command, args []string) error {
 	client, err := newGmailClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Gmail client: %w", err)
 	}
 
 	attachments, err := client.GetAttachments(args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get attachments: %w", err)
 	}
 
 	if len(attachments) == 0 {

@@ -34,12 +34,12 @@ Examples:
 func runThread(cmd *cobra.Command, args []string) error {
 	client, err := newGmailClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Gmail client: %w", err)
 	}
 
 	messages, err := client.GetThread(args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get thread: %w", err)
 	}
 
 	if len(messages) == 0 {

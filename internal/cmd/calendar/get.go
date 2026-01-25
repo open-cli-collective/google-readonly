@@ -1,6 +1,8 @@
 package calendar
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
@@ -38,12 +40,12 @@ func runGet(cmd *cobra.Command, args []string) error {
 
 	client, err := newCalendarClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Calendar client: %w", err)
 	}
 
 	event, err := client.GetEvent(getCalendarID, eventID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get event: %w", err)
 	}
 
 	parsedEvent := calendar.ParseEvent(event)

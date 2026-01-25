@@ -45,7 +45,7 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 func runList(cmd *cobra.Command, args []string) error {
 	client, err := newDriveClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Drive client: %w", err)
 	}
 
 	folderID := ""
@@ -55,12 +55,12 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	query, err := buildListQuery(folderID, listFileType)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build query: %w", err)
 	}
 
 	files, err := client.ListFiles(query, listMaxResults)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list files: %w", err)
 	}
 
 	if len(files) == 0 {

@@ -1,6 +1,8 @@
 package mail
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -29,12 +31,12 @@ Examples:
 func runRead(cmd *cobra.Command, args []string) error {
 	client, err := newGmailClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Gmail client: %w", err)
 	}
 
 	msg, err := client.GetMessage(args[0], true)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read message: %w", err)
 	}
 
 	if readJSONOutput {

@@ -46,12 +46,12 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	client, err := newContactsClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Contacts client: %w", err)
 	}
 
 	resp, err := client.SearchContacts(query, searchMaxResults)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to search contacts: %w", err)
 	}
 
 	if len(resp.Results) == 0 {

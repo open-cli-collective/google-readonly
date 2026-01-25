@@ -43,11 +43,11 @@ Examples:
 func runLabels(cmd *cobra.Command, args []string) error {
 	client, err := newGmailClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Gmail client: %w", err)
 	}
 
 	if err := client.FetchLabels(); err != nil {
-		return err
+		return fmt.Errorf("failed to fetch labels: %w", err)
 	}
 
 	gmailLabels := client.GetLabels()

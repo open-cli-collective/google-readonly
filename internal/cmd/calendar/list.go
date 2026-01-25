@@ -35,12 +35,12 @@ Examples:
 func runList(cmd *cobra.Command, args []string) error {
 	client, err := newCalendarClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Calendar client: %w", err)
 	}
 
 	calendars, err := client.ListCalendars()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list calendars: %w", err)
 	}
 
 	if len(calendars) == 0 {

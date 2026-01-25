@@ -54,7 +54,7 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 func runSearch(cmd *cobra.Command, args []string) error {
 	client, err := newDriveClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Drive client: %w", err)
 	}
 
 	query := ""
@@ -64,12 +64,12 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	searchQuery, err := buildSearchQuery(query, searchNameOnly, searchFileType, searchOwner, searchModAfter, searchModBefore, searchInFolder)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build search query: %w", err)
 	}
 
 	files, err := client.ListFiles(searchQuery, searchMaxResults)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to search files: %w", err)
 	}
 
 	if len(files) == 0 {

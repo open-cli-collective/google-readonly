@@ -58,13 +58,13 @@ func runDownloadAttachments(cmd *cobra.Command, args []string) error {
 
 	client, err := newGmailClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Gmail client: %w", err)
 	}
 
 	messageID := args[0]
 	attachments, err := client.GetAttachments(messageID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get attachments: %w", err)
 	}
 
 	if len(attachments) == 0 {

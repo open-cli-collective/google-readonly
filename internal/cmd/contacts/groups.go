@@ -38,12 +38,12 @@ Examples:
 func runGroups(cmd *cobra.Command, args []string) error {
 	client, err := newContactsClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Contacts client: %w", err)
 	}
 
 	resp, err := client.ListContactGroups("", groupsMaxResults)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list contact groups: %w", err)
 	}
 
 	if len(resp.ContactGroups) == 0 {

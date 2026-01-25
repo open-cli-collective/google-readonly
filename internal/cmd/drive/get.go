@@ -32,7 +32,7 @@ Examples:
 func runGet(cmd *cobra.Command, args []string) error {
 	client, err := newDriveClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Drive client: %w", err)
 	}
 
 	fileID := args[0]

@@ -39,7 +39,7 @@ Examples:
 func runToday(cmd *cobra.Command, args []string) error {
 	client, err := newCalendarClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Calendar client: %w", err)
 	}
 
 	now := time.Now()
@@ -50,7 +50,7 @@ func runToday(cmd *cobra.Command, args []string) error {
 
 	events, err := client.ListEvents(todayCalendarID, timeMin, timeMax, 50)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list today's events: %w", err)
 	}
 
 	if len(events) == 0 {

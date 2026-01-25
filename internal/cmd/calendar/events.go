@@ -54,7 +54,7 @@ func runEvents(cmd *cobra.Command, args []string) error {
 
 	client, err := newCalendarClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Calendar client: %w", err)
 	}
 
 	// Parse date range
@@ -82,7 +82,7 @@ func runEvents(cmd *cobra.Command, args []string) error {
 
 	events, err := client.ListEvents(calendarID, timeMin, timeMax, eventsMaxResults)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list events: %w", err)
 	}
 
 	if len(events) == 0 {

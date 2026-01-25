@@ -52,7 +52,7 @@ Export formats:
 func runDownload(cmd *cobra.Command, args []string) error {
 	client, err := newDriveClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Drive client: %w", err)
 	}
 
 	fileID := args[0]
@@ -75,7 +75,7 @@ func runDownload(cmd *cobra.Command, args []string) error {
 
 		exportMime, err := drive.GetExportMimeType(file.MimeType, downloadFormat)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get export type: %w", err)
 		}
 
 		if !downloadStdout {
@@ -85,7 +85,7 @@ func runDownload(cmd *cobra.Command, args []string) error {
 
 		data, err = client.ExportFile(fileID, exportMime)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to export file: %w", err)
 		}
 	} else {
 		// Regular file - download directly
@@ -100,14 +100,17 @@ func runDownload(cmd *cobra.Command, args []string) error {
 
 		data, err = client.DownloadFile(fileID)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to download file: %w", err)
 		}
 	}
 
 	// Output to stdout or file
 	if downloadStdout {
 		_, err = os.Stdout.Write(data)
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to write to stdout: %w", err)
+		}
+		return nil
 	}
 
 	outputPath := determineOutputPath(file.Name, downloadFormat, downloadOutput)

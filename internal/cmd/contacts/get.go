@@ -1,6 +1,8 @@
 package contacts
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/open-cli-collective/google-readonly/internal/contacts"
@@ -36,12 +38,12 @@ func runGet(cmd *cobra.Command, args []string) error {
 
 	client, err := newContactsClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Contacts client: %w", err)
 	}
 
 	person, err := client.GetContact(resourceName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get contact: %w", err)
 	}
 
 	contact := contacts.ParseContact(person)

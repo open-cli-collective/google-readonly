@@ -49,7 +49,7 @@ Examples:
 func runTree(cmd *cobra.Command, args []string) error {
 	client, err := newDriveClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Drive client: %w", err)
 	}
 
 	folderID := "root"
@@ -60,7 +60,7 @@ func runTree(cmd *cobra.Command, args []string) error {
 	// Build the tree
 	tree, err := buildTree(client, folderID, treeDepth, treeFiles)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build folder tree: %w", err)
 	}
 
 	if treeJSONOutput {

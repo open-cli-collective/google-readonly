@@ -37,12 +37,12 @@ For more query operators, see: https://support.google.com/mail/answer/7190`,
 func runSearch(cmd *cobra.Command, args []string) error {
 	client, err := newGmailClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Gmail client: %w", err)
 	}
 
 	messages, skipped, err := client.SearchMessages(args[0], searchMaxResults)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to search messages: %w", err)
 	}
 
 	if len(messages) == 0 {
