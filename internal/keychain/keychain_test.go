@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+
+	"github.com/open-cli-collective/google-readonly/internal/config"
 )
 
 func TestConfigFile_TokenRoundTrip(t *testing.T) {
@@ -62,7 +64,7 @@ func TestConfigFile_Permissions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check file permissions
-	path := filepath.Join(tmpDir, serviceName, tokenFile)
+	path := filepath.Join(tmpDir, serviceName, config.TokenFile)
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 
@@ -124,7 +126,7 @@ func TestConfigFile_InvalidJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write invalid JSON
-	path := filepath.Join(configDir, tokenFile)
+	path := filepath.Join(configDir, config.TokenFile)
 	err = os.WriteFile(path, []byte("invalid json"), 0600)
 	require.NoError(t, err)
 
@@ -341,41 +343,22 @@ func TestIsSecureStorage(t *testing.T) {
 }
 
 func TestTokenFilePath(t *testing.T) {
-	// Test with XDG_CONFIG_HOME set
+	// Test that tokenFilePath delegates to config package
 	tmpDir := t.TempDir()
-	originalXDG := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tmpDir)
-	defer os.Setenv("XDG_CONFIG_HOME", originalXDG)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	path, err := tokenFilePath()
 	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, serviceName, tokenFile), path)
+
+	configPath, err := config.GetTokenPath()
+	require.NoError(t, err)
+
+	assert.Equal(t, configPath, path)
 }
 
-func TestConfigDir(t *testing.T) {
-	// Test with XDG_CONFIG_HOME set
-	tmpDir := t.TempDir()
-	originalXDG := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tmpDir)
-	defer os.Setenv("XDG_CONFIG_HOME", originalXDG)
-
-	dir, err := configDir()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, serviceName), dir)
-}
-
-func TestConfigDir_NoXDG(t *testing.T) {
-	// Test without XDG_CONFIG_HOME
-	originalXDG := os.Getenv("XDG_CONFIG_HOME")
-	os.Unsetenv("XDG_CONFIG_HOME")
-	defer os.Setenv("XDG_CONFIG_HOME", originalXDG)
-
-	dir, err := configDir()
-	require.NoError(t, err)
-
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(home, ".config", serviceName), dir)
+func TestServiceNameConstant(t *testing.T) {
+	// Verify serviceName matches config.DirName
+	assert.Equal(t, config.DirName, serviceName)
 }
 
 // mockTokenSource is a test double for oauth2.TokenSource

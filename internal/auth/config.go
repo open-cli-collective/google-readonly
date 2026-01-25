@@ -1,66 +1,42 @@
 package auth
 
 import (
-	"os"
-	"path/filepath"
+	"github.com/open-cli-collective/google-readonly/internal/config"
 )
 
+// Re-export constants for backward compatibility
 const (
 	// ConfigDirName is the name of the configuration directory
-	ConfigDirName = "google-readonly"
+	// Deprecated: Use config.DirName instead
+	ConfigDirName = config.DirName
 	// CredentialsFile is the name of the OAuth credentials file
-	CredentialsFile = "credentials.json"
+	// Deprecated: Use config.CredentialsFile instead
+	CredentialsFile = config.CredentialsFile
 	// TokenFile is the name of the OAuth token file (fallback storage)
-	TokenFile = "token.json"
+	// Deprecated: Use config.TokenFile instead
+	TokenFile = config.TokenFile
 )
 
 // GetConfigDir returns the configuration directory path, creating it if needed.
-// Uses XDG_CONFIG_HOME if set, otherwise ~/.config/google-readonly
+// Deprecated: Use config.GetConfigDir() instead
 func GetConfigDir() (string, error) {
-	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		configHome = filepath.Join(home, ".config")
-	}
-	configDir := filepath.Join(configHome, ConfigDirName)
-
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return "", err
-	}
-
-	return configDir, nil
+	return config.GetConfigDir()
 }
 
 // GetCredentialsPath returns the full path to credentials.json
+// Deprecated: Use config.GetCredentialsPath() instead
 func GetCredentialsPath() (string, error) {
-	dir, err := GetConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, CredentialsFile), nil
+	return config.GetCredentialsPath()
 }
 
 // GetTokenPath returns the full path to token.json (fallback storage)
+// Deprecated: Use config.GetTokenPath() instead
 func GetTokenPath() (string, error) {
-	dir, err := GetConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, TokenFile), nil
+	return config.GetTokenPath()
 }
 
 // ShortenPath replaces the home directory prefix with ~ for display purposes.
-// This prevents exposing full paths including usernames in error messages.
+// Deprecated: Use config.ShortenPath() instead
 func ShortenPath(path string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path
-	}
-	if len(path) >= len(home) && path[:len(home)] == home {
-		return "~" + path[len(home):]
-	}
-	return path
+	return config.ShortenPath(path)
 }
