@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 	gmailapi "google.golang.org/api/gmail/v1"
+
+	"github.com/open-cli-collective/google-readonly/internal/format"
 )
 
 // Label represents a Gmail label for output
@@ -78,7 +80,7 @@ Examples:
 			fmt.Println(strings.Repeat("-", 60))
 			for _, label := range labels {
 				fmt.Printf("%-30s %-10s %8d %8d\n",
-					truncate(label.Name, 30),
+					format.Truncate(label.Name, 30),
 					label.Type,
 					label.MessagesTotal,
 					label.MessagesUnread)
@@ -118,11 +120,4 @@ func labelTypePriority(t string) int {
 	default:
 		return 3
 	}
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

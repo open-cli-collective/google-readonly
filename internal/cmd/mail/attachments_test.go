@@ -33,29 +33,7 @@ func TestIsZipFile(t *testing.T) {
 	}
 }
 
-func TestFormatSize(t *testing.T) {
-	tests := []struct {
-		name     string
-		bytes    int64
-		expected string
-	}{
-		{"zero bytes", 0, "0 B"},
-		{"small bytes", 500, "500 B"},
-		{"exactly 1KB", 1024, "1.0 KB"},
-		{"1.5 KB", 1536, "1.5 KB"},
-		{"exactly 1MB", 1024 * 1024, "1.0 MB"},
-		{"2.5 MB", 2621440, "2.5 MB"},
-		{"exactly 1GB", 1024 * 1024 * 1024, "1.0 GB"},
-		{"large file", 5368709120, "5.0 GB"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatSize(tt.bytes)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
+// Tests for formatSize moved to internal/format/format_test.go
 
 func TestAttachmentsCommand(t *testing.T) {
 	cmd := newAttachmentsCommand()

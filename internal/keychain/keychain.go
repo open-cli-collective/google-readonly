@@ -170,12 +170,12 @@ func setInConfigFile(token *oauth2.Token) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, config.DirPerm); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	// Write token with restricted permissions
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, config.TokenPerm)
 	if err != nil {
 		return fmt.Errorf("failed to create token file: %w", err)
 	}

@@ -16,6 +16,18 @@ const (
 	TokenFile = "token.json"
 )
 
+// File and directory permission constants for consistent security settings.
+const (
+	// DirPerm is the permission for config directories (owner read/write/execute only)
+	DirPerm = 0700
+	// TokenPerm is the permission for token files (owner read/write only)
+	TokenPerm = 0600
+	// OutputDirPerm is the permission for output directories (owner all, group/other read/execute)
+	OutputDirPerm = 0755
+	// OutputFilePerm is the permission for output files (owner read/write, group/other read)
+	OutputFilePerm = 0644
+)
+
 // GetConfigDir returns the configuration directory path, creating it if needed.
 // Uses XDG_CONFIG_HOME if set, otherwise ~/.config/google-readonly
 func GetConfigDir() (string, error) {
@@ -29,7 +41,7 @@ func GetConfigDir() (string, error) {
 	}
 	configDir := filepath.Join(configHome, DirName)
 
-	if err := os.MkdirAll(configDir, 0700); err != nil {
+	if err := os.MkdirAll(configDir, DirPerm); err != nil {
 		return "", err
 	}
 

@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-cli-collective/google-readonly/internal/config"
+	"github.com/open-cli-collective/google-readonly/internal/format"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	ziputil "github.com/open-cli-collective/google-readonly/internal/zip"
 )
@@ -70,7 +72,7 @@ Examples:
 			}
 
 			// Create output directory if needed
-			if err := os.MkdirAll(outputDir, 0755); err != nil {
+			if err := os.MkdirAll(outputDir, config.OutputDirPerm); err != nil {
 				return fmt.Errorf("failed to create output directory: %w", err)
 			}
 
@@ -103,7 +105,7 @@ Examples:
 					continue
 				}
 
-				fmt.Printf("Downloaded: %s (%s)\n", outputPath, formatSize(int64(len(data))))
+				fmt.Printf("Downloaded: %s (%s)\n", outputPath, format.Size(int64(len(data))))
 
 				// Extract if zip and --extract flag
 				if extract && isZipFile(att.Filename, att.MimeType) {
@@ -141,7 +143,7 @@ func downloadAttachment(client gmail.GmailClientInterface, messageID string, att
 }
 
 func saveAttachment(path string, data []byte) error {
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, config.OutputFilePerm)
 }
 
 func isZipFile(filename, mimeType string) bool {

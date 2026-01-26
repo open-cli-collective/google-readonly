@@ -90,25 +90,4 @@ func TestLabelTypePriority(t *testing.T) {
 	})
 }
 
-func TestTruncate(t *testing.T) {
-	t.Run("returns string unchanged if within limit", func(t *testing.T) {
-		assert.Equal(t, "short", truncate("short", 10))
-		assert.Equal(t, "exactly10!", truncate("exactly10!", 10))
-	})
-
-	t.Run("truncates with ellipsis when over limit", func(t *testing.T) {
-		result := truncate("this is a very long string", 10)
-		assert.Equal(t, "this is...", result)
-		assert.Len(t, result, 10)
-	})
-
-	t.Run("handles empty string", func(t *testing.T) {
-		assert.Equal(t, "", truncate("", 10))
-	})
-
-	t.Run("handles limit smaller than ellipsis length", func(t *testing.T) {
-		// When maxLen is 3, we'd get "..." which is the ellipsis itself
-		result := truncate("hello", 3)
-		assert.Equal(t, "...", result)
-	})
-}
+// Tests for truncate moved to internal/format/format_test.go
