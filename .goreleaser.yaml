@@ -41,8 +41,8 @@ archives:
 
 # Linux packages (.deb and .rpm)
 nfpms:
-  - id: gro
-    package_name: gro
+  - id: google-readonly
+    package_name: google-readonly
     vendor: Open CLI Collective
     homepage: https://github.com/open-cli-collective/google-readonly
     maintainer: Open CLI Collective <https://github.com/open-cli-collective>
@@ -54,7 +54,7 @@ nfpms:
     bindir: /usr/bin
     contents:
       - src: LICENSE
-        dst: /usr/share/licenses/gro/LICENSE
+        dst: /usr/share/licenses/google-readonly/LICENSE
 
 checksum:
   name_template: "checksums.txt"

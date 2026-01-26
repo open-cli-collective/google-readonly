@@ -1,4 +1,4 @@
-# gro
+# google-readonly
 
 A read-only command-line interface for Google services. Search, read, and view Gmail messages, threads, and attachments without any ability to modify, send, or delete data.
 
@@ -19,7 +19,7 @@ A read-only command-line interface for Google services. Search, read, and view G
 **Homebrew (recommended)**
 
 ```bash
-brew install open-cli-collective/tap/gro
+brew install open-cli-collective/tap/google-readonly
 ```
 
 > Note: This installs from our third-party tap.
@@ -37,7 +37,7 @@ choco install google-readonly
 **Winget**
 
 ```powershell
-winget install OpenCLICollective.gro
+winget install OpenCLICollective.google-readonly
 ```
 
 ---
@@ -55,7 +55,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/open-
 
 # Install
 sudo apt update
-sudo apt install gro
+sudo apt install google-readonly
 ```
 
 > Note: This is our third-party APT repository, not official Debian/Ubuntu repos.
@@ -74,7 +74,7 @@ gpgkey=https://open-cli-collective.github.io/linux-packages/keys/gpg.asc
 EOF
 
 # Install
-sudo dnf install gro
+sudo dnf install google-readonly
 ```
 
 > Note: This is our third-party RPM repository, not official Fedora/RHEL repos.
