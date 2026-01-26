@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-cli-collective/google-readonly/internal/drive"
+	"github.com/open-cli-collective/google-readonly/internal/format"
 )
 
 func newGetCommand() *cobra.Command {
@@ -57,7 +58,7 @@ func printFileDetails(f *drive.File) {
 	fmt.Printf("Type:       %s\n", drive.GetTypeName(f.MimeType))
 
 	if f.Size > 0 {
-		fmt.Printf("Size:       %s\n", formatSize(f.Size))
+		fmt.Printf("Size:       %s\n", format.Size(f.Size))
 	} else {
 		fmt.Printf("Size:       -\n")
 	}

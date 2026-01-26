@@ -8,7 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/drive"
+	formatpkg "github.com/open-cli-collective/google-readonly/internal/format"
 )
 
 func newDownloadCommand() *cobra.Command {
@@ -105,11 +107,11 @@ Export formats:
 
 			outputPath := determineOutputPath(file.Name, format, output)
 
-			if err := os.WriteFile(outputPath, data, 0644); err != nil {
+			if err := os.WriteFile(outputPath, data, config.OutputFilePerm); err != nil {
 				return fmt.Errorf("failed to write file: %w", err)
 			}
 
-			fmt.Printf("Size: %s\n", formatSize(int64(len(data))))
+			fmt.Printf("Size: %s\n", formatpkg.Size(int64(len(data))))
 			fmt.Printf("Saved to: %s\n", outputPath)
 			return nil
 		},

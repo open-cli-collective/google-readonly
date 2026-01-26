@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-cli-collective/google-readonly/internal/drive"
+	"github.com/open-cli-collective/google-readonly/internal/format"
 )
 
 func newListCommand() *cobra.Command {
@@ -119,7 +120,9 @@ func getMimeTypeFilter(fileType string) (string, error) {
 	}
 }
 
-// printFileTable prints files in a formatted table
+// printFileTable prints files in a formatted table.
+// Write errors to stdout are intentionally ignored as they indicate
+// the output stream is closed/broken and there's nothing useful to do.
 func printFileTable(files []*drive.File) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tSIZE\tMODIFIED")
@@ -127,7 +130,7 @@ func printFileTable(files []*drive.File) {
 	for _, f := range files {
 		size := "-"
 		if f.Size > 0 {
-			size = formatSize(f.Size)
+			size = format.Size(f.Size)
 		}
 
 		modified := "-"
@@ -142,24 +145,4 @@ func printFileTable(files []*drive.File) {
 	}
 
 	_ = w.Flush()
-}
-
-// formatSize formats a byte size into a human-readable string
-func formatSize(bytes int64) string {
-	const (
-		KB = 1024
-		MB = KB * 1024
-		GB = MB * 1024
-	)
-
-	switch {
-	case bytes >= GB:
-		return fmt.Sprintf("%.1f GB", float64(bytes)/float64(GB))
-	case bytes >= MB:
-		return fmt.Sprintf("%.1f MB", float64(bytes)/float64(MB))
-	case bytes >= KB:
-		return fmt.Sprintf("%.1f KB", float64(bytes)/float64(KB))
-	default:
-		return fmt.Sprintf("%d B", bytes)
-	}
 }

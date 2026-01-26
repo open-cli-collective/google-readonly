@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/open-cli-collective/google-readonly/internal/format"
 )
 
 func newListAttachmentsCommand() *cobra.Command {
@@ -45,7 +47,7 @@ Examples:
 				// Sanitize filename to prevent terminal injection from malicious attachment names
 				fmt.Printf("%d. %s\n", i+1, SanitizeFilename(att.Filename))
 				fmt.Printf("   Type: %s\n", att.MimeType)
-				fmt.Printf("   Size: %s\n", formatSize(att.Size))
+				fmt.Printf("   Size: %s\n", format.Size(att.Size))
 				if att.IsInline {
 					fmt.Printf("   Inline: yes\n")
 				}
@@ -59,18 +61,4 @@ Examples:
 	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
-}
-
-// formatSize converts bytes to human-readable format
-func formatSize(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
