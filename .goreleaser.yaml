@@ -56,6 +56,24 @@ nfpms:
       - src: LICENSE
         dst: /usr/share/licenses/google-readonly/LICENSE
 
+# Homebrew cask with auto-quarantine removal for unsigned binaries
+homebrew_casks:
+  - name: google-readonly
+    repository:
+      owner: open-cli-collective
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/open-cli-collective/google-readonly
+    description: "Read-only command-line interface for Google services"
+    binary: gro
+    hooks:
+      post:
+        install: |
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/gro"]
+    caveats: |
+      gro has been installed. Run 'gro init' to configure.
+      On macOS, your token is stored securely in the system Keychain.
+
 checksum:
   name_template: "checksums.txt"
 

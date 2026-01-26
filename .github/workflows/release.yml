@@ -36,106 +36,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  update-homebrew:
-    needs: goreleaser
-    runs-on: ubuntu-latest
-    env:
-      TAG: ${{ github.ref_name || inputs.tag }}
-    steps:
-      - name: Download checksums from release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download "${{ env.TAG }}" --repo ${{ github.repository }} --pattern "checksums.txt"
-          cat checksums.txt
-
-      - name: Parse checksums
-        id: checksums
-        run: |
-          VERSION="${{ env.TAG }}"
-          VERSION_NUM="${VERSION#v}"
-
-          # GoReleaser checksums.txt format: <hash>  <filename>
-          DARWIN_ARM64_SHA=$(grep "darwin_arm64.tar.gz" checksums.txt | cut -d' ' -f1)
-          DARWIN_AMD64_SHA=$(grep "darwin_amd64.tar.gz" checksums.txt | cut -d' ' -f1)
-          LINUX_ARM64_SHA=$(grep "linux_arm64.tar.gz" checksums.txt | cut -d' ' -f1)
-          LINUX_AMD64_SHA=$(grep "linux_amd64.tar.gz" checksums.txt | cut -d' ' -f1)
-
-          echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
-          echo "darwin_arm64_sha=${DARWIN_ARM64_SHA}" >> $GITHUB_OUTPUT
-          echo "darwin_amd64_sha=${DARWIN_AMD64_SHA}" >> $GITHUB_OUTPUT
-          echo "linux_arm64_sha=${LINUX_ARM64_SHA}" >> $GITHUB_OUTPUT
-          echo "linux_amd64_sha=${LINUX_AMD64_SHA}" >> $GITHUB_OUTPUT
-
-      # TAP_GITHUB_TOKEN (a PAT) is required to push to the open-cli-collective/homebrew-tap
-      # repository. The default GITHUB_TOKEN only has access to this repository.
-      - name: Update Homebrew Cask
-        env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ steps.checksums.outputs.version }}"
-          DARWIN_ARM64_SHA="${{ steps.checksums.outputs.darwin_arm64_sha }}"
-          DARWIN_AMD64_SHA="${{ steps.checksums.outputs.darwin_amd64_sha }}"
-          LINUX_ARM64_SHA="${{ steps.checksums.outputs.linux_arm64_sha }}"
-          LINUX_AMD64_SHA="${{ steps.checksums.outputs.linux_amd64_sha }}"
-
-          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/open-cli-collective/homebrew-tap.git
-          cd homebrew-tap
-
-          mkdir -p Casks
-
-          cat > Casks/google-readonly.rb << CASKEOF
-          cask "google-readonly" do
-            name "google-readonly"
-            desc "Read-only command-line interface for Google services"
-            homepage "https://github.com/open-cli-collective/google-readonly"
-            version "${VERSION}"
-
-            binary "gro"
-
-            on_macos do
-              on_arm do
-                url "https://github.com/open-cli-collective/google-readonly/releases/download/v#{version}/gro_v#{version}_darwin_arm64.tar.gz"
-                sha256 "${DARWIN_ARM64_SHA}"
-              end
-              on_intel do
-                url "https://github.com/open-cli-collective/google-readonly/releases/download/v#{version}/gro_v#{version}_darwin_amd64.tar.gz"
-                sha256 "${DARWIN_AMD64_SHA}"
-              end
-            end
-
-            on_linux do
-              on_arm do
-                url "https://github.com/open-cli-collective/google-readonly/releases/download/v#{version}/gro_v#{version}_linux_arm64.tar.gz"
-                sha256 "${LINUX_ARM64_SHA}"
-              end
-              on_intel do
-                url "https://github.com/open-cli-collective/google-readonly/releases/download/v#{version}/gro_v#{version}_linux_amd64.tar.gz"
-                sha256 "${LINUX_AMD64_SHA}"
-              end
-            end
-
-            postflight do
-              system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/gro"]
-            end
-
-            caveats <<~EOS
-              To configure gro, run:
-                gro init
-
-              This will guide you through Google OAuth setup.
-              On macOS, your token is stored securely in the system Keychain.
-              On Linux with libsecret, your token is stored in the secret service.
-            EOS
-          end
-          CASKEOF
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Update google-readonly to ${VERSION}"
-          git push
 
   chocolatey:
     needs: goreleaser
@@ -293,6 +194,30 @@ jobs:
 
           Write-Host "`nSubmitting new package to Winget..."
           ./wingetcreate.exe submit --token $env:WINGET_GITHUB_TOKEN $manifestDir
+
+  snap:
+    if: false  # Temporarily disabled - waiting for personal-files interface approval
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      - name: Build snap
+        uses: snapcore/action-build@v1
+        id: build
+
+      - name: Publish to Snapcraft Store
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: ${{ steps.build.outputs.snap }}
+          release: stable
 
   linux-packages:
     needs: goreleaser

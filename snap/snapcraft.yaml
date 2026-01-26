@@ -1,0 +1,61 @@
+name: ocli-google-readonly
+base: core22
+version: git
+summary: Read-only command-line interface for Google services
+description: |
+  gro is a read-only CLI for accessing Google services.
+
+  Features:
+  - Gmail: Search, read, view threads, download attachments
+  - Google Calendar: List calendars, view events, today/week shortcuts
+  - Google Contacts: List, search, view details
+  - Google Drive: List, search, download files
+
+  Run 'gro init' to configure your Google API credentials.
+
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+
+plugs:
+  dot-config-google-readonly:
+    interface: personal-files
+    read:
+      - $HOME/.config/google-readonly
+    write:
+      - $HOME/.config/google-readonly
+
+apps:
+  ocli-google-readonly:
+    command: bin/gro
+    plugs:
+      - home
+      - network
+      - dot-config-google-readonly
+    aliases:
+      - gro
+
+parts:
+  gro:
+    plugin: go
+    source: .
+    build-snaps:
+      - go/1.24/stable
+    build-environment:
+      - CGO_ENABLED: "0"
+    override-build: |
+      # Get version from git
+      VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+      COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+      DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+      # Build with ldflags
+      go build -o $SNAPCRAFT_PART_INSTALL/bin/gro \
+        -ldflags "-s -w \
+          -X github.com/open-cli-collective/google-readonly/internal/version.Version=${VERSION} \
+          -X github.com/open-cli-collective/google-readonly/internal/version.Commit=${COMMIT} \
+          -X github.com/open-cli-collective/google-readonly/internal/version.Date=${DATE}" \
+        ./cmd/gro
