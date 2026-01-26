@@ -81,6 +81,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Close error is non-fatal for read operations
 	defer func() { _ = f.Close() }()
 	tok := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(tok)

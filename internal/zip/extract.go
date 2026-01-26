@@ -148,6 +148,7 @@ func extractFile(f *zip.File, destDir string, opts Options, totalSize *int64) er
 	}
 
 	if written > opts.MaxFileSize {
+		// Best-effort cleanup; main error is size limit violation
 		_ = fs.Remove(destPath)
 		return fmt.Errorf("file %s exceeds max size during extraction", f.Name)
 	}
