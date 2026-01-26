@@ -210,7 +210,7 @@ jobs:
         id: check-manifest
         shell: pwsh
         run: |
-          $response = Invoke-WebRequest -Uri "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/o/OpenCLICollective/gro" -Method Head -SkipHttpErrorCheck
+          $response = Invoke-WebRequest -Uri "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/o/OpenCLICollective/google-readonly" -Method Head -SkipHttpErrorCheck
           if ($response.StatusCode -eq 200) {
             Write-Host "Manifest exists - will use wingetcreate update"
             echo "exists=true" >> $env:GITHUB_OUTPUT
@@ -249,7 +249,7 @@ jobs:
           Write-Host "Updating existing manifest to version $version"
           Write-Host "x64 URL: $x64"
           Write-Host "arm64 URL: $arm64"
-          ./wingetcreate.exe update OpenCLICollective.gro --version $version --urls $x64 $arm64 --submit --token $env:WINGET_GITHUB_TOKEN
+          ./wingetcreate.exe update OpenCLICollective.google-readonly --version $version --urls $x64 $arm64 --submit --token $env:WINGET_GITHUB_TOKEN
 
       - name: Create manifest (new package)
         if: steps.check-manifest.outputs.exists == 'false'
@@ -262,23 +262,23 @@ jobs:
           New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
 
           # Update version manifest
-          $versionManifest = Get-Content "packaging/winget/OpenCLICollective.gro.yaml" -Raw
+          $versionManifest = Get-Content "packaging/winget/OpenCLICollective.google-readonly.yaml" -Raw
           $versionManifest = $versionManifest -replace "0\.0\.0", $version
-          Set-Content "$manifestDir/OpenCLICollective.gro.yaml" $versionManifest
+          Set-Content "$manifestDir/OpenCLICollective.google-readonly.yaml" $versionManifest
 
           # Update locale manifest
-          $localeManifest = Get-Content "packaging/winget/OpenCLICollective.gro.locale.en-US.yaml" -Raw
+          $localeManifest = Get-Content "packaging/winget/OpenCLICollective.google-readonly.locale.en-US.yaml" -Raw
           $localeManifest = $localeManifest -replace "0\.0\.0", $version
-          Set-Content "$manifestDir/OpenCLICollective.gro.locale.en-US.yaml" $localeManifest
+          Set-Content "$manifestDir/OpenCLICollective.google-readonly.locale.en-US.yaml" $localeManifest
 
           # Update installer manifest with version and real checksums
-          $installerManifest = Get-Content "packaging/winget/OpenCLICollective.gro.installer.yaml" -Raw
+          $installerManifest = Get-Content "packaging/winget/OpenCLICollective.google-readonly.installer.yaml" -Raw
           $installerManifest = $installerManifest -replace "0\.0\.0", $version
           # Use .NET regex for sequential replacement (PowerShell -replace doesn't support count)
           $regex = [regex]"0{64}"
           $installerManifest = $regex.Replace($installerManifest, $env:X64_HASH, 1)
           $installerManifest = $regex.Replace($installerManifest, $env:ARM64_HASH, 1)
-          Set-Content "$manifestDir/OpenCLICollective.gro.installer.yaml" $installerManifest
+          Set-Content "$manifestDir/OpenCLICollective.google-readonly.installer.yaml" $installerManifest
 
           Write-Host "Generated manifests:"
           Get-ChildItem $manifestDir | ForEach-Object { Write-Host "  $_" }
@@ -306,7 +306,7 @@ jobs:
           event-type: package-release
           client-payload: |-
             {
-              "package": "gro",
+              "package": "google-readonly",
               "version": "${{ github.ref_name }}",
               "repo": "open-cli-collective/google-readonly"
             }
