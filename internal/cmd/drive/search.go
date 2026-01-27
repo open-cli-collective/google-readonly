@@ -17,6 +17,8 @@ func newSearchCommand() *cobra.Command {
 		modBefore  string
 		inFolder   string
 		jsonOutput bool
+		myDrive    bool
+		driveFlag  string
 	)
 
 	cmd := &cobra.Command{
@@ -24,8 +26,14 @@ func newSearchCommand() *cobra.Command {
 		Short: "Search for files",
 		Long: `Search for files in Google Drive by content, name, type, owner, or date.
 
+By default, searches all drives (My Drive + shared drives you have access to).
+Use --my-drive to limit to your personal drive, or --drive to search a specific
+shared drive.
+
 Examples:
-  gro drive search "quarterly report"           # Full-text search
+  gro drive search "quarterly report"           # Full-text search (all drives)
+  gro drive search "quarterly report" --my-drive # Search My Drive only
+  gro drive search "budget" --drive "Finance"   # Search specific shared drive
   gro drive search --name "budget"              # Search by filename only
   gro drive search --type spreadsheet           # Filter by type
   gro drive search --owner me                   # Files you own
@@ -37,6 +45,11 @@ Examples:
 File types: document, spreadsheet, presentation, folder, pdf, image, video, audio`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate mutually exclusive flags
+			if myDrive && driveFlag != "" {
+				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
+			}
+
 			client, err := newDriveClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Drive client: %w", err)
@@ -52,7 +65,13 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 				return fmt.Errorf("failed to build search query: %w", err)
 			}
 
-			files, err := client.ListFiles(searchQuery, maxResults)
+			// Resolve drive scope
+			scope, err := resolveDriveScope(client, myDrive, driveFlag)
+			if err != nil {
+				return fmt.Errorf("failed to resolve drive scope: %w", err)
+			}
+
+			files, err := client.ListFilesWithScope(searchQuery, maxResults, scope)
 			if err != nil {
 				return fmt.Errorf("failed to search files: %w", err)
 			}
@@ -88,6 +107,8 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 	cmd.Flags().StringVar(&modBefore, "modified-before", "", "Modified before date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&inFolder, "in-folder", "", "Search within specific folder")
 	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
+	cmd.Flags().BoolVar(&myDrive, "my-drive", false, "Limit search to My Drive only")
+	cmd.Flags().StringVar(&driveFlag, "drive", "", "Search in specific shared drive (name or ID)")
 
 	return cmd
 }

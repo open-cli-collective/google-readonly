@@ -20,6 +20,20 @@ type File struct {
 	Owners       []string  `json:"owners,omitempty"`
 	WebViewLink  string    `json:"webViewLink,omitempty"`
 	Shared       bool      `json:"shared"`
+	DriveID      string    `json:"driveId,omitempty"` // Shared drive ID if file is in a shared drive
+}
+
+// SharedDrive represents a Google Shared Drive (formerly Team Drive)
+type SharedDrive struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// DriveScope defines where to search for files
+type DriveScope struct {
+	AllDrives   bool   // Search everywhere (My Drive + all shared drives)
+	MyDriveOnly bool   // Restrict to personal My Drive only
+	DriveID     string // Specific shared drive ID
 }
 
 // ParseFile converts a Google Drive API File to our simplified File struct
@@ -32,6 +46,7 @@ func ParseFile(f *drive.File) *File {
 		Parents:     f.Parents,
 		WebViewLink: f.WebViewLink,
 		Shared:      f.Shared,
+		DriveID:     f.DriveId,
 	}
 
 	// Parse timestamps
