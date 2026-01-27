@@ -167,6 +167,15 @@ gro config test
 # Clear stored OAuth token
 gro config clear
 
+# View cache status
+gro config cache show
+
+# Clear cached data
+gro config cache clear
+
+# Set cache TTL (in hours)
+gro config cache ttl 12
+
 # Show version
 gro --version
 ```
@@ -266,6 +275,33 @@ Remove stored OAuth token (forces re-authentication).
 
 ```
 Usage: gro config clear
+```
+
+### gro config cache show
+
+Display cache status including location, TTL, and cached data status.
+
+```
+Usage: gro config cache show [flags]
+
+Flags:
+  -j, --json       Output as JSON
+```
+
+### gro config cache clear
+
+Remove all cached data. Cache will be repopulated on next use.
+
+```
+Usage: gro config cache clear
+```
+
+### gro config cache ttl
+
+Set the cache time-to-live in hours.
+
+```
+Usage: gro config cache ttl <hours>
 ```
 
 ### gro mail search
@@ -685,6 +721,25 @@ Configuration files are stored in `~/.config/google-readonly/`:
 |------|-------------|
 | `credentials.json` | OAuth client credentials (from Google Cloud Console) |
 | `token.json` | OAuth access/refresh token (fallback if keychain unavailable) |
+| `config.json` | User settings (cache TTL, etc.) |
+| `cache/` | Cached API metadata for faster repeated lookups |
+
+### Cache Settings
+
+gro caches Drive metadata (like shared drive lists) to speed up repeated commands. The cache TTL is configured during `gro init` (default: 24 hours).
+
+```bash
+# View cache status
+gro config cache show
+
+# Clear cache
+gro config cache clear
+
+# Change cache TTL
+gro config cache ttl 12    # Set to 12 hours
+```
+
+The cache is automatically repopulated when stale or after being cleared.
 
 ## Security
 

@@ -3,8 +3,10 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const (
@@ -77,4 +79,90 @@ func ShortenPath(path string) string {
 		return "~" + path[len(home):]
 	}
 	return path
+}
+
+const (
+	// ConfigFile is the name of the user configuration file
+	ConfigFile = "config.json"
+	// DefaultCacheTTLHours is the default cache TTL in hours
+	DefaultCacheTTLHours = 24
+)
+
+// Config represents user-configurable settings
+type Config struct {
+	CacheTTLHours int `json:"cache_ttl_hours"`
+}
+
+// GetConfigPath returns the full path to config.json
+func GetConfigPath() (string, error) {
+	dir, err := GetConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, ConfigFile), nil
+}
+
+// LoadConfig loads the user configuration from config.json
+// Returns default config if file doesn't exist
+func LoadConfig() (*Config, error) {
+	path, err := GetConfigPath()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Return default config
+			return &Config{
+				CacheTTLHours: DefaultCacheTTLHours,
+			}, nil
+		}
+		return nil, err
+	}
+
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+
+	// Apply defaults for unset values
+	if cfg.CacheTTLHours <= 0 {
+		cfg.CacheTTLHours = DefaultCacheTTLHours
+	}
+
+	return &cfg, nil
+}
+
+// SaveConfig saves the user configuration to config.json
+func SaveConfig(cfg *Config) error {
+	path, err := GetConfigPath()
+	if err != nil {
+		return err
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, TokenPerm)
+}
+
+// GetCacheTTL returns the configured cache TTL duration
+func GetCacheTTL() time.Duration {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return time.Duration(DefaultCacheTTLHours) * time.Hour
+	}
+	return time.Duration(cfg.CacheTTLHours) * time.Hour
+}
+
+// GetCacheTTLHours returns the configured cache TTL in hours
+func GetCacheTTLHours() int {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return DefaultCacheTTLHours
+	}
+	return cfg.CacheTTLHours
 }

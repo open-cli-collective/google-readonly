@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/api/googleapi"
 
+	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
@@ -73,6 +75,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		if !noVerify {
 			err := verifyConnectivity()
 			if err == nil {
+				promptCacheTTL()
 				return nil
 			}
 
@@ -98,6 +101,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		} else {
+			promptCacheTTL()
 			fmt.Println("Setup complete! Try: gro mail search \"is:unread\"")
 			return nil
 		}
@@ -151,9 +155,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// Step 7: Verify connectivity (unless --no-verify)
 	if !noVerify {
 		fmt.Println()
-		return verifyConnectivity()
+		if err := verifyConnectivity(); err != nil {
+			return err
+		}
+		promptCacheTTL()
+		return nil
 	}
 
+	promptCacheTTL()
 	fmt.Println()
 	fmt.Println("Setup complete! Try: gro mail search \"is:unread\"")
 	return nil
@@ -275,4 +284,50 @@ func promptReauth() bool {
 	input = strings.TrimSpace(strings.ToLower(input))
 	// Empty input (just Enter) or "y" or "yes" means yes
 	return input == "" || input == "y" || input == "yes"
+}
+
+// promptCacheTTL prompts for cache TTL configuration if not already set
+func promptCacheTTL() {
+	// Check if config already exists
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return
+	}
+
+	// Check if there's already a config file (not just defaults)
+	configPath, err := config.GetConfigPath()
+	if err != nil {
+		return
+	}
+	if _, err := os.Stat(configPath); err == nil {
+		// Config file exists, don't prompt again
+		return
+	}
+
+	fmt.Println()
+	fmt.Printf("Cache TTL for Drive metadata (hours) [%d]: ", config.DefaultCacheTTLHours)
+
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return
+	}
+
+	input = strings.TrimSpace(input)
+	if input == "" {
+		// Use default
+		cfg.CacheTTLHours = config.DefaultCacheTTLHours
+	} else {
+		ttl, err := strconv.Atoi(input)
+		if err != nil || ttl <= 0 {
+			fmt.Printf("Invalid value, using default (%d hours)\n", config.DefaultCacheTTLHours)
+			cfg.CacheTTLHours = config.DefaultCacheTTLHours
+		} else {
+			cfg.CacheTTLHours = ttl
+		}
+	}
+
+	if err := config.SaveConfig(cfg); err != nil {
+		fmt.Printf("Warning: failed to save config: %v\n", err)
+	}
 }
