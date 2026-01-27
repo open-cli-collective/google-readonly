@@ -41,6 +41,7 @@ jobs:
   chocolatey:
     needs: goreleaser
     runs-on: windows-latest
+    continue-on-error: true
     env:
       TAG: ${{ github.ref_name || inputs.tag }}
     steps:
@@ -97,6 +98,7 @@ jobs:
   winget:
     needs: goreleaser
     runs-on: windows-latest
+    continue-on-error: true
     env:
       TAG: ${{ github.ref_name || inputs.tag }}
     steps:
@@ -222,6 +224,7 @@ jobs:
   linux-packages:
     needs: goreleaser
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Trigger linux-packages repo update
         uses: peter-evans/repository-dispatch@v3
