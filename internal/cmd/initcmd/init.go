@@ -211,6 +211,9 @@ func verifyConnectivity() error {
 	fmt.Printf("Authenticated as: %s\n", profile.EmailAddress)
 	fmt.Println()
 	fmt.Println("Setup complete! Try: gro mail search \"is:unread\"")
+	fmt.Println()
+	fmt.Println("Tip: If your token expires every 7 days, your OAuth app may be in 'Testing' mode.")
+	fmt.Println("     Publish it at: Google Cloud Console > OAuth consent screen > Publish app")
 	return nil
 }
 
@@ -228,6 +231,9 @@ func printCredentialsInstructions(credPath string) {
 	fmt.Println("   - Select 'Desktop app' as application type")
 	fmt.Println("   - Download the JSON file")
 	fmt.Printf("5. Save the downloaded file to:\n   %s\n", credPath)
+	fmt.Println()
+	fmt.Println("Optional but recommended: Publish your OAuth app to avoid 7-day token expiry:")
+	fmt.Println("   - Go to 'OAuth consent screen' > 'Publish app'")
 	fmt.Println()
 	fmt.Println("Then run 'gro init' again.")
 }
