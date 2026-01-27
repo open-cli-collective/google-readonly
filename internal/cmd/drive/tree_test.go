@@ -248,11 +248,20 @@ func (m *mockDriveClient) ListFiles(query string, _ int64) ([]*drive.File, error
 	return []*drive.File{}, nil
 }
 
+func (m *mockDriveClient) ListFilesWithScope(query string, pageSize int64, _ drive.DriveScope) ([]*drive.File, error) {
+	// Delegate to ListFiles for testing purposes
+	return m.ListFiles(query, pageSize)
+}
+
 func (m *mockDriveClient) DownloadFile(_ string) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
 func (m *mockDriveClient) ExportFile(_ string, _ string) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockDriveClient) ListSharedDrives(_ int64) ([]*drive.SharedDrive, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

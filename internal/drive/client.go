@@ -34,9 +34,9 @@ func NewClient(ctx context.Context) (*Client, error) {
 }
 
 // fileFields defines the fields to request from the Drive API
-const fileFields = "id,name,mimeType,size,createdTime,modifiedTime,parents,owners,webViewLink,shared"
+const fileFields = "id,name,mimeType,size,createdTime,modifiedTime,parents,owners,webViewLink,shared,driveId"
 
-// ListFiles returns files matching the query
+// ListFiles returns files matching the query (searches My Drive only for backwards compatibility)
 func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
 	call := c.service.Files.List().
 		Fields("files(" + fileFields + ")").
@@ -61,10 +61,51 @@ func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
 	return files, nil
 }
 
-// GetFile retrieves a single file by ID
+// ListFilesWithScope returns files matching the query within the specified scope
+func (c *Client) ListFilesWithScope(query string, pageSize int64, scope DriveScope) ([]*File, error) {
+	call := c.service.Files.List().
+		Fields("files(" + fileFields + ")").
+		OrderBy("modifiedTime desc").
+		SupportsAllDrives(true).
+		IncludeItemsFromAllDrives(true)
+
+	// Set corpora based on scope
+	if scope.DriveID != "" {
+		// Specific shared drive
+		call = call.Corpora("drive").DriveId(scope.DriveID)
+	} else if scope.MyDriveOnly {
+		// My Drive only
+		call = call.Corpora("user")
+	} else if scope.AllDrives {
+		// Search everywhere
+		call = call.Corpora("allDrives")
+	}
+	// If no scope flags set, default behavior (no corpora set)
+
+	if query != "" {
+		call = call.Q(query)
+	}
+	if pageSize > 0 {
+		call = call.PageSize(pageSize)
+	}
+
+	resp, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	files := make([]*File, 0, len(resp.Files))
+	for _, f := range resp.Files {
+		files = append(files, ParseFile(f))
+	}
+	return files, nil
+}
+
+// GetFile retrieves a single file by ID (supports files in shared drives)
 func (c *Client) GetFile(fileID string) (*File, error) {
 	f, err := c.service.Files.Get(fileID).
 		Fields(fileFields).
+		SupportsAllDrives(true).
 		Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file: %w", err)
@@ -74,7 +115,9 @@ func (c *Client) GetFile(fileID string) (*File, error) {
 
 // DownloadFile downloads a regular (non-Google Workspace) file
 func (c *Client) DownloadFile(fileID string) ([]byte, error) {
-	resp, err := c.service.Files.Get(fileID).Download()
+	resp, err := c.service.Files.Get(fileID).
+		SupportsAllDrives(true).
+		Download()
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}
@@ -100,4 +143,41 @@ func (c *Client) ExportFile(fileID string, mimeType string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read exported content: %w", err)
 	}
 	return data, nil
+}
+
+// ListSharedDrives returns all shared drives accessible to the user
+func (c *Client) ListSharedDrives(pageSize int64) ([]*SharedDrive, error) {
+	var allDrives []*SharedDrive
+	pageToken := ""
+
+	for {
+		call := c.service.Drives.List().
+			Fields("drives(id,name),nextPageToken")
+
+		if pageSize > 0 {
+			call = call.PageSize(pageSize)
+		}
+		if pageToken != "" {
+			call = call.PageToken(pageToken)
+		}
+
+		resp, err := call.Do()
+		if err != nil {
+			return nil, fmt.Errorf("failed to list shared drives: %w", err)
+		}
+
+		for _, d := range resp.Drives {
+			allDrives = append(allDrives, &SharedDrive{
+				ID:   d.Id,
+				Name: d.Name,
+			})
+		}
+
+		pageToken = resp.NextPageToken
+		if pageToken == "" {
+			break
+		}
+	}
+
+	return allDrives, nil
 }

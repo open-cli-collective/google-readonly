@@ -238,3 +238,37 @@ func SampleGoogleDoc(id string) *driveapi.File {
 		Shared:       false,
 	}
 }
+
+// SampleSharedDrive returns a sample shared drive for testing
+func SampleSharedDrive(id, name string) *driveapi.SharedDrive {
+	return &driveapi.SharedDrive{
+		ID:   id,
+		Name: name,
+	}
+}
+
+// SampleSharedDrives returns a set of sample shared drives for testing
+func SampleSharedDrives() []*driveapi.SharedDrive {
+	return []*driveapi.SharedDrive{
+		{ID: "0ALengineering123", Name: "Engineering"},
+		{ID: "0ALmarketing456", Name: "Marketing"},
+		{ID: "0ALfinance789", Name: "Finance Team"},
+	}
+}
+
+// SampleSharedDriveFile returns a file that belongs to a shared drive
+func SampleSharedDriveFile(id, driveID string) *driveapi.File {
+	return &driveapi.File{
+		ID:           id,
+		Name:         "shared-document.pdf",
+		MimeType:     "application/pdf",
+		Size:         4096,
+		CreatedTime:  time.Date(2024, 1, 10, 9, 0, 0, 0, time.UTC),
+		ModifiedTime: time.Date(2024, 1, 15, 14, 30, 0, 0, time.UTC),
+		Parents:      []string{driveID},
+		Owners:       []string{},
+		WebViewLink:  "https://drive.google.com/file/d/" + id,
+		Shared:       true,
+		DriveID:      driveID,
+	}
+}

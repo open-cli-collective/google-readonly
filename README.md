@@ -555,6 +555,29 @@ gro files tree <folder-id> --depth 3
 gro drive tree --files  # Include files, not just folders
 ```
 
+#### Shared Drives
+
+gro supports Google Shared Drives (formerly Team Drives). By default, search includes files from all drives you have access to.
+
+```bash
+# List available shared drives
+gro drive drives
+gro drive drives --json
+
+# Search all drives (default)
+gro drive search "quarterly report"
+
+# Search only your personal drive
+gro drive search "quarterly report" --my-drive
+
+# Search a specific shared drive by name
+gro drive search "budget" --drive "Finance Team"
+gro drive list --drive "Engineering"
+gro drive tree --drive "Marketing"
+```
+
+The `--my-drive` and `--drive` flags are mutually exclusive. Shared drive names are cached locally for fast lookups. Run `gro drive drives` to refresh the cache.
+
 ### gro drive list
 
 List files in Google Drive root or a specific folder.
@@ -567,12 +590,14 @@ Aliases: gro files list
 Flags:
   -m, --max int      Maximum number of files (default 25)
   -t, --type string  Filter by type (document, spreadsheet, presentation, folder, pdf, image, video, audio)
+      --my-drive     List from My Drive only
+      --drive string List from specific shared drive (name or ID)
   -j, --json         Output as JSON
 ```
 
 ### gro drive search
 
-Search for files in Google Drive.
+Search for files in Google Drive. By default, searches all drives you have access to.
 
 ```
 Usage: gro drive search [query] [flags]
@@ -586,6 +611,8 @@ Flags:
       --modified-after string  Modified after date (YYYY-MM-DD)
       --modified-before string Modified before date (YYYY-MM-DD)
       --in-folder string       Search within folder ID
+      --my-drive               Search only My Drive
+      --drive string           Search specific shared drive (name or ID)
   -m, --max int                Maximum results (default 25)
   -j, --json                   Output as JSON
 ```
@@ -636,7 +663,23 @@ Aliases: gro files tree
 Flags:
   -d, --depth int    Maximum depth to traverse (default 2)
       --files        Include files in addition to folders
+      --my-drive     Show My Drive only (default)
+      --drive string Show tree from specific shared drive
   -j, --json         Output as JSON
+```
+
+### gro drive drives
+
+List all shared drives accessible to you.
+
+```
+Usage: gro drive drives [flags]
+
+Aliases: gro files drives
+
+Flags:
+      --refresh    Force refresh from API (ignore cache)
+  -j, --json       Output as JSON
 ```
 
 ## Search Query Reference
