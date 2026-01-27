@@ -121,7 +121,19 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
 5. Click **Create**
 6. Download the JSON file
 
-### 3. Configure gro
+### 3. Publish Your OAuth App (Recommended)
+
+By default, new OAuth apps are in **"Testing"** mode, which causes **tokens to expire after 7 days**. To avoid frequent re-authentication:
+
+1. Go to **Google Auth Platform** > **Audience** (or **OAuth consent screen** in older UI)
+2. Find the **Publishing status** section
+3. Click **Publish app**
+
+For personal use with read-only scopes, publishing is straightforward and doesn't require Google verification. Once published, tokens will last until revoked or unused for 6 months.
+
+> **Note:** If you skip this step, you'll need to run `gro init` every 7 days to re-authenticate.
+
+### 4. Configure gro
 
 1. Create the config directory:
    ```bash
@@ -133,7 +145,7 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
    mv ~/Downloads/client_secret_*.json ~/.config/google-readonly/credentials.json
    ```
 
-### 4. Authenticate
+### 5. Authenticate
 
 Run the init command to complete OAuth setup:
 
@@ -836,6 +848,10 @@ Your token may be missing scopes for a newly added service. Clear and re-authent
 gro config clear
 gro init
 ```
+
+### Token expires every 7 days
+
+Your OAuth app is likely still in **"Testing"** mode. See [Publish Your OAuth App](#3-publish-your-oauth-app-recommended) in the setup guide. Apps in testing mode have tokens that expire after 7 days.
 
 ## License
 
