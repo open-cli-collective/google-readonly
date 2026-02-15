@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"context"
 	"testing"
 
 	"github.com/open-cli-collective/google-readonly/internal/drive"
@@ -105,7 +106,7 @@ func TestResolveDriveScope(t *testing.T) {
 	t.Run("returns MyDriveOnly when myDrive flag is true", func(t *testing.T) {
 		mock := &MockDriveClient{}
 
-		scope, err := resolveDriveScope(mock, true, "")
+		scope, err := resolveDriveScope(context.Background(), mock, true, "")
 
 		testutil.NoError(t, err)
 		testutil.True(t, scope.MyDriveOnly)
@@ -116,7 +117,7 @@ func TestResolveDriveScope(t *testing.T) {
 	t.Run("returns AllDrives when no flags provided", func(t *testing.T) {
 		mock := &MockDriveClient{}
 
-		scope, err := resolveDriveScope(mock, false, "")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "")
 
 		testutil.NoError(t, err)
 		testutil.True(t, scope.AllDrives)
@@ -127,7 +128,7 @@ func TestResolveDriveScope(t *testing.T) {
 	t.Run("returns DriveID directly when input looks like ID", func(t *testing.T) {
 		mock := &MockDriveClient{}
 
-		scope, err := resolveDriveScope(mock, false, "0ALengineering123456")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "0ALengineering123456")
 
 		testutil.NoError(t, err)
 		testutil.Equal(t, scope.DriveID, "0ALengineering123456")
@@ -137,7 +138,7 @@ func TestResolveDriveScope(t *testing.T) {
 
 	t.Run("resolves drive name to ID via API", func(t *testing.T) {
 		mock := &MockDriveClient{
-			ListSharedDrivesFunc: func(_ int64) ([]*drive.SharedDrive, error) {
+			ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 					{ID: "0ALfin456", Name: "Finance"},
@@ -145,7 +146,7 @@ func TestResolveDriveScope(t *testing.T) {
 			},
 		}
 
-		scope, err := resolveDriveScope(mock, false, "Engineering")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "Engineering")
 
 		testutil.NoError(t, err)
 		testutil.Equal(t, scope.DriveID, "0ALeng123")
@@ -153,14 +154,14 @@ func TestResolveDriveScope(t *testing.T) {
 
 	t.Run("resolves drive name case-insensitively", func(t *testing.T) {
 		mock := &MockDriveClient{
-			ListSharedDrivesFunc: func(_ int64) ([]*drive.SharedDrive, error) {
+			ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 				}, nil
 			},
 		}
 
-		scope, err := resolveDriveScope(mock, false, "ENGINEERING")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "ENGINEERING")
 
 		testutil.NoError(t, err)
 		testutil.Equal(t, scope.DriveID, "0ALeng123")
@@ -168,14 +169,14 @@ func TestResolveDriveScope(t *testing.T) {
 
 	t.Run("returns error when drive name not found", func(t *testing.T) {
 		mock := &MockDriveClient{
-			ListSharedDrivesFunc: func(_ int64) ([]*drive.SharedDrive, error) {
+			ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 				}, nil
 			},
 		}
 
-		_, err := resolveDriveScope(mock, false, "NonExistent")
+		_, err := resolveDriveScope(context.Background(), mock, false, "NonExistent")
 
 		testutil.Error(t, err)
 		testutil.Contains(t, err.Error(), "shared drive not found")

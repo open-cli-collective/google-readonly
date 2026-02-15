@@ -40,7 +40,7 @@ Examples:
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			if err := client.FetchLabels(); err != nil {
+			if err := client.FetchLabels(cmd.Context()); err != nil {
 				return fmt.Errorf("fetching labels: %w", err)
 			}
 

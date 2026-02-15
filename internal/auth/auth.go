@@ -63,7 +63,7 @@ func GetHTTPClient(ctx context.Context) (*http.Client, error) {
 	}
 
 	// Create persistent token source that saves refreshed tokens
-	tokenSource := keychain.NewPersistentTokenSource(config, tok)
+	tokenSource := keychain.NewPersistentTokenSource(ctx, config, tok)
 	return oauth2.NewClient(ctx, tokenSource), nil
 }
 

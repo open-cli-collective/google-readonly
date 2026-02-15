@@ -12,10 +12,10 @@ import (
 
 // ContactsClient defines the interface for Contacts client operations used by contacts commands.
 type ContactsClient interface {
-	ListContacts(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error)
-	SearchContacts(query string, pageSize int64) (*people.SearchResponse, error)
-	GetContact(resourceName string) (*people.Person, error)
-	ListContactGroups(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error)
+	ListContacts(ctx context.Context, pageToken string, pageSize int64) (*people.ListConnectionsResponse, error)
+	SearchContacts(ctx context.Context, query string, pageSize int64) (*people.SearchResponse, error)
+	GetContact(ctx context.Context, resourceName string) (*people.Person, error)
+	ListContactGroups(ctx context.Context, pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error)
 }
 
 // ClientFactory is the function used to create Contacts clients.

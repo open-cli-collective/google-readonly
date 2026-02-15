@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ Examples:
 			}
 
 			messageID := args[0]
-			attachments, err := client.GetAttachments(messageID)
+			attachments, err := client.GetAttachments(cmd.Context(), messageID)
 			if err != nil {
 				return fmt.Errorf("getting attachments: %w", err)
 			}
@@ -94,7 +95,7 @@ Examples:
 					continue
 				}
 
-				data, err := downloadAttachment(client, messageID, att)
+				data, err := downloadAttachment(cmd.Context(), client, messageID, att)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", safeFilename, err)
 					continue
@@ -135,11 +136,11 @@ Examples:
 	return cmd
 }
 
-func downloadAttachment(client MailClient, messageID string, att *gmail.Attachment) ([]byte, error) {
+func downloadAttachment(ctx context.Context, client MailClient, messageID string, att *gmail.Attachment) ([]byte, error) {
 	if att.AttachmentID != "" {
-		return client.DownloadAttachment(messageID, att.AttachmentID)
+		return client.DownloadAttachment(ctx, messageID, att.AttachmentID)
 	}
-	return client.DownloadInlineAttachment(messageID, att.PartID)
+	return client.DownloadInlineAttachment(ctx, messageID, att.PartID)
 }
 
 func saveAttachment(path string, data []byte) error {

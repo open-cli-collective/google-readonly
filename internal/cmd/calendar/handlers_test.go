@@ -54,7 +54,7 @@ func withFailingClientFactory(f func()) {
 
 func TestListCommand_Success(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListCalendarsFunc: func() ([]*calendar.CalendarListEntry, error) {
+		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
 			return testutil.SampleCalendars(), nil
 		},
 	}
@@ -75,7 +75,7 @@ func TestListCommand_Success(t *testing.T) {
 
 func TestListCommand_JSONOutput(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListCalendarsFunc: func() ([]*calendar.CalendarListEntry, error) {
+		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
 			return testutil.SampleCalendars(), nil
 		},
 	}
@@ -98,7 +98,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 
 func TestListCommand_Empty(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListCalendarsFunc: func() ([]*calendar.CalendarListEntry, error) {
+		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
 			return []*calendar.CalendarListEntry{}, nil
 		},
 	}
@@ -117,7 +117,7 @@ func TestListCommand_Empty(t *testing.T) {
 
 func TestListCommand_APIError(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListCalendarsFunc: func() ([]*calendar.CalendarListEntry, error) {
+		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
 			return nil, errors.New("API error")
 		},
 	}
@@ -143,7 +143,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 
 func TestEventsCommand_Success(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListEventsFunc: func(calendarID, _, _ string, _ int64) ([]*calendar.Event, error) {
+		ListEventsFunc: func(_ context.Context, calendarID, _, _ string, _ int64) ([]*calendar.Event, error) {
 			testutil.Equal(t, calendarID, "primary")
 			return []*calendar.Event{testutil.SampleEvent("event1")}, nil
 		},
@@ -165,7 +165,7 @@ func TestEventsCommand_Success(t *testing.T) {
 func TestEventsCommand_WithDateRange(t *testing.T) {
 	var capturedTimeMin, capturedTimeMax string
 	mock := &MockCalendarClient{
-		ListEventsFunc: func(_, timeMin, timeMax string, _ int64) ([]*calendar.Event, error) {
+		ListEventsFunc: func(_ context.Context, _, timeMin, timeMax string, _ int64) ([]*calendar.Event, error) {
 			capturedTimeMin = timeMin
 			capturedTimeMax = timeMax
 			return []*calendar.Event{}, nil
@@ -190,7 +190,7 @@ func TestEventsCommand_WithDateRange(t *testing.T) {
 
 func TestEventsCommand_JSONOutput(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListEventsFunc: func(_, _, _ string, _ int64) ([]*calendar.Event, error) {
+		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
 			return []*calendar.Event{testutil.SampleEvent("event1")}, nil
 		},
 	}
@@ -235,7 +235,7 @@ func TestEventsCommand_InvalidToDate(t *testing.T) {
 
 func TestGetCommand_Success(t *testing.T) {
 	mock := &MockCalendarClient{
-		GetEventFunc: func(calendarID, eventID string) (*calendar.Event, error) {
+		GetEventFunc: func(_ context.Context, calendarID, eventID string) (*calendar.Event, error) {
 			testutil.Equal(t, calendarID, "primary")
 			testutil.Equal(t, eventID, "event123")
 			return testutil.SampleEvent("event123"), nil
@@ -259,7 +259,7 @@ func TestGetCommand_Success(t *testing.T) {
 
 func TestGetCommand_JSONOutput(t *testing.T) {
 	mock := &MockCalendarClient{
-		GetEventFunc: func(_, _ string) (*calendar.Event, error) {
+		GetEventFunc: func(_ context.Context, _, _ string) (*calendar.Event, error) {
 			return testutil.SampleEvent("event123"), nil
 		},
 	}
@@ -282,7 +282,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 
 func TestGetCommand_NotFound(t *testing.T) {
 	mock := &MockCalendarClient{
-		GetEventFunc: func(_, _ string) (*calendar.Event, error) {
+		GetEventFunc: func(_ context.Context, _, _ string) (*calendar.Event, error) {
 			return nil, errors.New("event not found")
 		},
 	}
@@ -299,7 +299,7 @@ func TestGetCommand_NotFound(t *testing.T) {
 
 func TestTodayCommand_Success(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListEventsFunc: func(_, _, _ string, _ int64) ([]*calendar.Event, error) {
+		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
 			return []*calendar.Event{testutil.SampleEvent("today_event")}, nil
 		},
 	}
@@ -318,7 +318,7 @@ func TestTodayCommand_Success(t *testing.T) {
 
 func TestWeekCommand_Success(t *testing.T) {
 	mock := &MockCalendarClient{
-		ListEventsFunc: func(_, _, _ string, _ int64) ([]*calendar.Event, error) {
+		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
 			return []*calendar.Event{
 				testutil.SampleEvent("week_event1"),
 				testutil.SampleEvent("week_event2"),

@@ -21,12 +21,12 @@ type Client struct {
 func NewClient(ctx context.Context) (*Client, error) {
 	client, err := auth.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading OAuth client: %w", err)
 	}
 
 	srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Drive service: %w", err)
+		return nil, fmt.Errorf("creating Drive service: %w", err)
 	}
 
 	return &Client{
@@ -38,7 +38,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 const fileFields = "id,name,mimeType,size,createdTime,modifiedTime,parents,owners,webViewLink,shared,driveId"
 
 // ListFiles returns files matching the query (searches My Drive only for backwards compatibility)
-func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
+func (c *Client) ListFiles(ctx context.Context, query string, pageSize int64) ([]*File, error) {
 	call := c.service.Files.List().
 		Fields("files(" + fileFields + ")").
 		OrderBy("modifiedTime desc")
@@ -50,7 +50,7 @@ func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
 		call = call.PageSize(pageSize)
 	}
 
-	resp, err := call.Do()
+	resp, err := call.Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("listing files: %w", err)
 	}
@@ -63,7 +63,7 @@ func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
 }
 
 // ListFilesWithScope returns files matching the query within the specified scope
-func (c *Client) ListFilesWithScope(query string, pageSize int64, scope DriveScope) ([]*File, error) {
+func (c *Client) ListFilesWithScope(ctx context.Context, query string, pageSize int64, scope DriveScope) ([]*File, error) {
 	call := c.service.Files.List().
 		Fields("files(" + fileFields + ")").
 		OrderBy("modifiedTime desc").
@@ -90,7 +90,7 @@ func (c *Client) ListFilesWithScope(query string, pageSize int64, scope DriveSco
 		call = call.PageSize(pageSize)
 	}
 
-	resp, err := call.Do()
+	resp, err := call.Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("listing files: %w", err)
 	}
@@ -103,10 +103,11 @@ func (c *Client) ListFilesWithScope(query string, pageSize int64, scope DriveSco
 }
 
 // GetFile retrieves a single file by ID (supports files in shared drives)
-func (c *Client) GetFile(fileID string) (*File, error) {
+func (c *Client) GetFile(ctx context.Context, fileID string) (*File, error) {
 	f, err := c.service.Files.Get(fileID).
 		Fields(fileFields).
 		SupportsAllDrives(true).
+		Context(ctx).
 		Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting file: %w", err)
@@ -115,9 +116,10 @@ func (c *Client) GetFile(fileID string) (*File, error) {
 }
 
 // DownloadFile downloads a regular (non-Google Workspace) file
-func (c *Client) DownloadFile(fileID string) ([]byte, error) {
+func (c *Client) DownloadFile(ctx context.Context, fileID string) ([]byte, error) {
 	resp, err := c.service.Files.Get(fileID).
 		SupportsAllDrives(true).
+		Context(ctx).
 		Download()
 	if err != nil {
 		return nil, fmt.Errorf("downloading file: %w", err)
@@ -132,8 +134,8 @@ func (c *Client) DownloadFile(fileID string) ([]byte, error) {
 }
 
 // ExportFile exports a Google Workspace file to the specified MIME type
-func (c *Client) ExportFile(fileID string, mimeType string) ([]byte, error) {
-	resp, err := c.service.Files.Export(fileID, mimeType).Download()
+func (c *Client) ExportFile(ctx context.Context, fileID string, mimeType string) ([]byte, error) {
+	resp, err := c.service.Files.Export(fileID, mimeType).Context(ctx).Download()
 	if err != nil {
 		return nil, fmt.Errorf("exporting file: %w", err)
 	}
@@ -147,7 +149,7 @@ func (c *Client) ExportFile(fileID string, mimeType string) ([]byte, error) {
 }
 
 // ListSharedDrives returns all shared drives accessible to the user
-func (c *Client) ListSharedDrives(pageSize int64) ([]*SharedDrive, error) {
+func (c *Client) ListSharedDrives(ctx context.Context, pageSize int64) ([]*SharedDrive, error) {
 	var allDrives []*SharedDrive
 	pageToken := ""
 
@@ -162,7 +164,7 @@ func (c *Client) ListSharedDrives(pageSize int64) ([]*SharedDrive, error) {
 			call = call.PageToken(pageToken)
 		}
 
-		resp, err := call.Do()
+		resp, err := call.Context(ctx).Do()
 		if err != nil {
 			return nil, fmt.Errorf("listing shared drives: %w", err)
 		}

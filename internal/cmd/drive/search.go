@@ -66,12 +66,13 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			}
 
 			// Resolve drive scope
-			scope, err := resolveDriveScope(client, myDrive, driveFlag)
+			ctx := cmd.Context()
+			scope, err := resolveDriveScope(ctx, client, myDrive, driveFlag)
 			if err != nil {
 				return fmt.Errorf("resolving drive scope: %w", err)
 			}
 
-			files, err := client.ListFilesWithScope(searchQuery, maxResults, scope)
+			files, err := client.ListFilesWithScope(ctx, searchQuery, maxResults, scope)
 			if err != nil {
 				return fmt.Errorf("searching files: %w", err)
 			}

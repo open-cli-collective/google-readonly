@@ -34,7 +34,7 @@ Examples:
 			now := time.Now()
 			startOfWeek, endOfWeek := weekBounds(now)
 
-			return listAndPrintEvents(client, EventListOptions{
+			return listAndPrintEvents(cmd.Context(), client, EventListOptions{
 				CalendarID: calendarID,
 				TimeMin:    startOfWeek.Format(time.RFC3339),
 				TimeMax:    endOfWeek.Format(time.RFC3339),

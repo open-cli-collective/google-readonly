@@ -25,12 +25,12 @@ type Client struct {
 func NewClient(ctx context.Context) (*Client, error) {
 	client, err := auth.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading OAuth client: %w", err)
 	}
 
 	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Gmail service: %w", err)
+		return nil, fmt.Errorf("creating Gmail service: %w", err)
 	}
 
 	return &Client{
@@ -40,7 +40,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 }
 
 // FetchLabels retrieves and caches all labels from the Gmail account
-func (c *Client) FetchLabels() error {
+func (c *Client) FetchLabels(ctx context.Context) error {
 	// Check with read lock first to avoid unnecessary API calls
 	c.labelsMu.RLock()
 	if c.labelsLoaded {
@@ -58,7 +58,7 @@ func (c *Client) FetchLabels() error {
 		return nil
 	}
 
-	resp, err := c.service.Users.Labels.List(c.userID).Do()
+	resp, err := c.service.Users.Labels.List(c.userID).Context(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("fetching labels: %w", err)
 	}
@@ -106,8 +106,8 @@ type Profile struct {
 }
 
 // GetProfile retrieves the authenticated user's profile
-func (c *Client) GetProfile() (*Profile, error) {
-	profile, err := c.service.Users.GetProfile(c.userID).Do()
+func (c *Client) GetProfile(ctx context.Context) (*Profile, error) {
+	profile, err := c.service.Users.GetProfile(c.userID).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting profile: %w", err)
 	}

@@ -2,6 +2,7 @@ package drive
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -228,14 +229,14 @@ func newMockDriveClient() *mockDriveClient {
 	}
 }
 
-func (m *mockDriveClient) GetFile(fileID string) (*drive.File, error) {
+func (m *mockDriveClient) GetFile(_ context.Context, fileID string) (*drive.File, error) {
 	if f, ok := m.files[fileID]; ok {
 		return f, nil
 	}
 	return nil, fmt.Errorf("file not found: %s", fileID)
 }
 
-func (m *mockDriveClient) ListFiles(query string, _ int64) ([]*drive.File, error) {
+func (m *mockDriveClient) ListFiles(_ context.Context, query string, _ int64) ([]*drive.File, error) {
 	// Extract folderID from query like "'folder123' in parents and trashed = false"
 	// The query format is: "'<folderID>' in parents and trashed = false"
 	for folderID, files := range m.children {
@@ -247,20 +248,20 @@ func (m *mockDriveClient) ListFiles(query string, _ int64) ([]*drive.File, error
 	return []*drive.File{}, nil
 }
 
-func (m *mockDriveClient) ListFilesWithScope(query string, pageSize int64, _ drive.DriveScope) ([]*drive.File, error) {
+func (m *mockDriveClient) ListFilesWithScope(ctx context.Context, query string, pageSize int64, _ drive.DriveScope) ([]*drive.File, error) {
 	// Delegate to ListFiles for testing purposes
-	return m.ListFiles(query, pageSize)
+	return m.ListFiles(ctx, query, pageSize)
 }
 
-func (m *mockDriveClient) DownloadFile(_ string) ([]byte, error) {
+func (m *mockDriveClient) DownloadFile(_ context.Context, _ string) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (m *mockDriveClient) ExportFile(_ string, _ string) ([]byte, error) {
+func (m *mockDriveClient) ExportFile(_ context.Context, _ string, _ string) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (m *mockDriveClient) ListSharedDrives(_ int64) ([]*drive.SharedDrive, error) {
+func (m *mockDriveClient) ListSharedDrives(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -276,7 +277,7 @@ func TestBuildTree(t *testing.T) {
 		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "Documents", MimeType: drive.MimeTypeFolder}
 		mock.files["folder2"] = &drive.File{ID: "folder2", Name: "Photos", MimeType: drive.MimeTypeFolder}
 
-		tree, err := buildTree(mock, "root", 1, false)
+		tree, err := buildTree(context.Background(), mock, "root", 1, false)
 
 		testutil.NoError(t, err)
 		testutil.Equal(t, tree.ID, "root")
@@ -296,7 +297,7 @@ func TestBuildTree(t *testing.T) {
 			{ID: "doc1", Name: "Notes.txt", MimeType: "text/plain"},
 		}
 
-		tree, err := buildTree(mock, "folder123", 1, true)
+		tree, err := buildTree(context.Background(), mock, "folder123", 1, true)
 
 		testutil.NoError(t, err)
 		testutil.Equal(t, tree.ID, "folder123")
@@ -317,7 +318,7 @@ func TestBuildTree(t *testing.T) {
 		mock.files["folder2"] = &drive.File{ID: "folder2", Name: "Level2", MimeType: drive.MimeTypeFolder}
 
 		// With depth 1, should not recurse into Level1
-		tree, err := buildTree(mock, "root", 1, false)
+		tree, err := buildTree(context.Background(), mock, "root", 1, false)
 
 		testutil.NoError(t, err)
 		testutil.Len(t, tree.Children, 1)
@@ -332,7 +333,7 @@ func TestBuildTree(t *testing.T) {
 			{ID: "folder1", Name: "Folder", MimeType: drive.MimeTypeFolder},
 		}
 
-		tree, err := buildTree(mock, "root", 0, false)
+		tree, err := buildTree(context.Background(), mock, "root", 0, false)
 
 		testutil.NoError(t, err)
 		testutil.Equal(t, tree.Name, "My Drive")
@@ -347,7 +348,7 @@ func TestBuildTree(t *testing.T) {
 		}
 		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "Docs", MimeType: drive.MimeTypeFolder}
 
-		tree, err := buildTree(mock, "root", 1, true)
+		tree, err := buildTree(context.Background(), mock, "root", 1, true)
 
 		testutil.NoError(t, err)
 		testutil.Len(t, tree.Children, 2)
@@ -361,7 +362,7 @@ func TestBuildTree(t *testing.T) {
 		}
 		mock.files["folder1"] = &drive.File{ID: "folder1", Name: "zzz-folder", MimeType: drive.MimeTypeFolder}
 
-		tree, err := buildTree(mock, "root", 1, true)
+		tree, err := buildTree(context.Background(), mock, "root", 1, true)
 
 		testutil.NoError(t, err)
 		testutil.Len(t, tree.Children, 2)

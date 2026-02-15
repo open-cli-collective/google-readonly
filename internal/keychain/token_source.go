@@ -21,9 +21,9 @@ type PersistentTokenSource struct {
 // NewPersistentTokenSource creates a TokenSource that persists refreshed tokens.
 // When the underlying oauth2 package refreshes an expired token, this wrapper
 // detects the change and saves the new token to secure storage.
-func NewPersistentTokenSource(config *oauth2.Config, initial *oauth2.Token) oauth2.TokenSource {
+func NewPersistentTokenSource(ctx context.Context, config *oauth2.Config, initial *oauth2.Token) oauth2.TokenSource {
 	// Create base token source that handles refresh
-	base := config.TokenSource(context.Background(), initial)
+	base := config.TokenSource(ctx, initial)
 
 	return &PersistentTokenSource{
 		base:    base,

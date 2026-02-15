@@ -31,7 +31,7 @@ Examples:
 				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
-			person, err := client.GetContact(resourceName)
+			person, err := client.GetContact(cmd.Context(), resourceName)
 			if err != nil {
 				return fmt.Errorf("getting contact: %w", err)
 			}

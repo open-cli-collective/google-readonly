@@ -52,7 +52,7 @@ func withFailingClientFactory(f func()) {
 
 func TestListCommand_Success(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "'root' in parents")
 			return testutil.SampleDriveFiles(2), nil
 		},
@@ -73,7 +73,7 @@ func TestListCommand_Success(t *testing.T) {
 
 func TestListCommand_JSONOutput(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
 			return testutil.SampleDriveFiles(1), nil
 		},
 	}
@@ -96,7 +96,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 
 func TestListCommand_Empty(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
 			return []*driveapi.File{}, nil
 		},
 	}
@@ -115,7 +115,7 @@ func TestListCommand_Empty(t *testing.T) {
 
 func TestListCommand_WithFolder(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "'folder123' in parents")
 			return testutil.SampleDriveFiles(1), nil
 		},
@@ -136,7 +136,7 @@ func TestListCommand_WithFolder(t *testing.T) {
 
 func TestListCommand_WithTypeFilter(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "mimeType")
 			return testutil.SampleDriveFiles(1), nil
 		},
@@ -168,7 +168,7 @@ func TestListCommand_InvalidType(t *testing.T) {
 
 func TestListCommand_APIError(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
 			return nil, errors.New("API error")
 		},
 	}
@@ -194,7 +194,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 
 func TestSearchCommand_Success(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "fullText contains 'report'")
 			return testutil.SampleDriveFiles(2), nil
 		},
@@ -216,7 +216,7 @@ func TestSearchCommand_Success(t *testing.T) {
 
 func TestSearchCommand_NameOnly(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "name contains 'budget'")
 			return testutil.SampleDriveFiles(1), nil
 		},
@@ -237,7 +237,7 @@ func TestSearchCommand_NameOnly(t *testing.T) {
 
 func TestSearchCommand_JSONOutput(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
 			return testutil.SampleDriveFiles(1), nil
 		},
 	}
@@ -260,7 +260,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 
 func TestSearchCommand_NoResults(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
 			return []*driveapi.File{}, nil
 		},
 	}
@@ -280,7 +280,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 
 func TestSearchCommand_APIError(t *testing.T) {
 	mock := &MockDriveClient{
-		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
+		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
 			return nil, errors.New("API error")
 		},
 	}
@@ -297,7 +297,7 @@ func TestSearchCommand_APIError(t *testing.T) {
 
 func TestGetCommand_Success(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(fileID string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, fileID string) (*driveapi.File, error) {
 			testutil.Equal(t, fileID, "file123")
 			return testutil.SampleDriveFile("file123"), nil
 		},
@@ -320,7 +320,7 @@ func TestGetCommand_Success(t *testing.T) {
 
 func TestGetCommand_JSONOutput(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
 	}
@@ -343,7 +343,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 
 func TestGetCommand_NotFound(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return nil, errors.New("file not found")
 		},
 	}
@@ -366,10 +366,10 @@ func TestDownloadCommand_RegularFile(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
-		DownloadFileFunc: func(fileID string) ([]byte, error) {
+		DownloadFileFunc: func(_ context.Context, fileID string) ([]byte, error) {
 			testutil.Equal(t, fileID, "file123")
 			return []byte("test content"), nil
 		},
@@ -391,10 +391,10 @@ func TestDownloadCommand_RegularFile(t *testing.T) {
 
 func TestDownloadCommand_ToStdout(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
-		DownloadFileFunc: func(_ string) ([]byte, error) {
+		DownloadFileFunc: func(_ context.Context, _ string) ([]byte, error) {
 			return []byte("test content"), nil
 		},
 	}
@@ -414,7 +414,7 @@ func TestDownloadCommand_ToStdout(t *testing.T) {
 
 func TestDownloadCommand_GoogleDocRequiresFormat(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleGoogleDoc("doc123"), nil
 		},
 	}
@@ -437,10 +437,10 @@ func TestDownloadCommand_ExportGoogleDoc(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleGoogleDoc("doc123"), nil
 		},
-		ExportFileFunc: func(fileID, mimeType string) ([]byte, error) {
+		ExportFileFunc: func(_ context.Context, fileID, mimeType string) ([]byte, error) {
 			testutil.Equal(t, fileID, "doc123")
 			testutil.Contains(t, mimeType, "pdf")
 			return []byte("pdf content"), nil
@@ -463,7 +463,7 @@ func TestDownloadCommand_ExportGoogleDoc(t *testing.T) {
 
 func TestDownloadCommand_RegularFileCannotUseFormat(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
 	}
@@ -480,10 +480,10 @@ func TestDownloadCommand_RegularFileCannotUseFormat(t *testing.T) {
 
 func TestDownloadCommand_APIError(t *testing.T) {
 	mock := &MockDriveClient{
-		GetFileFunc: func(_ string) (*driveapi.File, error) {
+		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
-		DownloadFileFunc: func(_ string) ([]byte, error) {
+		DownloadFileFunc: func(_ context.Context, _ string) ([]byte, error) {
 			return nil, errors.New("download failed")
 		},
 	}

@@ -31,7 +31,7 @@ For more query operators, see: https://support.google.com/mail/answer/7190`,
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			messages, skipped, err := client.SearchMessages(args[0], maxResults)
+			messages, skipped, err := client.SearchMessages(cmd.Context(), args[0], maxResults)
 			if err != nil {
 				return fmt.Errorf("searching messages: %w", err)
 			}

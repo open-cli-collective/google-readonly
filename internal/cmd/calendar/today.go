@@ -34,7 +34,7 @@ Examples:
 			now := time.Now()
 			startOfDay, endOfDayTime := todayBounds(now)
 
-			return listAndPrintEvents(client, EventListOptions{
+			return listAndPrintEvents(cmd.Context(), client, EventListOptions{
 				CalendarID:   calendarID,
 				TimeMin:      startOfDay.Format(time.RFC3339),
 				TimeMax:      endOfDayTime.Format(time.RFC3339),

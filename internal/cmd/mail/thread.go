@@ -29,7 +29,7 @@ Examples:
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			messages, err := client.GetThread(args[0])
+			messages, err := client.GetThread(cmd.Context(), args[0])
 			if err != nil {
 				return fmt.Errorf("getting thread: %w", err)
 			}

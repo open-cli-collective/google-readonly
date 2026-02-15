@@ -12,9 +12,9 @@ import (
 
 // CalendarClient defines the interface for Calendar client operations used by calendar commands.
 type CalendarClient interface {
-	ListCalendars() ([]*calendarv3.CalendarListEntry, error)
-	ListEvents(calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendarv3.Event, error)
-	GetEvent(calendarID, eventID string) (*calendarv3.Event, error)
+	ListCalendars(ctx context.Context) ([]*calendarv3.CalendarListEntry, error)
+	ListEvents(ctx context.Context, calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendarv3.Event, error)
+	GetEvent(ctx context.Context, calendarID, eventID string) (*calendarv3.Event, error)
 }
 
 // ClientFactory is the function used to create Calendar clients.

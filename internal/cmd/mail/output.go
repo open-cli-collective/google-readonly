@@ -13,16 +13,16 @@ import (
 
 // MailClient defines the interface for Gmail client operations used by mail commands.
 type MailClient interface {
-	GetMessage(messageID string, includeBody bool) (*gmail.Message, error)
-	SearchMessages(query string, maxResults int64) ([]*gmail.Message, int, error)
-	GetThread(id string) ([]*gmail.Message, error)
-	FetchLabels() error
+	GetMessage(ctx context.Context, messageID string, includeBody bool) (*gmail.Message, error)
+	SearchMessages(ctx context.Context, query string, maxResults int64) ([]*gmail.Message, int, error)
+	GetThread(ctx context.Context, id string) ([]*gmail.Message, error)
+	FetchLabels(ctx context.Context) error
 	GetLabelName(labelID string) string
 	GetLabels() []*gmailv1.Label
-	GetAttachments(messageID string) ([]*gmail.Attachment, error)
-	DownloadAttachment(messageID string, attachmentID string) ([]byte, error)
-	DownloadInlineAttachment(messageID string, partID string) ([]byte, error)
-	GetProfile() (*gmail.Profile, error)
+	GetAttachments(ctx context.Context, messageID string) ([]*gmail.Attachment, error)
+	DownloadAttachment(ctx context.Context, messageID string, attachmentID string) ([]byte, error)
+	DownloadInlineAttachment(ctx context.Context, messageID string, partID string) ([]byte, error)
+	GetProfile(ctx context.Context) (*gmail.Profile, error)
 }
 
 // ClientFactory is the function used to create Gmail clients.

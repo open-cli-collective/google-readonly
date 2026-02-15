@@ -26,7 +26,7 @@ Examples:
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			msg, err := client.GetMessage(args[0], true)
+			msg, err := client.GetMessage(cmd.Context(), args[0], true)
 			if err != nil {
 				return fmt.Errorf("reading message: %w", err)
 			}

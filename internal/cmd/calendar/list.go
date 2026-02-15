@@ -28,7 +28,7 @@ Examples:
 				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
-			calendars, err := client.ListCalendars()
+			calendars, err := client.ListCalendars(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("listing calendars: %w", err)
 			}

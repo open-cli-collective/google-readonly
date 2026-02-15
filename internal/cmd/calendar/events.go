@@ -66,7 +66,7 @@ Examples:
 				timeMax = endOfDay(t).Format(time.RFC3339)
 			}
 
-			return listAndPrintEvents(client, EventListOptions{
+			return listAndPrintEvents(cmd.Context(), client, EventListOptions{
 				CalendarID:   calID,
 				TimeMin:      timeMin,
 				TimeMax:      timeMax,

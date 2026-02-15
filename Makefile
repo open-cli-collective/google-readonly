@@ -45,7 +45,7 @@ verify:
 	go mod verify
 
 # CI gate: everything that must pass before merge
-check: fmt lint test build
+check: tidy lint test build
 
 clean:
 	rm -rf bin/ $(DIST_DIR)/ coverage.out coverage.html $(BINARY)

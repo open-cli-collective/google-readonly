@@ -29,7 +29,7 @@ Examples:
 			}
 
 			fileID := args[0]
-			file, err := client.GetFile(fileID)
+			file, err := client.GetFile(cmd.Context(), fileID)
 			if err != nil {
 				return fmt.Errorf("getting file %s: %w", fileID, err)
 			}

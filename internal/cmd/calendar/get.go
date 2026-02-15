@@ -34,7 +34,7 @@ Examples:
 				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
-			event, err := client.GetEvent(calendarID, eventID)
+			event, err := client.GetEvent(cmd.Context(), calendarID, eventID)
 			if err != nil {
 				return fmt.Errorf("getting event: %w", err)
 			}

@@ -113,7 +113,7 @@ func runShow(cmd *cobra.Command, _ []string) error {
 	// Show email if we can get it without triggering auth
 	if keychain.HasStoredToken() && credStatus == "OK" {
 		if client, err := gmail.NewClient(cmd.Context()); err == nil {
-			if profile, err := client.GetProfile(); err == nil {
+			if profile, err := client.GetProfile(cmd.Context()); err == nil {
 				fmt.Printf("Email:       %s\n", profile.EmailAddress)
 			}
 		}
@@ -153,7 +153,7 @@ func runTest(cmd *cobra.Command, _ []string) error {
 	fmt.Println("  Token valid: OK")
 
 	// Test API access
-	profile, err := client.GetProfile()
+	profile, err := client.GetProfile(cmd.Context())
 	if err != nil {
 		fmt.Println("  Gmail API:   FAILED")
 		return fmt.Errorf("accessing Gmail API: %w", err)

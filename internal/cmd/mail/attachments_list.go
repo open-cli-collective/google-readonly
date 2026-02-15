@@ -28,7 +28,7 @@ Examples:
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			attachments, err := client.GetAttachments(args[0])
+			attachments, err := client.GetAttachments(cmd.Context(), args[0])
 			if err != nil {
 				return fmt.Errorf("getting attachments: %w", err)
 			}

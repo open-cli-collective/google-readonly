@@ -49,8 +49,10 @@ Export formats:
 
 			fileID := args[0]
 
+			ctx := cmd.Context()
+
 			// Get file metadata first
-			file, err := client.GetFile(fileID)
+			file, err := client.GetFile(ctx, fileID)
 			if err != nil {
 				return fmt.Errorf("getting file info: %w", err)
 			}
@@ -75,7 +77,7 @@ Export formats:
 					fmt.Printf("Format: %s\n", format)
 				}
 
-				data, err = client.ExportFile(fileID, exportMime)
+				data, err = client.ExportFile(ctx, fileID, exportMime)
 				if err != nil {
 					return fmt.Errorf("exporting file: %w", err)
 				}
@@ -90,7 +92,7 @@ Export formats:
 					fmt.Printf("Downloading: %s\n", file.Name)
 				}
 
-				data, err = client.DownloadFile(fileID)
+				data, err = client.DownloadFile(ctx, fileID)
 				if err != nil {
 					return fmt.Errorf("downloading file: %w", err)
 				}

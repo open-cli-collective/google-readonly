@@ -32,7 +32,7 @@ Examples:
 				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
-			resp, err := client.ListContactGroups("", maxResults)
+			resp, err := client.ListContactGroups(cmd.Context(), "", maxResults)
 			if err != nil {
 				return fmt.Errorf("listing contact groups: %w", err)
 			}

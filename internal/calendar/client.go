@@ -20,12 +20,12 @@ type Client struct {
 func NewClient(ctx context.Context) (*Client, error) {
 	client, err := auth.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading OAuth client: %w", err)
 	}
 
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Calendar service: %w", err)
+		return nil, fmt.Errorf("creating Calendar service: %w", err)
 	}
 
 	return &Client{
@@ -34,8 +34,8 @@ func NewClient(ctx context.Context) (*Client, error) {
 }
 
 // ListCalendars returns all calendars the user has access to
-func (c *Client) ListCalendars() ([]*calendar.CalendarListEntry, error) {
-	resp, err := c.service.CalendarList.List().Do()
+func (c *Client) ListCalendars(ctx context.Context) ([]*calendar.CalendarListEntry, error) {
+	resp, err := c.service.CalendarList.List().Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("listing calendars: %w", err)
 	}
@@ -43,7 +43,7 @@ func (c *Client) ListCalendars() ([]*calendar.CalendarListEntry, error) {
 }
 
 // ListEvents returns events from the specified calendar within the given time range
-func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendar.Event, error) {
+func (c *Client) ListEvents(ctx context.Context, calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendar.Event, error) {
 	call := c.service.Events.List(calendarID).
 		SingleEvents(true).
 		OrderBy("startTime")
@@ -58,7 +58,7 @@ func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResul
 		call = call.MaxResults(maxResults)
 	}
 
-	resp, err := call.Do()
+	resp, err := call.Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("listing events: %w", err)
 	}
@@ -66,8 +66,8 @@ func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResul
 }
 
 // GetEvent retrieves a single event by ID
-func (c *Client) GetEvent(calendarID, eventID string) (*calendar.Event, error) {
-	event, err := c.service.Events.Get(calendarID, eventID).Do()
+func (c *Client) GetEvent(ctx context.Context, calendarID, eventID string) (*calendar.Event, error) {
+	event, err := c.service.Events.Get(calendarID, eventID).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting event: %w", err)
 	}

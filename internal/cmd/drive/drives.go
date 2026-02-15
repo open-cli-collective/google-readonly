@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -66,7 +67,7 @@ Examples:
 
 			// Fetch from API if no cache hit
 			if drives == nil {
-				drives, err = client.ListSharedDrives(100)
+				drives, err = client.ListSharedDrives(cmd.Context(), 100)
 				if err != nil {
 					return fmt.Errorf("listing shared drives: %w", err)
 				}
@@ -118,7 +119,7 @@ func printSharedDrives(drives []*drive.SharedDrive) {
 }
 
 // resolveDriveScope converts command flags to a DriveScope, resolving drive names via cache
-func resolveDriveScope(client DriveClient, myDrive bool, driveFlag string) (drive.DriveScope, error) {
+func resolveDriveScope(ctx context.Context, client DriveClient, myDrive bool, driveFlag string) (drive.DriveScope, error) {
 	// --my-drive flag
 	if myDrive {
 		return drive.DriveScope{MyDriveOnly: true}, nil
@@ -145,7 +146,7 @@ func resolveDriveScope(client DriveClient, myDrive bool, driveFlag string) (driv
 	cached, _ := c.GetDrives()
 	if cached == nil {
 		// Cache miss - fetch from API
-		drives, err := client.ListSharedDrives(100)
+		drives, err := client.ListSharedDrives(ctx, 100)
 		if err != nil {
 			return drive.DriveScope{}, fmt.Errorf("listing shared drives: %w", err)
 		}

@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -56,7 +57,8 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			}
 
 			// Resolve drive scope for listing
-			scope, err := resolveDriveScopeForList(client, myDrive, driveFlag, folderID)
+			ctx := cmd.Context()
+			scope, err := resolveDriveScopeForList(ctx, client, myDrive, driveFlag, folderID)
 			if err != nil {
 				return fmt.Errorf("resolving drive scope: %w", err)
 			}
@@ -66,7 +68,7 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 				return fmt.Errorf("building query: %w", err)
 			}
 
-			files, err := client.ListFilesWithScope(query, maxResults, scope)
+			files, err := client.ListFilesWithScope(ctx, query, maxResults, scope)
 			if err != nil {
 				return fmt.Errorf("listing files: %w", err)
 			}
@@ -141,14 +143,14 @@ func buildListQueryWithScope(folderID, fileType string, scope drive.DriveScope) 
 
 // resolveDriveScopeForList resolves the scope for list operations
 // List has slightly different behavior - defaults to My Drive root if no flags
-func resolveDriveScopeForList(client DriveClient, myDrive bool, driveFlag, folderID string) (drive.DriveScope, error) {
+func resolveDriveScopeForList(ctx context.Context, client DriveClient, myDrive bool, driveFlag, folderID string) (drive.DriveScope, error) {
 	// If a folder ID is provided, we need to support all drives to access it
 	if folderID != "" && !myDrive && driveFlag == "" {
 		return drive.DriveScope{AllDrives: true}, nil
 	}
 
 	// Otherwise use the standard resolution
-	return resolveDriveScope(client, myDrive, driveFlag)
+	return resolveDriveScope(ctx, client, myDrive, driveFlag)
 }
 
 // getMimeTypeFilter returns the Drive API query filter for a file type

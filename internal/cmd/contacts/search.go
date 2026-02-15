@@ -40,7 +40,7 @@ Examples:
 				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
-			resp, err := client.SearchContacts(query, maxResults)
+			resp, err := client.SearchContacts(cmd.Context(), query, maxResults)
 			if err != nil {
 				return fmt.Errorf("searching contacts: %w", err)
 			}
