@@ -40,7 +40,7 @@ Examples:
 
 			client, err := newCalendarClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
 			// Parse date range

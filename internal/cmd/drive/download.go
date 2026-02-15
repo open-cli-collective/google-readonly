@@ -44,7 +44,7 @@ Export formats:
 		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newDriveClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			fileID := args[0]
@@ -52,7 +52,7 @@ Export formats:
 			// Get file metadata first
 			file, err := client.GetFile(fileID)
 			if err != nil {
-				return fmt.Errorf("failed to get file info: %w", err)
+				return fmt.Errorf("getting file info: %w", err)
 			}
 
 			var data []byte
@@ -67,7 +67,7 @@ Export formats:
 
 				exportMime, err := drive.GetExportMimeType(file.MimeType, format)
 				if err != nil {
-					return fmt.Errorf("failed to get export type: %w", err)
+					return fmt.Errorf("getting export type: %w", err)
 				}
 
 				if !stdout {
@@ -77,7 +77,7 @@ Export formats:
 
 				data, err = client.ExportFile(fileID, exportMime)
 				if err != nil {
-					return fmt.Errorf("failed to export file: %w", err)
+					return fmt.Errorf("exporting file: %w", err)
 				}
 			} else {
 				// Regular file - download directly
@@ -92,7 +92,7 @@ Export formats:
 
 				data, err = client.DownloadFile(fileID)
 				if err != nil {
-					return fmt.Errorf("failed to download file: %w", err)
+					return fmt.Errorf("downloading file: %w", err)
 				}
 			}
 
@@ -100,7 +100,7 @@ Export formats:
 			if stdout {
 				_, err = os.Stdout.Write(data)
 				if err != nil {
-					return fmt.Errorf("failed to write to stdout: %w", err)
+					return fmt.Errorf("writing to stdout: %w", err)
 				}
 				return nil
 			}
@@ -108,7 +108,7 @@ Export formats:
 			outputPath := determineOutputPath(file.Name, format, output)
 
 			if err := os.WriteFile(outputPath, data, config.OutputFilePerm); err != nil {
-				return fmt.Errorf("failed to write file: %w", err)
+				return fmt.Errorf("writing file: %w", err)
 			}
 
 			fmt.Printf("Size: %s\n", formatpkg.Size(int64(len(data))))

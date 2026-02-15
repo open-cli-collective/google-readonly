@@ -126,7 +126,7 @@ func TestListCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to list calendars")
+		testutil.Contains(t, err.Error(), "listing calendars")
 	})
 }
 
@@ -136,7 +136,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 	withFailingClientFactory(func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to create Calendar client")
+		testutil.Contains(t, err.Error(), "creating Calendar client")
 	})
 }
 
@@ -292,7 +292,7 @@ func TestGetCommand_NotFound(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to get event")
+		testutil.Contains(t, err.Error(), "getting event")
 	})
 }
 

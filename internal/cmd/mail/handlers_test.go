@@ -134,7 +134,7 @@ func TestSearchCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to search messages")
+		testutil.Contains(t, err.Error(), "searching messages")
 	})
 }
 
@@ -145,7 +145,7 @@ func TestSearchCommand_ClientCreationError(t *testing.T) {
 	withFailingClientFactory(func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to create Gmail client")
+		testutil.Contains(t, err.Error(), "creating Gmail client")
 	})
 }
 
@@ -229,7 +229,7 @@ func TestReadCommand_NotFound(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to read message")
+		testutil.Contains(t, err.Error(), "reading message")
 	})
 }
 

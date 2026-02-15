@@ -13,7 +13,7 @@ import (
 func (c *Client) GetAttachments(messageID string) ([]*Attachment, error) {
 	msg, err := c.service.Users.Messages.Get(c.userID, messageID).Format("full").Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get message: %w", err)
+		return nil, fmt.Errorf("getting message: %w", err)
 	}
 
 	return extractAttachments(msg.Payload, ""), nil
@@ -23,12 +23,12 @@ func (c *Client) GetAttachments(messageID string) ([]*Attachment, error) {
 func (c *Client) DownloadAttachment(messageID string, attachmentID string) ([]byte, error) {
 	att, err := c.service.Users.Messages.Attachments.Get(c.userID, messageID, attachmentID).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to download attachment: %w", err)
+		return nil, fmt.Errorf("downloading attachment: %w", err)
 	}
 
 	data, err := base64.URLEncoding.DecodeString(att.Data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode attachment data: %w", err)
+		return nil, fmt.Errorf("decoding attachment data: %w", err)
 	}
 
 	return data, nil
@@ -38,7 +38,7 @@ func (c *Client) DownloadAttachment(messageID string, attachmentID string) ([]by
 func (c *Client) DownloadInlineAttachment(messageID string, partID string) ([]byte, error) {
 	msg, err := c.service.Users.Messages.Get(c.userID, messageID).Format("full").Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get message: %w", err)
+		return nil, fmt.Errorf("getting message: %w", err)
 	}
 
 	part := findPart(msg.Payload, partID)
@@ -52,7 +52,7 @@ func (c *Client) DownloadInlineAttachment(messageID string, partID string) ([]by
 
 	data, err := base64.URLEncoding.DecodeString(part.Body.Data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode inline attachment: %w", err)
+		return nil, fmt.Errorf("decoding inline attachment: %w", err)
 	}
 
 	return data, nil

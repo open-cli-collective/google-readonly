@@ -177,7 +177,7 @@ func TestListCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to list files")
+		testutil.Contains(t, err.Error(), "listing files")
 	})
 }
 
@@ -187,7 +187,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 	withFailingClientFactory(func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to create Drive client")
+		testutil.Contains(t, err.Error(), "creating Drive client")
 	})
 }
 
@@ -290,7 +290,7 @@ func TestSearchCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to search files")
+		testutil.Contains(t, err.Error(), "searching files")
 	})
 }
 
@@ -353,7 +353,7 @@ func TestGetCommand_NotFound(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to get file")
+		testutil.Contains(t, err.Error(), "getting file")
 	})
 }
 
@@ -493,7 +493,7 @@ func TestDownloadCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to download file")
+		testutil.Contains(t, err.Error(), "downloading file")
 	})
 }
 
@@ -504,6 +504,6 @@ func TestDownloadCommand_ClientCreationError(t *testing.T) {
 	withFailingClientFactory(func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to create Drive client")
+		testutil.Contains(t, err.Error(), "creating Drive client")
 	})
 }

@@ -45,13 +45,13 @@ Examples:
 
 			client, err := newGmailClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
 			messageID := args[0]
 			attachments, err := client.GetAttachments(messageID)
 			if err != nil {
-				return fmt.Errorf("failed to get attachments: %w", err)
+				return fmt.Errorf("getting attachments: %w", err)
 			}
 
 			if len(attachments) == 0 {
@@ -73,13 +73,13 @@ Examples:
 
 			// Create output directory if needed
 			if err := os.MkdirAll(outputDir, config.OutputDirPerm); err != nil {
-				return fmt.Errorf("failed to create output directory: %w", err)
+				return fmt.Errorf("creating output directory: %w", err)
 			}
 
 			// Get absolute path of download directory for path validation
 			absOutputDir, err := filepath.Abs(outputDir)
 			if err != nil {
-				return fmt.Errorf("failed to resolve download directory: %w", err)
+				return fmt.Errorf("resolving download directory: %w", err)
 			}
 
 			// Download each attachment

@@ -23,12 +23,12 @@ Examples:
 		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newGmailClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
 			msg, err := client.GetMessage(args[0], true)
 			if err != nil {
-				return fmt.Errorf("failed to read message: %w", err)
+				return fmt.Errorf("reading message: %w", err)
 			}
 
 			if jsonOutput {

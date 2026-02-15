@@ -34,14 +34,14 @@ Examples:
 		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newDriveClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			// Initialize cache
 			ttl := config.GetCacheTTLHours()
 			c, err := cache.New(ttl)
 			if err != nil {
-				return fmt.Errorf("failed to initialize cache: %w", err)
+				return fmt.Errorf("initializing cache: %w", err)
 			}
 
 			var drives []*drive.SharedDrive
@@ -50,7 +50,7 @@ Examples:
 			if !refresh {
 				cached, err := c.GetDrives()
 				if err != nil {
-					return fmt.Errorf("failed to read cache: %w", err)
+					return fmt.Errorf("reading cache: %w", err)
 				}
 				if cached != nil {
 					// Convert from cache type to drive type
@@ -68,7 +68,7 @@ Examples:
 			if drives == nil {
 				drives, err = client.ListSharedDrives(100)
 				if err != nil {
-					return fmt.Errorf("failed to list shared drives: %w", err)
+					return fmt.Errorf("listing shared drives: %w", err)
 				}
 
 				// Update cache
@@ -139,7 +139,7 @@ func resolveDriveScope(client drive.DriveClientInterface, myDrive bool, driveFla
 	ttl := config.GetCacheTTLHours()
 	c, err := cache.New(ttl)
 	if err != nil {
-		return drive.DriveScope{}, fmt.Errorf("failed to initialize cache: %w", err)
+		return drive.DriveScope{}, fmt.Errorf("initializing cache: %w", err)
 	}
 
 	cached, _ := c.GetDrives()
@@ -147,7 +147,7 @@ func resolveDriveScope(client drive.DriveClientInterface, myDrive bool, driveFla
 		// Cache miss - fetch from API
 		drives, err := client.ListSharedDrives(100)
 		if err != nil {
-			return drive.DriveScope{}, fmt.Errorf("failed to list shared drives: %w", err)
+			return drive.DriveScope{}, fmt.Errorf("listing shared drives: %w", err)
 		}
 
 		// Update cache

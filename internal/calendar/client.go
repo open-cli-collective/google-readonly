@@ -36,7 +36,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 func (c *Client) ListCalendars() ([]*calendar.CalendarListEntry, error) {
 	resp, err := c.service.CalendarList.List().Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list calendars: %w", err)
+		return nil, fmt.Errorf("listing calendars: %w", err)
 	}
 	return resp.Items, nil
 }
@@ -59,7 +59,7 @@ func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResul
 
 	resp, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list events: %w", err)
+		return nil, fmt.Errorf("listing events: %w", err)
 	}
 	return resp.Items, nil
 }
@@ -68,7 +68,7 @@ func (c *Client) ListEvents(calendarID string, timeMin, timeMax string, maxResul
 func (c *Client) GetEvent(calendarID, eventID string) (*calendar.Event, error) {
 	event, err := c.service.Events.Get(calendarID, eventID).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get event: %w", err)
+		return nil, fmt.Errorf("getting event: %w", err)
 	}
 	return event, nil
 }

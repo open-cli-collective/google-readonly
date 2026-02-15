@@ -47,7 +47,7 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 
 			client, err := newDriveClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			folderID := ""
@@ -58,17 +58,17 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			// Resolve drive scope for listing
 			scope, err := resolveDriveScopeForList(client, myDrive, driveFlag, folderID)
 			if err != nil {
-				return fmt.Errorf("failed to resolve drive scope: %w", err)
+				return fmt.Errorf("resolving drive scope: %w", err)
 			}
 
 			query, err := buildListQueryWithScope(folderID, fileType, scope)
 			if err != nil {
-				return fmt.Errorf("failed to build query: %w", err)
+				return fmt.Errorf("building query: %w", err)
 			}
 
 			files, err := client.ListFilesWithScope(query, maxResults, scope)
 			if err != nil {
-				return fmt.Errorf("failed to list files: %w", err)
+				return fmt.Errorf("listing files: %w", err)
 			}
 
 			if len(files) == 0 {

@@ -50,7 +50,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	// Step 1: Check for credentials.json
 	credPath, err := gmail.GetCredentialsPath()
 	if err != nil {
-		return fmt.Errorf("failed to get credentials path: %w", err)
+		return fmt.Errorf("getting credentials path: %w", err)
 	}
 
 	shortPath := gmail.ShortenPath(credPath)
@@ -65,7 +65,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	// Step 2: Load OAuth config
 	config, err := gmail.GetOAuthConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load OAuth config: %w", err)
+		return fmt.Errorf("loading OAuth config: %w", err)
 	}
 
 	// Step 3: Check if already authenticated
@@ -89,7 +89,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 					fmt.Println()
 					fmt.Println("Clearing old token...")
 					if delErr := keychain.DeleteToken(); delErr != nil {
-						return fmt.Errorf("failed to clear token: %w", delErr)
+						return fmt.Errorf("clearing token: %w", delErr)
 					}
 					// Fall through to OAuth flow below
 				} else {
@@ -129,7 +129,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
+		return fmt.Errorf("reading input: %w", err)
 	}
 
 	code := extractAuthCode(input)
@@ -144,12 +144,12 @@ func runInit(_ *cobra.Command, _ []string) error {
 	ctx := context.Background()
 	token, err := gmail.ExchangeAuthCode(ctx, config, code)
 	if err != nil {
-		return fmt.Errorf("failed to exchange authorization code: %w", err)
+		return fmt.Errorf("exchanging authorization code: %w", err)
 	}
 
 	// Step 6: Save token
 	if err := keychain.SetToken(token); err != nil {
-		return fmt.Errorf("failed to save token: %w", err)
+		return fmt.Errorf("saving token: %w", err)
 	}
 	fmt.Printf("Token saved to: %s\n", keychain.GetStorageBackend())
 
@@ -196,7 +196,7 @@ func verifyConnectivity() error {
 	client, err := gmail.NewClient(context.Background())
 	if err != nil {
 		fmt.Println("  OAuth token: FAILED")
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("creating client: %w", err)
 	}
 	fmt.Println("  OAuth token: OK")
 
@@ -204,7 +204,7 @@ func verifyConnectivity() error {
 	profile, err := client.GetProfile()
 	if err != nil {
 		fmt.Println("  Gmail API:   FAILED")
-		return fmt.Errorf("failed to access Gmail API: %w", err)
+		return fmt.Errorf("accessing Gmail API: %w", err)
 	}
 	fmt.Println("  Gmail API:   OK")
 	fmt.Printf("  Messages:    %d total\n", profile.MessagesTotal)
@@ -319,6 +319,6 @@ func promptCacheTTL() {
 	}
 
 	if err := config.SaveConfig(cfg); err != nil {
-		fmt.Printf("Warning: failed to save config: %v\n", err)
+		fmt.Printf("Warning: saving config: %v\n", err)
 	}
 }

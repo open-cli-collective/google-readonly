@@ -60,7 +60,7 @@ func (c *Client) FetchLabels() error {
 
 	resp, err := c.service.Users.Labels.List(c.userID).Do()
 	if err != nil {
-		return fmt.Errorf("failed to fetch labels: %w", err)
+		return fmt.Errorf("fetching labels: %w", err)
 	}
 
 	c.labels = make(map[string]*gmail.Label)
@@ -102,7 +102,7 @@ func (c *Client) GetLabels() []*gmail.Label {
 func (c *Client) GetProfile() (*Profile, error) {
 	profile, err := c.service.Users.GetProfile(c.userID).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get profile: %w", err)
+		return nil, fmt.Errorf("getting profile: %w", err)
 	}
 	return &Profile{
 		EmailAddress:  profile.EmailAddress,

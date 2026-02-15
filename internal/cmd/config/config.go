@@ -69,7 +69,7 @@ func runShow(_ *cobra.Command, _ []string) error {
 	// Check credentials file
 	credPath, err := gmail.GetCredentialsPath()
 	if err != nil {
-		return fmt.Errorf("failed to get credentials path: %w", err)
+		return fmt.Errorf("getting credentials path: %w", err)
 	}
 
 	credStatus := "OK"
@@ -147,7 +147,7 @@ func runTest(_ *cobra.Command, _ []string) error {
 		fmt.Println()
 		fmt.Println("Token may be expired or revoked.")
 		fmt.Println("Run 'gro config clear' then 'gro init' to re-authenticate.")
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("creating client: %w", err)
 	}
 	fmt.Println("  Token valid: OK")
 
@@ -155,7 +155,7 @@ func runTest(_ *cobra.Command, _ []string) error {
 	profile, err := client.GetProfile()
 	if err != nil {
 		fmt.Println("  Gmail API:   FAILED")
-		return fmt.Errorf("failed to access Gmail API: %w", err)
+		return fmt.Errorf("accessing Gmail API: %w", err)
 	}
 	fmt.Println("  Gmail API:   OK")
 	fmt.Printf("  Messages:    %d total\n", profile.MessagesTotal)
@@ -175,7 +175,7 @@ func runClear(_ *cobra.Command, _ []string) error {
 	backend := keychain.GetStorageBackend()
 
 	if err := keychain.DeleteToken(); err != nil {
-		return fmt.Errorf("failed to clear token: %w", err)
+		return fmt.Errorf("clearing token: %w", err)
 	}
 
 	fmt.Printf("Cleared OAuth token from %s.\n", backend)

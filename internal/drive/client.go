@@ -51,7 +51,7 @@ func (c *Client) ListFiles(query string, pageSize int64) ([]*File, error) {
 
 	resp, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files: %w", err)
+		return nil, fmt.Errorf("listing files: %w", err)
 	}
 
 	files := make([]*File, 0, len(resp.Files))
@@ -91,7 +91,7 @@ func (c *Client) ListFilesWithScope(query string, pageSize int64, scope DriveSco
 
 	resp, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files: %w", err)
+		return nil, fmt.Errorf("listing files: %w", err)
 	}
 
 	files := make([]*File, 0, len(resp.Files))
@@ -108,7 +108,7 @@ func (c *Client) GetFile(fileID string) (*File, error) {
 		SupportsAllDrives(true).
 		Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file: %w", err)
+		return nil, fmt.Errorf("getting file: %w", err)
 	}
 	return ParseFile(f), nil
 }
@@ -119,13 +119,13 @@ func (c *Client) DownloadFile(fileID string) ([]byte, error) {
 		SupportsAllDrives(true).
 		Download()
 	if err != nil {
-		return nil, fmt.Errorf("failed to download file: %w", err)
+		return nil, fmt.Errorf("downloading file: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file content: %w", err)
+		return nil, fmt.Errorf("reading file content: %w", err)
 	}
 	return data, nil
 }
@@ -134,13 +134,13 @@ func (c *Client) DownloadFile(fileID string) ([]byte, error) {
 func (c *Client) ExportFile(fileID string, mimeType string) ([]byte, error) {
 	resp, err := c.service.Files.Export(fileID, mimeType).Download()
 	if err != nil {
-		return nil, fmt.Errorf("failed to export file: %w", err)
+		return nil, fmt.Errorf("exporting file: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read exported content: %w", err)
+		return nil, fmt.Errorf("reading exported content: %w", err)
 	}
 	return data, nil
 }
@@ -163,7 +163,7 @@ func (c *Client) ListSharedDrives(pageSize int64) ([]*SharedDrive, error) {
 
 		resp, err := call.Do()
 		if err != nil {
-			return nil, fmt.Errorf("failed to list shared drives: %w", err)
+			return nil, fmt.Errorf("listing shared drives: %w", err)
 		}
 
 		for _, d := range resp.Drives {

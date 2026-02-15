@@ -37,11 +37,11 @@ Examples:
 		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newGmailClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
 			if err := client.FetchLabels(); err != nil {
-				return fmt.Errorf("failed to fetch labels: %w", err)
+				return fmt.Errorf("fetching labels: %w", err)
 			}
 
 			gmailLabels := client.GetLabels()

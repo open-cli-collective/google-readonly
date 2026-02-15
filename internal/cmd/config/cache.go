@@ -42,17 +42,17 @@ func newCacheShowCommand() *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := configpkg.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				return fmt.Errorf("loading config: %w", err)
 			}
 
 			c, err := cache.New(cfg.CacheTTLHours)
 			if err != nil {
-				return fmt.Errorf("failed to initialize cache: %w", err)
+				return fmt.Errorf("initializing cache: %w", err)
 			}
 
 			status, err := c.GetStatus()
 			if err != nil {
-				return fmt.Errorf("failed to get cache status: %w", err)
+				return fmt.Errorf("getting cache status: %w", err)
 			}
 
 			if jsonOutput {
@@ -95,16 +95,16 @@ func newCacheClearCommand() *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := configpkg.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				return fmt.Errorf("loading config: %w", err)
 			}
 
 			c, err := cache.New(cfg.CacheTTLHours)
 			if err != nil {
-				return fmt.Errorf("failed to initialize cache: %w", err)
+				return fmt.Errorf("initializing cache: %w", err)
 			}
 
 			if err := c.Clear(); err != nil {
-				return fmt.Errorf("failed to clear cache: %w", err)
+				return fmt.Errorf("clearing cache: %w", err)
 			}
 
 			fmt.Println("Cache cleared.")
@@ -134,13 +134,13 @@ Examples:
 
 			cfg, err := configpkg.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				return fmt.Errorf("loading config: %w", err)
 			}
 
 			cfg.CacheTTLHours = ttl
 
 			if err := configpkg.SaveConfig(cfg); err != nil {
-				return fmt.Errorf("failed to save config: %w", err)
+				return fmt.Errorf("saving config: %w", err)
 			}
 
 			fmt.Printf("Cache TTL set to %d hours.\n", ttl)

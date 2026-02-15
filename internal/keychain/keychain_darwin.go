@@ -75,12 +75,12 @@ func getFromKeychain() (*oauth2.Token, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from keychain: %w", err)
+		return nil, fmt.Errorf("reading from keychain: %w", err)
 	}
 
 	var token oauth2.Token
 	if err := json.Unmarshal([]byte(strings.TrimSpace(string(output))), &token); err != nil {
-		return nil, fmt.Errorf("failed to parse token from keychain: %w", err)
+		return nil, fmt.Errorf("parsing token from keychain: %w", err)
 	}
 
 	return &token, nil
@@ -89,7 +89,7 @@ func getFromKeychain() (*oauth2.Token, error) {
 func setInKeychain(token *oauth2.Token) error {
 	data, err := json.Marshal(token)
 	if err != nil {
-		return fmt.Errorf("failed to serialize token: %w", err)
+		return fmt.Errorf("serializing token: %w", err)
 	}
 
 	// Delete existing entry (ignore error if not exists)
@@ -106,7 +106,7 @@ func setInKeychain(token *oauth2.Token) error {
 	cmd.Stdin = strings.NewReader(stdinCmd)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to store in keychain: %w", err)
+		return fmt.Errorf("storing in keychain: %w", err)
 	}
 
 	return nil
@@ -118,7 +118,7 @@ func deleteFromKeychain() error {
 		"-a", tokenKey)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to delete from keychain: %w", err)
+		return fmt.Errorf("deleting from keychain: %w", err)
 	}
 
 	return nil

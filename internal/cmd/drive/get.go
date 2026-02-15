@@ -25,13 +25,13 @@ Examples:
 		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newDriveClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			fileID := args[0]
 			file, err := client.GetFile(fileID)
 			if err != nil {
-				return fmt.Errorf("failed to get file %s: %w", fileID, err)
+				return fmt.Errorf("getting file %s: %w", fileID, err)
 			}
 
 			if jsonOutput {

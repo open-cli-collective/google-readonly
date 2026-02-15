@@ -28,12 +28,12 @@ Examples:
 
 			client, err := newContactsClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Contacts client: %w", err)
+				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
 			person, err := client.GetContact(resourceName)
 			if err != nil {
-				return fmt.Errorf("failed to get contact: %w", err)
+				return fmt.Errorf("getting contact: %w", err)
 			}
 
 			contact := contacts.ParseContact(person)

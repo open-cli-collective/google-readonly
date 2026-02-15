@@ -92,12 +92,12 @@ func getFromSecretTool() (*oauth2.Token, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from secret-tool: %w", err)
+		return nil, fmt.Errorf("reading from secret-tool: %w", err)
 	}
 
 	var token oauth2.Token
 	if err := json.Unmarshal([]byte(strings.TrimSpace(string(output))), &token); err != nil {
-		return nil, fmt.Errorf("failed to parse token from secret-tool: %w", err)
+		return nil, fmt.Errorf("parsing token from secret-tool: %w", err)
 	}
 
 	return &token, nil
@@ -106,7 +106,7 @@ func getFromSecretTool() (*oauth2.Token, error) {
 func setInSecretTool(token *oauth2.Token) error {
 	data, err := json.Marshal(token)
 	if err != nil {
-		return fmt.Errorf("failed to serialize token: %w", err)
+		return fmt.Errorf("serializing token: %w", err)
 	}
 
 	// Delete existing entry (ignore error if not exists)
@@ -119,7 +119,7 @@ func setInSecretTool(token *oauth2.Token) error {
 	cmd.Stdin = strings.NewReader(string(data))
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to store in secret-tool: %w", err)
+		return fmt.Errorf("storing in secret-tool: %w", err)
 	}
 
 	return nil
@@ -131,7 +131,7 @@ func deleteFromSecretTool() error {
 		"account", tokenKey)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to delete from secret-tool: %w", err)
+		return fmt.Errorf("deleting from secret-tool: %w", err)
 	}
 
 	return nil

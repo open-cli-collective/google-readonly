@@ -28,12 +28,12 @@ For more query operators, see: https://support.google.com/mail/answer/7190`,
 		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newGmailClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
 			messages, skipped, err := client.SearchMessages(args[0], maxResults)
 			if err != nil {
-				return fmt.Errorf("failed to search messages: %w", err)
+				return fmt.Errorf("searching messages: %w", err)
 			}
 
 			if len(messages) == 0 {

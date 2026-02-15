@@ -29,12 +29,12 @@ Examples:
 		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newContactsClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Contacts client: %w", err)
+				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
 			resp, err := client.ListContacts("", maxResults)
 			if err != nil {
-				return fmt.Errorf("failed to list contacts: %w", err)
+				return fmt.Errorf("listing contacts: %w", err)
 			}
 
 			if len(resp.Connections) == 0 {

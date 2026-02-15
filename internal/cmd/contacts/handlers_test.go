@@ -137,7 +137,7 @@ func TestListCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to list contacts")
+		testutil.Contains(t, err.Error(), "listing contacts")
 	})
 }
 
@@ -147,7 +147,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 	withFailingClientFactory(func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to create Contacts client")
+		testutil.Contains(t, err.Error(), "creating Contacts client")
 	})
 }
 
@@ -239,7 +239,7 @@ func TestSearchCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to search contacts")
+		testutil.Contains(t, err.Error(), "searching contacts")
 	})
 }
 
@@ -302,7 +302,7 @@ func TestGetCommand_NotFound(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to get contact")
+		testutil.Contains(t, err.Error(), "getting contact")
 	})
 }
 
@@ -408,6 +408,6 @@ func TestGroupsCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to list contact groups")
+		testutil.Contains(t, err.Error(), "listing contact groups")
 	})
 }

@@ -91,7 +91,7 @@ func TestExtract(t *testing.T) {
 		destDir := t.TempDir()
 		err = Extract(tmpFile.Name(), destDir, DefaultOptions())
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to open zip")
+		testutil.Contains(t, err.Error(), "opening zip")
 	})
 }
 
@@ -323,7 +323,7 @@ func TestExtractFileSystemErrors(t *testing.T) {
 
 		err := Extract(zipPath, "/tmp/test-dest", DefaultOptions())
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "failed to create destination")
+		testutil.Contains(t, err.Error(), "creating destination")
 	})
 
 	t.Run("returns error when MkdirAll fails for parent directory", func(t *testing.T) {

@@ -50,7 +50,7 @@ Examples:
 
 			client, err := newDriveClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			folderID := "root"
@@ -63,7 +63,7 @@ Examples:
 				// Resolve shared drive
 				scope, err := resolveDriveScope(client, false, driveFlag)
 				if err != nil {
-					return fmt.Errorf("failed to resolve drive: %w", err)
+					return fmt.Errorf("resolving drive: %w", err)
 				}
 				folderID = scope.DriveID
 				rootName = driveFlag // Use the provided name
@@ -72,7 +72,7 @@ Examples:
 			// Build the tree
 			tree, err := buildTreeWithScope(client, folderID, rootName, depth, files)
 			if err != nil {
-				return fmt.Errorf("failed to build folder tree: %w", err)
+				return fmt.Errorf("building folder tree: %w", err)
 			}
 
 			if jsonOutput {
@@ -113,7 +113,7 @@ func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName st
 	} else {
 		folder, err := client.GetFile(folderID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get folder info: %w", err)
+			return nil, fmt.Errorf("getting folder info: %w", err)
 		}
 		folderName = folder.Name
 		folderType = drive.GetTypeName(folder.MimeType)
@@ -140,7 +140,7 @@ func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName st
 	scope := drive.DriveScope{AllDrives: true}
 	children, err := client.ListFilesWithScope(query, 100, scope)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list children: %w", err)
+		return nil, fmt.Errorf("listing children: %w", err)
 	}
 
 	// Sort children: folders first, then by name

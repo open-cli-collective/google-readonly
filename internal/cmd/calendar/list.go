@@ -25,12 +25,12 @@ Examples:
 		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newCalendarClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
 			calendars, err := client.ListCalendars()
 			if err != nil {
-				return fmt.Errorf("failed to list calendars: %w", err)
+				return fmt.Errorf("listing calendars: %w", err)
 			}
 
 			if len(calendars) == 0 {

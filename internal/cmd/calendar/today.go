@@ -28,7 +28,7 @@ Examples:
 		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newCalendarClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
 			now := time.Now()

@@ -42,7 +42,7 @@ func DefaultOptions() Options {
 func Extract(zipPath, destDir string, opts Options) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("failed to open zip: %w", err)
+		return fmt.Errorf("opening zip: %w", err)
 	}
 	defer r.Close()
 
@@ -54,10 +54,10 @@ func Extract(zipPath, destDir string, opts Options) error {
 	// Create destination directory
 	destDir, err = filepath.Abs(destDir)
 	if err != nil {
-		return fmt.Errorf("failed to resolve destination path: %w", err)
+		return fmt.Errorf("resolving destination path: %w", err)
 	}
 	if err := fs.MkdirAll(destDir, 0755); err != nil {
-		return fmt.Errorf("failed to create destination: %w", err)
+		return fmt.Errorf("creating destination: %w", err)
 	}
 
 	var totalSize int64

@@ -26,12 +26,12 @@ Examples:
 		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newGmailClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
 			messages, err := client.GetThread(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to get thread: %w", err)
+				return fmt.Errorf("getting thread: %w", err)
 			}
 
 			if len(messages) == 0 {

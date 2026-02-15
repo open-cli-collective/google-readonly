@@ -165,8 +165,8 @@ func TestConfigFile_InvalidJSON(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "failed to parse token file") {
-		t.Errorf("expected %q to contain %q", err.Error(), "failed to parse token file")
+	if !strings.Contains(err.Error(), "parsing token file") {
+		t.Errorf("expected %q to contain %q", err.Error(), "parsing token file")
 	}
 }
 
@@ -299,8 +299,8 @@ func TestMigrateFromFile_InvalidJSON(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "failed to parse token file") {
-		t.Errorf("expected %q to contain %q", err.Error(), "failed to parse token file")
+	if !strings.Contains(err.Error(), "parsing token file") {
+		t.Errorf("expected %q to contain %q", err.Error(), "parsing token file")
 	}
 }
 

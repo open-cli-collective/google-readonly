@@ -31,12 +31,12 @@ Examples:
 
 			client, err := newCalendarClient()
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
 			event, err := client.GetEvent(calendarID, eventID)
 			if err != nil {
-				return fmt.Errorf("failed to get event: %w", err)
+				return fmt.Errorf("getting event: %w", err)
 			}
 
 			parsedEvent := calendar.ParseEvent(event)

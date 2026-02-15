@@ -45,7 +45,7 @@ func (c *Client) SearchMessages(query string, maxResults int64) ([]*Message, int
 
 	resp, err := call.Do()
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to search messages: %w", err)
+		return nil, 0, fmt.Errorf("searching messages: %w", err)
 	}
 
 	var messages []*Message
@@ -81,7 +81,7 @@ func (c *Client) GetMessage(messageID string, includeBody bool) (*Message, error
 
 	msg, err := c.service.Users.Messages.Get(c.userID, messageID).Format(format).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get message: %w", err)
+		return nil, fmt.Errorf("getting message: %w", err)
 	}
 
 	return parseMessage(msg, includeBody, c.GetLabelName), nil
@@ -102,12 +102,12 @@ func (c *Client) GetThread(id string) ([]*Message, error) {
 		msg, msgErr := c.service.Users.Messages.Get(c.userID, id).Format("minimal").Do()
 		if msgErr != nil {
 			// Return the original thread error if message lookup also fails
-			return nil, fmt.Errorf("failed to get thread: %w", err)
+			return nil, fmt.Errorf("getting thread: %w", err)
 		}
 		// Use the thread ID from the message
 		thread, err = c.service.Users.Threads.Get(c.userID, msg.ThreadId).Format("full").Do()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get thread: %w", err)
+			return nil, fmt.Errorf("getting thread: %w", err)
 		}
 	}
 

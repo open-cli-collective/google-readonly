@@ -45,7 +45,7 @@ func (c *Client) ListContacts(pageToken string, pageSize int64) (*people.ListCon
 
 	resp, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list contacts: %w", err)
+		return nil, fmt.Errorf("listing contacts: %w", err)
 	}
 
 	return resp, nil
@@ -59,7 +59,7 @@ func (c *Client) SearchContacts(query string, pageSize int64) (*people.SearchRes
 		PageSize(int64(pageSize)).
 		Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to search contacts: %w", err)
+		return nil, fmt.Errorf("searching contacts: %w", err)
 	}
 
 	return resp, nil
@@ -71,7 +71,7 @@ func (c *Client) GetContact(resourceName string) (*people.Person, error) {
 		PersonFields("names,emailAddresses,phoneNumbers,organizations,addresses,biographies,urls,birthdays,events,relations,photos,metadata").
 		Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get contact: %w", err)
+		return nil, fmt.Errorf("getting contact: %w", err)
 	}
 
 	return resp, nil
@@ -89,7 +89,7 @@ func (c *Client) ListContactGroups(pageToken string, pageSize int64) (*people.Li
 
 	resp, err := call.Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list contact groups: %w", err)
+		return nil, fmt.Errorf("listing contact groups: %w", err)
 	}
 
 	return resp, nil
