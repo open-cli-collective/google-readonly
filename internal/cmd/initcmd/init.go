@@ -1,3 +1,4 @@
+// Package initcmd implements the gro init command for OAuth setup.
 package initcmd
 
 import (

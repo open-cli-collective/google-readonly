@@ -1,3 +1,4 @@
+// Package gmail provides a client for the Gmail API.
 package gmail
 
 import (

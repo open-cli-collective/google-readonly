@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
 	"google.golang.org/api/googleapi"
+
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestInitCommand(t *testing.T) {

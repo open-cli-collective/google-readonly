@@ -1,3 +1,4 @@
+// Package root provides the top-level gro command and global flags.
 package root
 
 import (

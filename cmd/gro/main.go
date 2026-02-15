@@ -1,3 +1,4 @@
+// Package main is the entry point for the gro CLI.
 package main
 
 import (

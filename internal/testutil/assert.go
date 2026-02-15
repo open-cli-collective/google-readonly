@@ -1,3 +1,4 @@
+// Package testutil provides test assertion helpers and sample data fixtures.
 package testutil
 
 import (
@@ -72,7 +73,7 @@ func Nil(t testing.TB, val any) {
 		return
 	}
 	v := reflect.ValueOf(val)
-	switch v.Kind() {
+	switch v.Kind() { //nolint:exhaustive // only nillable kinds are relevant
 	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func, reflect.Interface:
 		if v.IsNil() {
 			return

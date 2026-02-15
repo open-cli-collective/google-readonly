@@ -3,8 +3,9 @@ package mail
 import (
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
 	gmailapi "google.golang.org/api/gmail/v1"
+
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestLabelsCommand(t *testing.T) {

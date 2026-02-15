@@ -1,3 +1,4 @@
+// Package config implements the gro config command and subcommands.
 package config
 
 import (

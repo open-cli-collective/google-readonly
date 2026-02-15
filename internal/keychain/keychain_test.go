@@ -427,7 +427,7 @@ func TestGetStorageBackend(t *testing.T) {
 	}
 }
 
-func TestIsSecureStorage(t *testing.T) {
+func TestIsSecureStorage(_ *testing.T) {
 	// This will vary by platform - just verify it returns a bool
 	// Go enforces the type at compile time, so no runtime check needed
 	_ = IsSecureStorage()

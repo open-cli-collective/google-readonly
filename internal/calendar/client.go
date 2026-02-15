@@ -1,3 +1,4 @@
+// Package calendar provides a client for the Google Calendar API.
 package calendar
 
 import (

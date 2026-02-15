@@ -1,3 +1,4 @@
+// Package auth provides OAuth2 authentication and credential management for Google APIs.
 package auth
 
 import (

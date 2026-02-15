@@ -1,3 +1,4 @@
+// Package contacts provides a client for the Google People API.
 package contacts
 
 import (

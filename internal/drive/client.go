@@ -1,3 +1,4 @@
+// Package drive provides a client for the Google Drive API.
 package drive
 
 import (

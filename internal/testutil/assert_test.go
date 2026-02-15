@@ -8,15 +8,14 @@ import (
 // mockT captures test failures without stopping the outer test.
 type mockT struct {
 	testing.TB
-	failed  bool
-	message string
+	failed bool
 }
 
-func (m *mockT) Helper()                        {}
-func (m *mockT) Errorf(format string, a ...any) { m.failed = true }
-func (m *mockT) Error(a ...any)                 { m.failed = true }
-func (m *mockT) Fatalf(format string, a ...any) { m.failed = true }
-func (m *mockT) Fatal(a ...any)                 { m.failed = true }
+func (m *mockT) Helper()                   {}
+func (m *mockT) Errorf(_ string, _ ...any) { m.failed = true }
+func (m *mockT) Error(_ ...any)            { m.failed = true }
+func (m *mockT) Fatalf(_ string, _ ...any) { m.failed = true }
+func (m *mockT) Fatal(_ ...any)            { m.failed = true }
 
 func TestEqual(t *testing.T) {
 	t.Run("passes on equal values", func(t *testing.T) {

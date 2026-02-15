@@ -1,3 +1,4 @@
+// Package zip provides secure zip archive extraction with path traversal protection.
 package zip
 
 import (

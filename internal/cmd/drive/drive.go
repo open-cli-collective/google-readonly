@@ -1,3 +1,4 @@
+// Package drive implements the gro drive command and subcommands.
 package drive
 
 import (
