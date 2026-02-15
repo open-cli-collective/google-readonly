@@ -1,6 +1,7 @@
 package root
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -36,9 +37,14 @@ This will guide you through OAuth setup for Google API access.`,
 	},
 }
 
-// Execute runs the root command
+// Execute runs the root command with a background context
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	ExecuteContext(context.Background())
+}
+
+// ExecuteContext runs the root command with the given context
+func ExecuteContext(ctx context.Context) {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
