@@ -9,7 +9,7 @@ LDFLAGS := -ldflags "-s -w \
 
 DIST_DIR = dist
 
-.PHONY: all build test test-cover test-short lint fmt tidy deps verify check clean release checksums install uninstall
+.PHONY: all build test test-cover test-cover-check test-short lint fmt tidy deps verify check clean release checksums install uninstall
 
 all: build
 
@@ -22,6 +22,15 @@ test:
 test-cover:
 	go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
+
+test-cover-check:
+	@go test -race -coverprofile=coverage.out ./... > /dev/null 2>&1
+	@total=$$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $$3}' | tr -d '%'); \
+	threshold=60; \
+	echo "Total coverage: $${total}% (threshold: $${threshold}%)"; \
+	if [ $$(echo "$$total < $$threshold" | bc) -eq 1 ]; then \
+		echo "FAIL: coverage below threshold"; exit 1; \
+	fi
 
 test-short:
 	go test -v -short ./...

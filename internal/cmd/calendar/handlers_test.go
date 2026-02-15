@@ -1,12 +1,9 @@
 package calendar
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"os"
 	"testing"
 
 	"google.golang.org/api/calendar/v3"
@@ -15,41 +12,18 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
-// captureOutput captures stdout during test execution
-func captureOutput(t *testing.T, f func()) string {
-	t.Helper()
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	testutil.NoError(t, err)
-	os.Stdout = w
-
-	f()
-
-	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String()
-}
-
 // withMockClient sets up a mock client factory for tests
 func withMockClient(mock CalendarClient, f func()) {
-	originalFactory := ClientFactory
-	ClientFactory = func(_ context.Context) (CalendarClient, error) {
+	testutil.WithFactory(&ClientFactory, func(_ context.Context) (CalendarClient, error) {
 		return mock, nil
-	}
-	defer func() { ClientFactory = originalFactory }()
-	f()
+	}, f)
 }
 
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
-	originalFactory := ClientFactory
-	ClientFactory = func(_ context.Context) (CalendarClient, error) {
+	testutil.WithFactory(&ClientFactory, func(_ context.Context) (CalendarClient, error) {
 		return nil, errors.New("connection failed")
-	}
-	defer func() { ClientFactory = originalFactory }()
-	f()
+	}, f)
 }
 
 func TestListCommand_Success(t *testing.T) {
@@ -62,7 +36,7 @@ func TestListCommand_Success(t *testing.T) {
 	cmd := newListCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -84,7 +58,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -106,7 +80,7 @@ func TestListCommand_Empty(t *testing.T) {
 	cmd := newListCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -153,7 +127,7 @@ func TestEventsCommand_Success(t *testing.T) {
 	cmd.SetArgs([]string{}) // Uses default "primary" calendar
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -176,7 +150,7 @@ func TestEventsCommand_WithDateRange(t *testing.T) {
 	cmd.SetArgs([]string{"--from", "2024-01-01", "--to", "2024-01-31"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -199,7 +173,7 @@ func TestEventsCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -246,7 +220,7 @@ func TestGetCommand_Success(t *testing.T) {
 	cmd.SetArgs([]string{"event123"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -268,7 +242,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"event123", "--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -307,7 +281,7 @@ func TestTodayCommand_Success(t *testing.T) {
 	cmd := newTodayCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -329,7 +303,7 @@ func TestWeekCommand_Success(t *testing.T) {
 	cmd := newWeekCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})

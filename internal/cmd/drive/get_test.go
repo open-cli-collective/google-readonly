@@ -1,9 +1,6 @@
 package drive
 
 import (
-	"bytes"
-	"io"
-	"os"
 	"testing"
 	"time"
 
@@ -42,20 +39,8 @@ func TestGetCommand(t *testing.T) {
 }
 
 func TestPrintFileDetails(t *testing.T) {
-	// Capture stdout for testing
 	captureOutput := func(fn func()) string {
-		old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		fn()
-
-		w.Close()
-		os.Stdout = old
-
-		var buf bytes.Buffer
-		io.Copy(&buf, r)
-		return buf.String()
+		return testutil.CaptureStdout(t, fn)
 	}
 
 	t.Run("prints all fields for complete file", func(t *testing.T) {

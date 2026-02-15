@@ -1,11 +1,8 @@
 package drive
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -57,20 +54,8 @@ func TestTreeCommand(t *testing.T) {
 }
 
 func TestPrintTree(t *testing.T) {
-	// Capture stdout for testing
 	captureOutput := func(fn func()) string {
-		old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		fn()
-
-		w.Close()
-		os.Stdout = old
-
-		var buf bytes.Buffer
-		io.Copy(&buf, r)
-		return buf.String()
+		return testutil.CaptureStdout(t, fn)
 	}
 
 	t.Run("prints single node", func(t *testing.T) {

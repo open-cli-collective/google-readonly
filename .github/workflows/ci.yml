@@ -19,6 +19,9 @@ jobs:
       - name: Tidy, test, and build
         run: make tidy test build
 
+      - name: Coverage gate
+        run: make test-cover-check
+
   lint:
     runs-on: ubuntu-latest
     steps:

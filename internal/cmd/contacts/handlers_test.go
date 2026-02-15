@@ -1,12 +1,9 @@
 package contacts
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"os"
 	"testing"
 
 	"google.golang.org/api/people/v1"
@@ -15,41 +12,18 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
-// captureOutput captures stdout during test execution
-func captureOutput(t *testing.T, f func()) string {
-	t.Helper()
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	testutil.NoError(t, err)
-	os.Stdout = w
-
-	f()
-
-	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String()
-}
-
 // withMockClient sets up a mock client factory for tests
 func withMockClient(mock ContactsClient, f func()) {
-	originalFactory := ClientFactory
-	ClientFactory = func(_ context.Context) (ContactsClient, error) {
+	testutil.WithFactory(&ClientFactory, func(_ context.Context) (ContactsClient, error) {
 		return mock, nil
-	}
-	defer func() { ClientFactory = originalFactory }()
-	f()
+	}, f)
 }
 
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
-	originalFactory := ClientFactory
-	ClientFactory = func(_ context.Context) (ContactsClient, error) {
+	testutil.WithFactory(&ClientFactory, func(_ context.Context) (ContactsClient, error) {
 		return nil, errors.New("connection failed")
-	}
-	defer func() { ClientFactory = originalFactory }()
-	f()
+	}, f)
 }
 
 func TestListCommand_Success(t *testing.T) {
@@ -67,7 +41,7 @@ func TestListCommand_Success(t *testing.T) {
 	cmd := newListCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -93,7 +67,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -117,7 +91,7 @@ func TestListCommand_Empty(t *testing.T) {
 	cmd := newListCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -168,7 +142,7 @@ func TestSearchCommand_Success(t *testing.T) {
 	cmd.SetArgs([]string{"John"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -193,7 +167,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"John", "--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -218,7 +192,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 	cmd.SetArgs([]string{"nonexistent"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -256,7 +230,7 @@ func TestGetCommand_Success(t *testing.T) {
 	cmd.SetArgs([]string{"people/c123"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -278,7 +252,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"people/c123", "--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -332,7 +306,7 @@ func TestGroupsCommand_Success(t *testing.T) {
 	cmd := newGroupsCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -363,7 +337,7 @@ func TestGroupsCommand_JSONOutput(t *testing.T) {
 	cmd.SetArgs([]string{"--json"})
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})
@@ -388,7 +362,7 @@ func TestGroupsCommand_Empty(t *testing.T) {
 	cmd := newGroupsCommand()
 
 	withMockClient(mock, func() {
-		output := captureOutput(t, func() {
+		output := testutil.CaptureStdout(t, func() {
 			err := cmd.Execute()
 			testutil.NoError(t, err)
 		})

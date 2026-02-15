@@ -27,20 +27,11 @@ linters:
       - linters:
           - errcheck
         source: "defer.*\\.Close\\(\\)"
-      # Stuttering names will be fixed when interfaces are relocated (commit 5)
+      # Stuttering names (e.g., mail.MailClient) are accepted for clarity at call sites
       - linters:
           - revive
         text: "stutters"
-      # Package comments will be added in commit 9
-      - linters:
-          - revive
-        text: "package-comments"
-      # Mock exported methods will be deleted when mocks move to test files (commit 5)
-      - linters:
-          - revive
-        text: "exported"
-        path: testutil/mocks\.go
-      # Standard library package name conflicts are intentional
+      # Standard library package name conflicts are intentional (e.g., calendar, contacts)
       - linters:
           - revive
         text: "avoid package names that conflict"
