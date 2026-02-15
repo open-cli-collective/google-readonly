@@ -8,7 +8,9 @@ import (
 )
 
 func TestParseEvent(t *testing.T) {
+	t.Parallel()
 	t.Run("parses basic event", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:          "event123",
 			Summary:     "Team Meeting",
@@ -47,6 +49,7 @@ func TestParseEvent(t *testing.T) {
 	})
 
 	t.Run("parses all-day event", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:      "allday123",
 			Summary: "Company Holiday",
@@ -72,6 +75,7 @@ func TestParseEvent(t *testing.T) {
 	})
 
 	t.Run("parses event with organizer", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:      "org123",
 			Summary: "Project Review",
@@ -102,6 +106,7 @@ func TestParseEvent(t *testing.T) {
 	})
 
 	t.Run("parses event with attendees", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:      "att123",
 			Summary: "Team Standup",
@@ -146,6 +151,7 @@ func TestParseEvent(t *testing.T) {
 	})
 
 	t.Run("handles event with hangout link", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:          "meet123",
 			Summary:     "Video Call",
@@ -167,7 +173,9 @@ func TestParseEvent(t *testing.T) {
 }
 
 func TestParseCalendar(t *testing.T) {
+	t.Parallel()
 	t.Run("parses calendar entry", func(t *testing.T) {
+		t.Parallel()
 		apiCal := &calendar.CalendarListEntry{
 			Id:          "primary",
 			Summary:     "My Calendar",
@@ -200,6 +208,7 @@ func TestParseCalendar(t *testing.T) {
 	})
 
 	t.Run("parses shared calendar", func(t *testing.T) {
+		t.Parallel()
 		apiCal := &calendar.CalendarListEntry{
 			Id:         "shared@group.calendar.google.com",
 			Summary:    "Team Calendar",
@@ -219,7 +228,9 @@ func TestParseCalendar(t *testing.T) {
 }
 
 func TestEventGetStartTime(t *testing.T) {
+	t.Parallel()
 	t.Run("parses datetime", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			Start: &EventTime{
 				DateTime: "2026-01-24T10:00:00-05:00",
@@ -242,6 +253,7 @@ func TestEventGetStartTime(t *testing.T) {
 	})
 
 	t.Run("parses date for all-day event", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			AllDay: true,
 			Start: &EventTime{
@@ -259,6 +271,7 @@ func TestEventGetStartTime(t *testing.T) {
 	})
 
 	t.Run("handles nil start", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{}
 
 		start, err := event.GetStartTime()
@@ -272,7 +285,9 @@ func TestEventGetStartTime(t *testing.T) {
 }
 
 func TestEventFormatTimeRange(t *testing.T) {
+	t.Parallel()
 	t.Run("formats same-day event", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			Start: &EventTime{
 				DateTime: "2026-01-24T10:00:00-05:00",
@@ -295,6 +310,7 @@ func TestEventFormatTimeRange(t *testing.T) {
 	})
 
 	t.Run("formats all-day event", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			AllDay: true,
 			Start: &EventTime{

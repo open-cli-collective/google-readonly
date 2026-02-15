@@ -9,6 +9,7 @@ import (
 )
 
 func TestJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		data     any
@@ -38,6 +39,7 @@ func TestJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var buf bytes.Buffer
 			err := JSON(&buf, tt.data)
 			testutil.NoError(t, err)
@@ -47,6 +49,7 @@ func TestJSON(t *testing.T) {
 }
 
 func TestJSON_indentation(t *testing.T) {
+	t.Parallel()
 	data := struct {
 		Nested struct {
 			Value string
@@ -66,6 +69,7 @@ func TestJSON_indentation(t *testing.T) {
 }
 
 func TestJSON_error(t *testing.T) {
+	t.Parallel()
 	// Channels cannot be encoded to JSON
 	data := make(chan int)
 	var buf bytes.Buffer

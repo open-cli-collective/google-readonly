@@ -18,7 +18,9 @@ func (m *mockT) Fatalf(_ string, _ ...any) { m.failed = true }
 func (m *mockT) Fatal(_ ...any)            { m.failed = true }
 
 func TestEqual(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on equal values", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Equal(mt, 42, 42)
 		if mt.failed {
@@ -27,6 +29,7 @@ func TestEqual(t *testing.T) {
 	})
 
 	t.Run("fails on unequal values", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Equal(mt, 1, 2)
 		if !mt.failed {
@@ -35,6 +38,7 @@ func TestEqual(t *testing.T) {
 	})
 
 	t.Run("works with strings", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Equal(mt, "hello", "hello")
 		if mt.failed {
@@ -44,7 +48,9 @@ func TestEqual(t *testing.T) {
 }
 
 func TestNoError(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on nil error", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NoError(mt, nil)
 		if mt.failed {
@@ -53,6 +59,7 @@ func TestNoError(t *testing.T) {
 	})
 
 	t.Run("fails on non-nil error", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NoError(mt, errors.New("boom"))
 		if !mt.failed {
@@ -62,7 +69,9 @@ func TestNoError(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on non-nil error", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Error(mt, errors.New("boom"))
 		if mt.failed {
@@ -71,6 +80,7 @@ func TestError(t *testing.T) {
 	})
 
 	t.Run("fails on nil error", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Error(mt, nil)
 		if !mt.failed {
@@ -80,9 +90,11 @@ func TestError(t *testing.T) {
 }
 
 func TestErrorIs(t *testing.T) {
+	t.Parallel()
 	sentinel := errors.New("sentinel")
 
 	t.Run("passes when errors match", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		ErrorIs(mt, sentinel, sentinel)
 		if mt.failed {
@@ -91,6 +103,7 @@ func TestErrorIs(t *testing.T) {
 	})
 
 	t.Run("fails when errors don't match", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		ErrorIs(mt, errors.New("other"), sentinel)
 		if !mt.failed {
@@ -100,7 +113,9 @@ func TestErrorIs(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
+	t.Parallel()
 	t.Run("passes when string contains substr", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Contains(mt, "hello world", "world")
 		if mt.failed {
@@ -109,6 +124,7 @@ func TestContains(t *testing.T) {
 	})
 
 	t.Run("fails when string doesn't contain substr", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Contains(mt, "hello world", "xyz")
 		if !mt.failed {
@@ -118,7 +134,9 @@ func TestContains(t *testing.T) {
 }
 
 func TestNotContains(t *testing.T) {
+	t.Parallel()
 	t.Run("passes when string doesn't contain substr", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NotContains(mt, "hello world", "xyz")
 		if mt.failed {
@@ -127,6 +145,7 @@ func TestNotContains(t *testing.T) {
 	})
 
 	t.Run("fails when string contains substr", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NotContains(mt, "hello world", "world")
 		if !mt.failed {
@@ -136,7 +155,9 @@ func TestNotContains(t *testing.T) {
 }
 
 func TestLen(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on correct length", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Len(mt, []int{1, 2, 3}, 3)
 		if mt.failed {
@@ -145,6 +166,7 @@ func TestLen(t *testing.T) {
 	})
 
 	t.Run("fails on wrong length", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Len(mt, []int{1, 2}, 3)
 		if !mt.failed {
@@ -153,6 +175,7 @@ func TestLen(t *testing.T) {
 	})
 
 	t.Run("works with empty slice", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Len(mt, []string{}, 0)
 		if mt.failed {
@@ -162,7 +185,9 @@ func TestLen(t *testing.T) {
 }
 
 func TestNil(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on nil", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Nil(mt, nil)
 		if mt.failed {
@@ -171,6 +196,7 @@ func TestNil(t *testing.T) {
 	})
 
 	t.Run("fails on non-nil", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Nil(mt, "something")
 		if !mt.failed {
@@ -180,7 +206,9 @@ func TestNil(t *testing.T) {
 }
 
 func TestNotNil(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on non-nil", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NotNil(mt, "something")
 		if mt.failed {
@@ -189,6 +217,7 @@ func TestNotNil(t *testing.T) {
 	})
 
 	t.Run("fails on nil", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NotNil(mt, nil)
 		if !mt.failed {
@@ -198,7 +227,9 @@ func TestNotNil(t *testing.T) {
 }
 
 func TestTrue(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on true", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		True(mt, true)
 		if mt.failed {
@@ -207,6 +238,7 @@ func TestTrue(t *testing.T) {
 	})
 
 	t.Run("fails on false", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		True(mt, false)
 		if !mt.failed {
@@ -216,7 +248,9 @@ func TestTrue(t *testing.T) {
 }
 
 func TestFalse(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on false", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		False(mt, false)
 		if mt.failed {
@@ -225,6 +259,7 @@ func TestFalse(t *testing.T) {
 	})
 
 	t.Run("fails on true", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		False(mt, true)
 		if !mt.failed {
@@ -234,7 +269,9 @@ func TestFalse(t *testing.T) {
 }
 
 func TestEmpty(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on empty string", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Empty(mt, "")
 		if mt.failed {
@@ -243,6 +280,7 @@ func TestEmpty(t *testing.T) {
 	})
 
 	t.Run("fails on non-empty string", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Empty(mt, "hello")
 		if !mt.failed {
@@ -252,7 +290,9 @@ func TestEmpty(t *testing.T) {
 }
 
 func TestNotEmpty(t *testing.T) {
+	t.Parallel()
 	t.Run("passes on non-empty string", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NotEmpty(mt, "hello")
 		if mt.failed {
@@ -261,6 +301,7 @@ func TestNotEmpty(t *testing.T) {
 	})
 
 	t.Run("fails on empty string", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		NotEmpty(mt, "")
 		if !mt.failed {
@@ -270,7 +311,9 @@ func TestNotEmpty(t *testing.T) {
 }
 
 func TestGreater(t *testing.T) {
+	t.Parallel()
 	t.Run("passes when a > b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Greater(mt, 5, 3)
 		if mt.failed {
@@ -279,6 +322,7 @@ func TestGreater(t *testing.T) {
 	})
 
 	t.Run("fails when a == b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Greater(mt, 3, 3)
 		if !mt.failed {
@@ -287,6 +331,7 @@ func TestGreater(t *testing.T) {
 	})
 
 	t.Run("fails when a < b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Greater(mt, 2, 3)
 		if !mt.failed {
@@ -296,7 +341,9 @@ func TestGreater(t *testing.T) {
 }
 
 func TestGreaterOrEqual(t *testing.T) {
+	t.Parallel()
 	t.Run("passes when a > b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		GreaterOrEqual(mt, 5, 3)
 		if mt.failed {
@@ -305,6 +352,7 @@ func TestGreaterOrEqual(t *testing.T) {
 	})
 
 	t.Run("passes when a == b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		GreaterOrEqual(mt, 3, 3)
 		if mt.failed {
@@ -313,6 +361,7 @@ func TestGreaterOrEqual(t *testing.T) {
 	})
 
 	t.Run("fails when a < b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		GreaterOrEqual(mt, 2, 3)
 		if !mt.failed {
@@ -322,7 +371,9 @@ func TestGreaterOrEqual(t *testing.T) {
 }
 
 func TestLess(t *testing.T) {
+	t.Parallel()
 	t.Run("passes when a < b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Less(mt, 2, 5)
 		if mt.failed {
@@ -331,6 +382,7 @@ func TestLess(t *testing.T) {
 	})
 
 	t.Run("fails when a == b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Less(mt, 3, 3)
 		if !mt.failed {
@@ -339,6 +391,7 @@ func TestLess(t *testing.T) {
 	})
 
 	t.Run("fails when a > b", func(t *testing.T) {
+		t.Parallel()
 		mt := &mockT{}
 		Less(mt, 5, 3)
 		if !mt.failed {

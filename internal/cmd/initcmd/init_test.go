@@ -11,13 +11,16 @@ import (
 )
 
 func TestInitCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
+		t.Parallel()
 		testutil.Equal(t, cmd.Use, "init")
 	})
 
 	t.Run("requires no arguments", func(t *testing.T) {
+		t.Parallel()
 		err := cmd.Args(cmd, []string{})
 		testutil.NoError(t, err)
 
@@ -26,22 +29,26 @@ func TestInitCommand(t *testing.T) {
 	})
 
 	t.Run("has no-verify flag", func(t *testing.T) {
+		t.Parallel()
 		flag := cmd.Flags().Lookup("no-verify")
 		testutil.NotNil(t, flag)
 		testutil.Equal(t, flag.DefValue, "false")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
+		t.Parallel()
 		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has long description", func(t *testing.T) {
+		t.Parallel()
 		testutil.NotEmpty(t, cmd.Long)
 		testutil.Contains(t, cmd.Long, "OAuth")
 	})
 }
 
 func TestExtractAuthCode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -111,6 +118,7 @@ func TestExtractAuthCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := extractAuthCode(tt.input)
 			testutil.Equal(t, result, tt.expected)
 		})
@@ -118,6 +126,7 @@ func TestExtractAuthCode(t *testing.T) {
 }
 
 func TestIsAuthError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -177,6 +186,7 @@ func TestIsAuthError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := isAuthError(tt.err)
 			testutil.Equal(t, result, tt.expected)
 		})

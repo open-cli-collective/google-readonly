@@ -9,7 +9,9 @@ import (
 )
 
 func TestParseMessage(t *testing.T) {
+	t.Parallel()
 	t.Run("extracts headers correctly", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id:       "msg123",
 			ThreadId: "thread456",
@@ -50,6 +52,7 @@ func TestParseMessage(t *testing.T) {
 	})
 
 	t.Run("extracts thread ID", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id:       "msg123",
 			ThreadId: "thread789",
@@ -69,6 +72,7 @@ func TestParseMessage(t *testing.T) {
 	})
 
 	t.Run("handles nil payload", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id:       "msg123",
 			ThreadId: "thread456",
@@ -98,6 +102,7 @@ func TestParseMessage(t *testing.T) {
 	})
 
 	t.Run("handles case-insensitive headers", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id: "msg123",
 			Payload: &gmail.MessagePart{
@@ -123,6 +128,7 @@ func TestParseMessage(t *testing.T) {
 	})
 
 	t.Run("handles missing headers gracefully", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id: "msg123",
 			Payload: &gmail.MessagePart{
@@ -151,7 +157,9 @@ func TestParseMessage(t *testing.T) {
 }
 
 func TestExtractBody(t *testing.T) {
+	t.Parallel()
 	t.Run("extracts plain text body", func(t *testing.T) {
+		t.Parallel()
 		bodyText := "Hello, this is the message body."
 		encoded := base64.URLEncoding.EncodeToString([]byte(bodyText))
 
@@ -169,6 +177,7 @@ func TestExtractBody(t *testing.T) {
 	})
 
 	t.Run("extracts plain text from multipart message", func(t *testing.T) {
+		t.Parallel()
 		bodyText := "Plain text content"
 		encoded := base64.URLEncoding.EncodeToString([]byte(bodyText))
 
@@ -197,6 +206,7 @@ func TestExtractBody(t *testing.T) {
 	})
 
 	t.Run("falls back to HTML if no plain text", func(t *testing.T) {
+		t.Parallel()
 		htmlContent := "<p>HTML only</p>"
 		encoded := base64.URLEncoding.EncodeToString([]byte(htmlContent))
 
@@ -214,6 +224,7 @@ func TestExtractBody(t *testing.T) {
 	})
 
 	t.Run("handles nested multipart", func(t *testing.T) {
+		t.Parallel()
 		bodyText := "Nested plain text"
 		encoded := base64.URLEncoding.EncodeToString([]byte(bodyText))
 
@@ -241,6 +252,7 @@ func TestExtractBody(t *testing.T) {
 	})
 
 	t.Run("returns empty string for empty body", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "text/plain",
 			Body:     &gmail.MessagePartBody{},
@@ -253,6 +265,7 @@ func TestExtractBody(t *testing.T) {
 	})
 
 	t.Run("returns empty string for nil body", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "text/plain",
 		}
@@ -264,6 +277,7 @@ func TestExtractBody(t *testing.T) {
 	})
 
 	t.Run("handles invalid base64 gracefully", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "text/plain",
 			Body: &gmail.MessagePartBody{
@@ -279,7 +293,9 @@ func TestExtractBody(t *testing.T) {
 }
 
 func TestMessageStruct(t *testing.T) {
+	t.Parallel()
 	t.Run("message struct has all fields", func(t *testing.T) {
+		t.Parallel()
 		msg := &Message{
 			ID:       "test-id",
 			ThreadID: "thread-id",
@@ -319,7 +335,9 @@ func TestMessageStruct(t *testing.T) {
 }
 
 func TestParseMessageWithBody(t *testing.T) {
+	t.Parallel()
 	t.Run("includes body when requested", func(t *testing.T) {
+		t.Parallel()
 		bodyText := "This is the full body"
 		encoded := base64.URLEncoding.EncodeToString([]byte(bodyText))
 
@@ -343,6 +361,7 @@ func TestParseMessageWithBody(t *testing.T) {
 	})
 
 	t.Run("excludes body when not requested", func(t *testing.T) {
+		t.Parallel()
 		bodyText := "This should not appear"
 		encoded := base64.URLEncoding.EncodeToString([]byte(bodyText))
 
@@ -367,7 +386,9 @@ func TestParseMessageWithBody(t *testing.T) {
 }
 
 func TestExtractAttachments(t *testing.T) {
+	t.Parallel()
 	t.Run("detects attachment by filename", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts: []*gmail.MessagePart{
@@ -408,6 +429,7 @@ func TestExtractAttachments(t *testing.T) {
 	})
 
 	t.Run("detects attachment by Content-Disposition header", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts: []*gmail.MessagePart{
@@ -435,6 +457,7 @@ func TestExtractAttachments(t *testing.T) {
 	})
 
 	t.Run("detects inline attachment", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/related",
 			Parts: []*gmail.MessagePart{
@@ -462,6 +485,7 @@ func TestExtractAttachments(t *testing.T) {
 	})
 
 	t.Run("handles nested multipart with multiple attachments", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts: []*gmail.MessagePart{
@@ -504,6 +528,7 @@ func TestExtractAttachments(t *testing.T) {
 	})
 
 	t.Run("handles message with no attachments", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "text/plain",
 			Body:     &gmail.MessagePartBody{Data: "simple message"},
@@ -516,6 +541,7 @@ func TestExtractAttachments(t *testing.T) {
 	})
 
 	t.Run("generates correct part paths for deeply nested", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts: []*gmail.MessagePart{
@@ -552,7 +578,9 @@ func TestExtractAttachments(t *testing.T) {
 }
 
 func TestIsAttachment(t *testing.T) {
+	t.Parallel()
 	t.Run("returns true for part with filename", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{Filename: "test.pdf"}
 		if !isAttachment(part) {
 			t.Error("got false, want true")
@@ -560,6 +588,7 @@ func TestIsAttachment(t *testing.T) {
 	})
 
 	t.Run("returns true for Content-Disposition attachment", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{
 			Headers: []*gmail.MessagePartHeader{
 				{Name: "Content-Disposition", Value: "attachment; filename=\"test.pdf\""},
@@ -571,6 +600,7 @@ func TestIsAttachment(t *testing.T) {
 	})
 
 	t.Run("returns false for plain text part", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{
 			MimeType: "text/plain",
 			Body:     &gmail.MessagePartBody{Data: "text"},
@@ -581,6 +611,7 @@ func TestIsAttachment(t *testing.T) {
 	})
 
 	t.Run("handles case-insensitive Content-Disposition", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{
 			Headers: []*gmail.MessagePartHeader{
 				{Name: "CONTENT-DISPOSITION", Value: "ATTACHMENT"},
@@ -593,7 +624,9 @@ func TestIsAttachment(t *testing.T) {
 }
 
 func TestIsInlineAttachment(t *testing.T) {
+	t.Parallel()
 	t.Run("returns true for inline disposition", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{
 			Filename: "image.png",
 			Headers: []*gmail.MessagePartHeader{
@@ -606,6 +639,7 @@ func TestIsInlineAttachment(t *testing.T) {
 	})
 
 	t.Run("returns false for attachment disposition", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{
 			Filename: "doc.pdf",
 			Headers: []*gmail.MessagePartHeader{
@@ -618,6 +652,7 @@ func TestIsInlineAttachment(t *testing.T) {
 	})
 
 	t.Run("returns false for no disposition header", func(t *testing.T) {
+		t.Parallel()
 		part := &gmail.MessagePart{Filename: "file.txt"}
 		if isInlineAttachment(part) {
 			t.Error("got true, want false")
@@ -626,7 +661,9 @@ func TestIsInlineAttachment(t *testing.T) {
 }
 
 func TestParseMessageWithAttachments(t *testing.T) {
+	t.Parallel()
 	t.Run("extracts attachments when body is requested", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id: "msg123",
 			Payload: &gmail.MessagePart{
@@ -663,6 +700,7 @@ func TestParseMessageWithAttachments(t *testing.T) {
 	})
 
 	t.Run("does not extract attachments when body not requested", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id: "msg123",
 			Payload: &gmail.MessagePart{
@@ -685,7 +723,9 @@ func TestParseMessageWithAttachments(t *testing.T) {
 }
 
 func TestExtractLabelsAndCategories(t *testing.T) {
+	t.Parallel()
 	t.Run("separates user labels from categories", func(t *testing.T) {
+		t.Parallel()
 		labelIDs := []string{"Label_1", "CATEGORY_UPDATES", "Label_2", "CATEGORY_SOCIAL"}
 		resolver := func(id string) string { return id }
 
@@ -718,6 +758,7 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 	})
 
 	t.Run("filters out system labels", func(t *testing.T) {
+		t.Parallel()
 		labelIDs := []string{"INBOX", "Label_1", "UNREAD", "STARRED", "IMPORTANT"}
 		resolver := func(id string) string { return id }
 
@@ -732,6 +773,7 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 	})
 
 	t.Run("filters out CATEGORY_PERSONAL", func(t *testing.T) {
+		t.Parallel()
 		labelIDs := []string{"CATEGORY_PERSONAL", "CATEGORY_UPDATES"}
 		resolver := func(id string) string { return id }
 
@@ -746,6 +788,7 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 	})
 
 	t.Run("uses resolver to translate label IDs", func(t *testing.T) {
+		t.Parallel()
 		labelIDs := []string{"Label_123", "Label_456"}
 		resolver := func(id string) string {
 			if id == "Label_123" {
@@ -777,6 +820,7 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 	})
 
 	t.Run("handles nil resolver", func(t *testing.T) {
+		t.Parallel()
 		labelIDs := []string{"Label_1", "CATEGORY_SOCIAL"}
 
 		labels, categories := extractLabelsAndCategories(labelIDs, nil)
@@ -790,6 +834,7 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 	})
 
 	t.Run("handles empty label IDs", func(t *testing.T) {
+		t.Parallel()
 		labels, categories := extractLabelsAndCategories([]string{}, nil)
 
 		if len(labels) != 0 {
@@ -801,6 +846,7 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 	})
 
 	t.Run("handles nil label IDs", func(t *testing.T) {
+		t.Parallel()
 		labels, categories := extractLabelsAndCategories(nil, nil)
 
 		if len(labels) != 0 {
@@ -813,7 +859,9 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 }
 
 func TestParseMessageWithLabels(t *testing.T) {
+	t.Parallel()
 	t.Run("extracts labels and categories from message", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id: "msg123",
 			Payload: &gmail.MessagePart{
@@ -841,6 +889,7 @@ func TestParseMessageWithLabels(t *testing.T) {
 	})
 
 	t.Run("handles message with no labels", func(t *testing.T) {
+		t.Parallel()
 		msg := &gmail.Message{
 			Id: "msg123",
 			Payload: &gmail.MessagePart{

@@ -7,7 +7,9 @@ import (
 )
 
 func TestFindPart(t *testing.T) {
+	t.Parallel()
 	t.Run("returns payload for empty path", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "text/plain",
 		}
@@ -18,6 +20,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("finds part at index 0", func(t *testing.T) {
+		t.Parallel()
 		child := &gmail.MessagePart{MimeType: "text/plain", Filename: "file.txt"}
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
@@ -30,6 +33,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("finds nested part", func(t *testing.T) {
+		t.Parallel()
 		deepChild := &gmail.MessagePart{MimeType: "application/pdf", Filename: "nested.pdf"}
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
@@ -50,6 +54,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("returns nil for invalid index", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts:    []*gmail.MessagePart{{MimeType: "text/plain"}},
@@ -61,6 +66,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("returns nil for negative index", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts:    []*gmail.MessagePart{{MimeType: "text/plain"}},
@@ -72,6 +78,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("returns nil for non-numeric path", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts:    []*gmail.MessagePart{{MimeType: "text/plain"}},
@@ -83,6 +90,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("returns nil for out of bounds nested path", func(t *testing.T) {
+		t.Parallel()
 		payload := &gmail.MessagePart{
 			MimeType: "multipart/mixed",
 			Parts: []*gmail.MessagePart{
@@ -99,6 +107,7 @@ func TestFindPart(t *testing.T) {
 	})
 
 	t.Run("handles deeply nested path", func(t *testing.T) {
+		t.Parallel()
 		deepest := &gmail.MessagePart{Filename: "deep.txt"}
 		payload := &gmail.MessagePart{
 			Parts: []*gmail.MessagePart{

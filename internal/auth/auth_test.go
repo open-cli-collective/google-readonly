@@ -69,6 +69,7 @@ func TestDeprecatedWrappers(t *testing.T) {
 	})
 
 	t.Run("ShortenPath delegates to config package", func(t *testing.T) {
+		t.Parallel()
 		home, err := os.UserHomeDir()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -85,6 +86,7 @@ func TestDeprecatedWrappers(t *testing.T) {
 	})
 
 	t.Run("Constants match config package", func(t *testing.T) {
+		t.Parallel()
 		if ConfigDirName != config.DirName {
 			t.Errorf("got %v, want %v", ConfigDirName, config.DirName)
 		}
@@ -98,6 +100,7 @@ func TestDeprecatedWrappers(t *testing.T) {
 }
 
 func TestAllScopes(t *testing.T) {
+	t.Parallel()
 	if len(AllScopes) != 4 {
 		t.Errorf("got length %d, want %d", len(AllScopes), 4)
 	}
@@ -117,7 +120,9 @@ func TestAllScopes(t *testing.T) {
 }
 
 func TestTokenFromFile(t *testing.T) {
+	t.Parallel()
 	t.Run("reads valid token file", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		tokenPath := filepath.Join(tmpDir, "token.json")
 
@@ -148,6 +153,7 @@ func TestTokenFromFile(t *testing.T) {
 	})
 
 	t.Run("returns error for non-existent file", func(t *testing.T) {
+		t.Parallel()
 		_, err := tokenFromFile("/nonexistent/token.json")
 		if err == nil {
 			t.Fatal("expected error, got nil")
@@ -155,6 +161,7 @@ func TestTokenFromFile(t *testing.T) {
 	})
 
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		tokenPath := filepath.Join(tmpDir, "token.json")
 

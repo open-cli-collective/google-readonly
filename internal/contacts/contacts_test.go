@@ -7,7 +7,9 @@ import (
 )
 
 func TestParseContact(t *testing.T) {
+	t.Parallel()
 	t.Run("parses basic contact", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c123",
 			Names: []*people.Name{
@@ -39,6 +41,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with email", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c456",
 			Names: []*people.Name{
@@ -80,6 +83,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with phone numbers", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c789",
 			PhoneNumbers: []*people.PhoneNumber{
@@ -102,6 +106,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with organization", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c101",
 			Organizations: []*people.Organization{
@@ -130,6 +135,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with address", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c102",
 			Addresses: []*people.Address{
@@ -161,6 +167,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with URLs", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c103",
 			Urls: []*people.Url{
@@ -180,6 +187,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with biography", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c104",
 			Biographies: []*people.Biography{
@@ -195,6 +203,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with birthday including year", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c105",
 			Birthdays: []*people.Birthday{
@@ -210,6 +219,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with birthday month/day only", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c106",
 			Birthdays: []*people.Birthday{
@@ -225,6 +235,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("parses contact with photo", func(t *testing.T) {
+		t.Parallel()
 		p := &people.Person{
 			ResourceName: "people/c107",
 			Photos: []*people.Photo{
@@ -240,6 +251,7 @@ func TestParseContact(t *testing.T) {
 	})
 
 	t.Run("handles nil person", func(t *testing.T) {
+		t.Parallel()
 		contact := ParseContact(nil)
 		if contact != nil {
 			t.Errorf("got %v, want nil", contact)
@@ -248,7 +260,9 @@ func TestParseContact(t *testing.T) {
 }
 
 func TestParseContactGroup(t *testing.T) {
+	t.Parallel()
 	t.Run("parses contact group", func(t *testing.T) {
+		t.Parallel()
 		g := &people.ContactGroup{
 			ResourceName: "contactGroups/abc123",
 			Name:         "Work",
@@ -273,6 +287,7 @@ func TestParseContactGroup(t *testing.T) {
 	})
 
 	t.Run("handles nil group", func(t *testing.T) {
+		t.Parallel()
 		group := ParseContactGroup(nil)
 		if group != nil {
 			t.Errorf("got %v, want nil", group)
@@ -281,7 +296,9 @@ func TestParseContactGroup(t *testing.T) {
 }
 
 func TestContactGetDisplayName(t *testing.T) {
+	t.Parallel()
 	t.Run("returns display name when set", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			ResourceName: "people/c1",
 			DisplayName:  "John Doe",
@@ -292,6 +309,7 @@ func TestContactGetDisplayName(t *testing.T) {
 	})
 
 	t.Run("falls back to names array", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			ResourceName: "people/c2",
 			Names: []Name{
@@ -304,6 +322,7 @@ func TestContactGetDisplayName(t *testing.T) {
 	})
 
 	t.Run("falls back to email", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			ResourceName: "people/c3",
 			Emails: []Email{
@@ -316,6 +335,7 @@ func TestContactGetDisplayName(t *testing.T) {
 	})
 
 	t.Run("falls back to resource name", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			ResourceName: "people/c4",
 		}
@@ -326,7 +346,9 @@ func TestContactGetDisplayName(t *testing.T) {
 }
 
 func TestContactGetPrimaryEmail(t *testing.T) {
+	t.Parallel()
 	t.Run("returns primary email when marked", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			Emails: []Email{
 				{Value: "work@example.com", Primary: false},
@@ -339,6 +361,7 @@ func TestContactGetPrimaryEmail(t *testing.T) {
 	})
 
 	t.Run("returns first email when no primary", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			Emails: []Email{
 				{Value: "first@example.com"},
@@ -351,6 +374,7 @@ func TestContactGetPrimaryEmail(t *testing.T) {
 	})
 
 	t.Run("returns empty string when no emails", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{}
 		if c.GetPrimaryEmail() != "" {
 			t.Errorf("got %v, want %v", c.GetPrimaryEmail(), "")
@@ -359,7 +383,9 @@ func TestContactGetPrimaryEmail(t *testing.T) {
 }
 
 func TestContactGetPrimaryPhone(t *testing.T) {
+	t.Parallel()
 	t.Run("returns first phone", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			Phones: []Phone{
 				{Value: "+1-555-123-4567"},
@@ -372,6 +398,7 @@ func TestContactGetPrimaryPhone(t *testing.T) {
 	})
 
 	t.Run("returns empty string when no phones", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{}
 		if c.GetPrimaryPhone() != "" {
 			t.Errorf("got %v, want %v", c.GetPrimaryPhone(), "")
@@ -380,7 +407,9 @@ func TestContactGetPrimaryPhone(t *testing.T) {
 }
 
 func TestContactGetOrganization(t *testing.T) {
+	t.Parallel()
 	t.Run("returns organization name", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			Organizations: []Organization{
 				{Name: "Acme Corp", Title: "Engineer"},
@@ -392,6 +421,7 @@ func TestContactGetOrganization(t *testing.T) {
 	})
 
 	t.Run("returns title when no name", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{
 			Organizations: []Organization{
 				{Title: "Freelance Developer"},
@@ -403,6 +433,7 @@ func TestContactGetOrganization(t *testing.T) {
 	})
 
 	t.Run("returns empty string when no organizations", func(t *testing.T) {
+		t.Parallel()
 		c := &Contact{}
 		if c.GetOrganization() != "" {
 			t.Errorf("got %v, want %v", c.GetOrganization(), "")
@@ -411,6 +442,7 @@ func TestContactGetOrganization(t *testing.T) {
 }
 
 func TestFormatDate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		year   int64
@@ -425,6 +457,7 @@ func TestFormatDate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatDate(tt.year, tt.month, tt.day)
 			if result != tt.expect {
 				t.Errorf("got %v, want %v", result, tt.expect)
@@ -434,6 +467,7 @@ func TestFormatDate(t *testing.T) {
 }
 
 func TestFormatMonthDay(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		month  int64
@@ -447,6 +481,7 @@ func TestFormatMonthDay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatMonthDay(tt.month, tt.day)
 			if result != tt.expect {
 				t.Errorf("got %v, want %v", result, tt.expect)

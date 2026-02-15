@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseDate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -77,6 +78,7 @@ func TestParseDate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := parseDate(tt.input)
 
 			if tt.wantErr {
@@ -93,6 +95,7 @@ func TestParseDate(t *testing.T) {
 }
 
 func TestEndOfDay(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input time.Time
@@ -122,6 +125,7 @@ func TestEndOfDay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := endOfDay(tt.input)
 			testutil.Equal(t, result, tt.want)
 		})
@@ -129,6 +133,7 @@ func TestEndOfDay(t *testing.T) {
 }
 
 func TestWeekBounds(t *testing.T) {
+	t.Parallel()
 	loc := time.UTC
 
 	tests := []struct {
@@ -201,6 +206,7 @@ func TestWeekBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start, end := weekBounds(tt.input)
 
 			testutil.Equal(t, start, tt.wantStart)
@@ -226,6 +232,7 @@ func TestWeekBounds(t *testing.T) {
 }
 
 func TestWeekBoundsSundayEdgeCase(t *testing.T) {
+	t.Parallel()
 	// Specific test for the Sunday edge case which requires special handling
 	loc := time.UTC
 
@@ -239,6 +246,7 @@ func TestWeekBoundsSundayEdgeCase(t *testing.T) {
 
 	for _, sunday := range sundays {
 		t.Run(sunday.Format("2006-01-02"), func(t *testing.T) {
+			t.Parallel()
 			start, end := weekBounds(sunday)
 
 			// The Sunday should be included in the week
@@ -256,6 +264,7 @@ func TestWeekBoundsSundayEdgeCase(t *testing.T) {
 }
 
 func TestTodayBounds(t *testing.T) {
+	t.Parallel()
 	loc := time.UTC
 
 	tests := []struct {
@@ -304,6 +313,7 @@ func TestTodayBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start, end := todayBounds(tt.input)
 
 			testutil.Equal(t, start, tt.wantStart)

@@ -10,7 +10,9 @@ import (
 )
 
 func TestParseFile(t *testing.T) {
+	t.Parallel()
 	t.Run("parses basic file", func(t *testing.T) {
+		t.Parallel()
 		f := &drive.File{
 			Id:           "123",
 			Name:         "test.txt",
@@ -55,6 +57,7 @@ func TestParseFile(t *testing.T) {
 	})
 
 	t.Run("parses file with owners", func(t *testing.T) {
+		t.Parallel()
 		f := &drive.File{
 			Id:       "123",
 			Name:     "shared.txt",
@@ -74,6 +77,7 @@ func TestParseFile(t *testing.T) {
 	})
 
 	t.Run("handles empty timestamps", func(t *testing.T) {
+		t.Parallel()
 		f := &drive.File{
 			Id:           "123",
 			Name:         "no-times.txt",
@@ -93,6 +97,7 @@ func TestParseFile(t *testing.T) {
 	})
 
 	t.Run("handles malformed timestamps", func(t *testing.T) {
+		t.Parallel()
 		f := &drive.File{
 			Id:           "123",
 			Name:         "bad-times.txt",
@@ -112,6 +117,7 @@ func TestParseFile(t *testing.T) {
 	})
 
 	t.Run("handles nil owners", func(t *testing.T) {
+		t.Parallel()
 		f := &drive.File{
 			Id:       "123",
 			Name:     "no-owners.txt",
@@ -127,6 +133,7 @@ func TestParseFile(t *testing.T) {
 	})
 
 	t.Run("handles empty owners slice", func(t *testing.T) {
+		t.Parallel()
 		f := &drive.File{
 			Id:       "123",
 			Name:     "empty-owners.txt",
@@ -143,6 +150,7 @@ func TestParseFile(t *testing.T) {
 }
 
 func TestGetTypeName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		mimeType string
 		expected string
@@ -176,6 +184,7 @@ func TestGetTypeName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.mimeType, func(t *testing.T) {
+			t.Parallel()
 			result := GetTypeName(tt.mimeType)
 			if result != tt.expected {
 				t.Errorf("got %v, want %v", result, tt.expected)
@@ -185,7 +194,9 @@ func TestGetTypeName(t *testing.T) {
 }
 
 func TestIsGoogleWorkspaceFile(t *testing.T) {
+	t.Parallel()
 	t.Run("returns true for Google Workspace files", func(t *testing.T) {
+		t.Parallel()
 		workspaceTypes := []string{
 			MimeTypeDocument,
 			MimeTypeSpreadsheet,
@@ -203,6 +214,7 @@ func TestIsGoogleWorkspaceFile(t *testing.T) {
 	})
 
 	t.Run("returns false for non-Workspace files", func(t *testing.T) {
+		t.Parallel()
 		nonWorkspaceTypes := []string{
 			MimeTypeFolder,
 			MimeTypeShortcut,
@@ -222,7 +234,9 @@ func TestIsGoogleWorkspaceFile(t *testing.T) {
 }
 
 func TestGetExportMimeType(t *testing.T) {
+	t.Parallel()
 	t.Run("returns correct MIME type for Document exports", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			format   string
 			expected string
@@ -236,6 +250,7 @@ func TestGetExportMimeType(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.format, func(t *testing.T) {
+				t.Parallel()
 				result, err := GetExportMimeType(MimeTypeDocument, tt.format)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
@@ -248,6 +263,7 @@ func TestGetExportMimeType(t *testing.T) {
 	})
 
 	t.Run("returns correct MIME type for Spreadsheet exports", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			format   string
 			expected string
@@ -259,6 +275,7 @@ func TestGetExportMimeType(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.format, func(t *testing.T) {
+				t.Parallel()
 				result, err := GetExportMimeType(MimeTypeSpreadsheet, tt.format)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
@@ -271,6 +288,7 @@ func TestGetExportMimeType(t *testing.T) {
 	})
 
 	t.Run("returns correct MIME type for Presentation exports", func(t *testing.T) {
+		t.Parallel()
 		result, err := GetExportMimeType(MimeTypePresentation, "pptx")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -281,6 +299,7 @@ func TestGetExportMimeType(t *testing.T) {
 	})
 
 	t.Run("returns correct MIME type for Drawing exports", func(t *testing.T) {
+		t.Parallel()
 		result, err := GetExportMimeType(MimeTypeDrawing, "png")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -291,6 +310,7 @@ func TestGetExportMimeType(t *testing.T) {
 	})
 
 	t.Run("returns error for unsupported format", func(t *testing.T) {
+		t.Parallel()
 		_, err := GetExportMimeType(MimeTypeDocument, "xyz")
 		if err == nil {
 			t.Fatal("expected error, got nil")
@@ -301,6 +321,7 @@ func TestGetExportMimeType(t *testing.T) {
 	})
 
 	t.Run("returns error for non-exportable file type", func(t *testing.T) {
+		t.Parallel()
 		_, err := GetExportMimeType("application/pdf", "docx")
 		if err == nil {
 			t.Fatal("expected error, got nil")
@@ -311,6 +332,7 @@ func TestGetExportMimeType(t *testing.T) {
 	})
 
 	t.Run("returns error for format not matching file type", func(t *testing.T) {
+		t.Parallel()
 		// csv is valid for spreadsheets but not documents
 		_, err := GetExportMimeType(MimeTypeDocument, "csv")
 		if err == nil {
@@ -323,7 +345,9 @@ func TestGetExportMimeType(t *testing.T) {
 }
 
 func TestGetSupportedExportFormats(t *testing.T) {
+	t.Parallel()
 	t.Run("returns formats for Document", func(t *testing.T) {
+		t.Parallel()
 		formats := GetSupportedExportFormats(MimeTypeDocument)
 		if !slices.Contains(formats, "pdf") {
 			t.Errorf("expected formats to contain %q", "pdf")
@@ -337,6 +361,7 @@ func TestGetSupportedExportFormats(t *testing.T) {
 	})
 
 	t.Run("returns formats for Spreadsheet", func(t *testing.T) {
+		t.Parallel()
 		formats := GetSupportedExportFormats(MimeTypeSpreadsheet)
 		if !slices.Contains(formats, "xlsx") {
 			t.Errorf("expected formats to contain %q", "xlsx")
@@ -347,6 +372,7 @@ func TestGetSupportedExportFormats(t *testing.T) {
 	})
 
 	t.Run("returns nil for non-exportable file", func(t *testing.T) {
+		t.Parallel()
 		formats := GetSupportedExportFormats("application/pdf")
 		if formats != nil {
 			t.Errorf("got %v, want nil", formats)
@@ -355,6 +381,7 @@ func TestGetSupportedExportFormats(t *testing.T) {
 }
 
 func TestGetFileExtension(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		format   string
 		expected string
@@ -375,6 +402,7 @@ func TestGetFileExtension(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.format, func(t *testing.T) {
+			t.Parallel()
 			result := GetFileExtension(tt.format)
 			if result != tt.expected {
 				t.Errorf("got %v, want %v", result, tt.expected)

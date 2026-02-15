@@ -7,7 +7,9 @@ import (
 )
 
 func TestGetLabelName(t *testing.T) {
+	t.Parallel()
 	t.Run("returns name for cached label", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels: map[string]*gmailapi.Label{
 				"Label_123": {Id: "Label_123", Name: "Work"},
@@ -25,6 +27,7 @@ func TestGetLabelName(t *testing.T) {
 	})
 
 	t.Run("returns ID for uncached label", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       map[string]*gmailapi.Label{},
 			labelsLoaded: true,
@@ -36,6 +39,7 @@ func TestGetLabelName(t *testing.T) {
 	})
 
 	t.Run("returns ID when labels not loaded", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       nil,
 			labelsLoaded: false,
@@ -48,7 +52,9 @@ func TestGetLabelName(t *testing.T) {
 }
 
 func TestGetLabels(t *testing.T) {
+	t.Parallel()
 	t.Run("returns nil when labels not loaded", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       nil,
 			labelsLoaded: false,
@@ -61,6 +67,7 @@ func TestGetLabels(t *testing.T) {
 	})
 
 	t.Run("returns all cached labels", func(t *testing.T) {
+		t.Parallel()
 		label1 := &gmailapi.Label{Id: "Label_1", Name: "Work"}
 		label2 := &gmailapi.Label{Id: "Label_2", Name: "Personal"}
 
@@ -94,6 +101,7 @@ func TestGetLabels(t *testing.T) {
 	})
 
 	t.Run("returns empty slice for empty cache", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       map[string]*gmailapi.Label{},
 			labelsLoaded: true,

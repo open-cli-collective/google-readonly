@@ -8,6 +8,7 @@ import (
 )
 
 func TestUserError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      UserError
@@ -27,17 +28,20 @@ func TestUserError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			testutil.Equal(t, tt.err.Error(), tt.expected)
 		})
 	}
 }
 
 func TestNewUserError(t *testing.T) {
+	t.Parallel()
 	err := NewUserError("invalid value: %d", 42)
 	testutil.Equal(t, err.Error(), "invalid value: 42")
 }
 
 func TestSystemError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      SystemError
@@ -64,12 +68,14 @@ func TestSystemError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			testutil.Equal(t, tt.err.Error(), tt.expected)
 		})
 	}
 }
 
 func TestSystemErrorUnwrap(t *testing.T) {
+	t.Parallel()
 	cause := errors.New("underlying error")
 	err := SystemError{
 		Message: "wrapper",
@@ -81,6 +87,7 @@ func TestSystemErrorUnwrap(t *testing.T) {
 }
 
 func TestNewSystemError(t *testing.T) {
+	t.Parallel()
 	cause := errors.New("network timeout")
 	err := NewSystemError("API call failed", cause, true)
 
@@ -90,6 +97,7 @@ func TestNewSystemError(t *testing.T) {
 }
 
 func TestIsRetryable(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -119,6 +127,7 @@ func TestIsRetryable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			testutil.Equal(t, IsRetryable(tt.err), tt.expected)
 		})
 	}
