@@ -25,8 +25,8 @@ Examples:
 
 For more query operators, see: https://support.google.com/mail/answer/7190`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			client, err := newGmailClient()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newGmailClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}

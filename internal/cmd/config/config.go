@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"time"
@@ -65,7 +64,7 @@ The credentials.json file (OAuth client config) is not removed.`,
 	}
 }
 
-func runShow(_ *cobra.Command, _ []string) error {
+func runShow(cmd *cobra.Command, _ []string) error {
 	// Check credentials file
 	credPath, err := gmail.GetCredentialsPath()
 	if err != nil {
@@ -111,7 +110,7 @@ func runShow(_ *cobra.Command, _ []string) error {
 
 	// Show email if we can get it without triggering auth
 	if keychain.HasStoredToken() && credStatus == "OK" {
-		if client, err := gmail.NewClient(context.Background()); err == nil {
+		if client, err := gmail.NewClient(cmd.Context()); err == nil {
 			if profile, err := client.GetProfile(); err == nil {
 				fmt.Printf("Email:       %s\n", profile.EmailAddress)
 			}
@@ -127,7 +126,7 @@ func runShow(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func runTest(_ *cobra.Command, _ []string) error {
+func runTest(cmd *cobra.Command, _ []string) error {
 	fmt.Println("Testing Gmail API connection...")
 	fmt.Println()
 
@@ -141,7 +140,7 @@ func runTest(_ *cobra.Command, _ []string) error {
 	fmt.Println("  OAuth token: Found")
 
 	// Try to create client (tests token validity)
-	client, err := gmail.NewClient(context.Background())
+	client, err := gmail.NewClient(cmd.Context())
 	if err != nil {
 		fmt.Println("  Token valid: FAILED")
 		fmt.Println()

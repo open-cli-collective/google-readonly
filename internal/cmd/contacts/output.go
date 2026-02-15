@@ -20,13 +20,13 @@ type ContactsClient interface {
 
 // ClientFactory is the function used to create Contacts clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (ContactsClient, error) {
-	return contacts.NewClient(context.Background())
+var ClientFactory = func(ctx context.Context) (ContactsClient, error) {
+	return contacts.NewClient(ctx)
 }
 
 // newContactsClient creates a new contacts client
-func newContactsClient() (ContactsClient, error) {
-	return ClientFactory()
+func newContactsClient(ctx context.Context) (ContactsClient, error) {
+	return ClientFactory(ctx)
 }
 
 // printJSON outputs data as indented JSON

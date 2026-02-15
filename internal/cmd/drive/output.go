@@ -19,13 +19,13 @@ type DriveClient interface {
 
 // ClientFactory is the function used to create Drive clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (DriveClient, error) {
-	return drive.NewClient(context.Background())
+var ClientFactory = func(ctx context.Context) (DriveClient, error) {
+	return drive.NewClient(ctx)
 }
 
 // newDriveClient creates and returns a new Drive client
-func newDriveClient() (DriveClient, error) {
-	return ClientFactory()
+func newDriveClient(ctx context.Context) (DriveClient, error) {
+	return ClientFactory(ctx)
 }
 
 // printJSON encodes data as indented JSON to stdout

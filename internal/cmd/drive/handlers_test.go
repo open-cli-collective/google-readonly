@@ -2,6 +2,7 @@ package drive
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -32,7 +33,7 @@ func captureOutput(t *testing.T, f func()) string {
 // withMockClient sets up a mock client factory for tests
 func withMockClient(mock DriveClient, f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (DriveClient, error) {
+	ClientFactory = func(_ context.Context) (DriveClient, error) {
 		return mock, nil
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -42,7 +43,7 @@ func withMockClient(mock DriveClient, f func()) {
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (DriveClient, error) {
+	ClientFactory = func(_ context.Context) (DriveClient, error) {
 		return nil, errors.New("connection failed")
 	}
 	defer func() { ClientFactory = originalFactory }()

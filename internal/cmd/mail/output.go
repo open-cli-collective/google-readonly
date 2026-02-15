@@ -27,13 +27,13 @@ type MailClient interface {
 
 // ClientFactory is the function used to create Gmail clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (MailClient, error) {
-	return gmail.NewClient(context.Background())
+var ClientFactory = func(ctx context.Context) (MailClient, error) {
+	return gmail.NewClient(ctx)
 }
 
 // newGmailClient creates and returns a new Gmail client
-func newGmailClient() (MailClient, error) {
-	return ClientFactory()
+func newGmailClient(ctx context.Context) (MailClient, error) {
+	return ClientFactory(ctx)
 }
 
 // printJSON encodes data as indented JSON to stdout

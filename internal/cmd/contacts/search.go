@@ -32,10 +32,10 @@ Examples:
   gro contacts search "+1-555" --max 20
   gro ppl search "Acme" --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			query := args[0]
 
-			client, err := newContactsClient()
+			client, err := newContactsClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Contacts client: %w", err)
 			}

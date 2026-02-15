@@ -22,8 +22,8 @@ Examples:
   gro mail attachments list 18abc123def456
   gro mail attachments list 18abc123def456 --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			client, err := newGmailClient()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := newGmailClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}

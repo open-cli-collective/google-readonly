@@ -25,8 +25,8 @@ Examples:
   gro cal week --json
   gro cal week --calendar work@group.calendar.google.com`,
 		Args: cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			client, err := newCalendarClient()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := newCalendarClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Calendar client: %w", err)
 			}

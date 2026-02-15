@@ -19,13 +19,13 @@ type CalendarClient interface {
 
 // ClientFactory is the function used to create Calendar clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (CalendarClient, error) {
-	return calendar.NewClient(context.Background())
+var ClientFactory = func(ctx context.Context) (CalendarClient, error) {
+	return calendar.NewClient(ctx)
 }
 
 // newCalendarClient creates a new calendar client
-func newCalendarClient() (CalendarClient, error) {
-	return ClientFactory()
+func newCalendarClient(ctx context.Context) (CalendarClient, error) {
+	return ClientFactory(ctx)
 }
 
 // printJSON outputs data as indented JSON

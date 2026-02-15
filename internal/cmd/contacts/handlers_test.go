@@ -2,6 +2,7 @@ package contacts
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -34,7 +35,7 @@ func captureOutput(t *testing.T, f func()) string {
 // withMockClient sets up a mock client factory for tests
 func withMockClient(mock ContactsClient, f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (ContactsClient, error) {
+	ClientFactory = func(_ context.Context) (ContactsClient, error) {
 		return mock, nil
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -44,7 +45,7 @@ func withMockClient(mock ContactsClient, f func()) {
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (ContactsClient, error) {
+	ClientFactory = func(_ context.Context) (ContactsClient, error) {
 		return nil, errors.New("connection failed")
 	}
 	defer func() { ClientFactory = originalFactory }()

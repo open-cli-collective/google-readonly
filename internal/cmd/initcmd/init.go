@@ -46,7 +46,7 @@ Prerequisites:
 	return cmd
 }
 
-func runInit(_ *cobra.Command, _ []string) error {
+func runInit(cmd *cobra.Command, _ []string) error {
 	// Step 1: Check for credentials.json
 	credPath, err := gmail.GetCredentialsPath()
 	if err != nil {
@@ -74,7 +74,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 		fmt.Println()
 
 		if !noVerify {
-			err := verifyConnectivity()
+			err := verifyConnectivity(cmd.Context())
 			if err == nil {
 				promptCacheTTL()
 				return nil
@@ -141,8 +141,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Println("Exchanging authorization code...")
 
-	ctx := context.Background()
-	token, err := gmail.ExchangeAuthCode(ctx, config, code)
+	token, err := gmail.ExchangeAuthCode(cmd.Context(), config, code)
 	if err != nil {
 		return fmt.Errorf("exchanging authorization code: %w", err)
 	}
@@ -156,7 +155,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	// Step 7: Verify connectivity (unless --no-verify)
 	if !noVerify {
 		fmt.Println()
-		if err := verifyConnectivity(); err != nil {
+		if err := verifyConnectivity(cmd.Context()); err != nil {
 			return err
 		}
 		promptCacheTTL()
@@ -190,10 +189,10 @@ func extractAuthCode(input string) string {
 }
 
 // verifyConnectivity tests the Gmail API connection
-func verifyConnectivity() error {
+func verifyConnectivity(ctx context.Context) error {
 	fmt.Println("Verifying Gmail API connection...")
 
-	client, err := gmail.NewClient(context.Background())
+	client, err := gmail.NewClient(ctx)
 	if err != nil {
 		fmt.Println("  OAuth token: FAILED")
 		return fmt.Errorf("creating client: %w", err)

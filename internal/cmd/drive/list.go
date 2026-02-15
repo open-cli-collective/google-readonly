@@ -39,13 +39,13 @@ Examples:
 
 File types: document, spreadsheet, presentation, folder, pdf, image, video, audio`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate mutually exclusive flags
 			if myDrive && driveFlag != "" {
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
 			}
 
-			client, err := newDriveClient()
+			client, err := newDriveClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Drive client: %w", err)
 			}
