@@ -89,6 +89,29 @@ func TestListCommand_Empty(t *testing.T) {
 	})
 }
 
+func TestListCommand_Empty_JSON(t *testing.T) {
+	mock := &MockCalendarClient{
+		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
+			return []*calendar.CalendarListEntry{}, nil
+		},
+	}
+
+	cmd := newListCommand()
+	cmd.SetArgs([]string{"--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var calendars []any
+		err := json.Unmarshal([]byte(output), &calendars)
+		testutil.NoError(t, err)
+		testutil.Len(t, calendars, 0)
+	})
+}
+
 func TestListCommand_APIError(t *testing.T) {
 	mock := &MockCalendarClient{
 		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
@@ -182,6 +205,29 @@ func TestEventsCommand_JSONOutput(t *testing.T) {
 		err := json.Unmarshal([]byte(output), &events)
 		testutil.NoError(t, err)
 		testutil.Len(t, events, 1)
+	})
+}
+
+func TestEventsCommand_Empty_JSON(t *testing.T) {
+	mock := &MockCalendarClient{
+		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
+			return []*calendar.Event{}, nil
+		},
+	}
+
+	cmd := newEventsCommand()
+	cmd.SetArgs([]string{"--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var events []any
+		err := json.Unmarshal([]byte(output), &events)
+		testutil.NoError(t, err)
+		testutil.Len(t, events, 0)
 	})
 }
 
@@ -287,6 +333,29 @@ func TestTodayCommand_Success(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "Test Meeting")
+	})
+}
+
+func TestTodayCommand_Empty_JSON(t *testing.T) {
+	mock := &MockCalendarClient{
+		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
+			return []*calendar.Event{}, nil
+		},
+	}
+
+	cmd := newTodayCommand()
+	cmd.SetArgs([]string{"--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var events []any
+		err := json.Unmarshal([]byte(output), &events)
+		testutil.NoError(t, err)
+		testutil.Len(t, events, 0)
 	})
 }
 

@@ -35,6 +35,10 @@ Examples:
 			}
 
 			if len(messages) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No messages found in thread.")
 				return nil
 			}

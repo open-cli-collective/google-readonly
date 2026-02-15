@@ -34,6 +34,10 @@ Examples:
 			}
 
 			if len(attachments) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No attachments found for message.")
 				return nil
 			}

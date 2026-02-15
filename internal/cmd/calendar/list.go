@@ -34,6 +34,10 @@ Examples:
 			}
 
 			if len(calendars) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No calendars found.")
 				return nil
 			}

@@ -27,6 +27,10 @@ func listAndPrintEvents(ctx context.Context, client CalendarClient, opts EventLi
 	}
 
 	if len(events) == 0 {
+		if opts.JSONOutput {
+			fmt.Println("[]")
+			return nil
+		}
 		if opts.EmptyMessage != "" {
 			fmt.Println(opts.EmptyMessage)
 		} else {

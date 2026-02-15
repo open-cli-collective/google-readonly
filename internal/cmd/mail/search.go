@@ -37,6 +37,10 @@ For more query operators, see: https://support.google.com/mail/answer/7190`,
 			}
 
 			if len(messages) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No messages found.")
 				return nil
 			}

@@ -46,6 +46,10 @@ Examples:
 			}
 
 			if len(resp.Results) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Printf("No contacts found matching \"%s\".\n", query)
 				return nil
 			}

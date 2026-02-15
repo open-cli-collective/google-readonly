@@ -38,6 +38,10 @@ Examples:
 			}
 
 			if len(resp.ContactGroups) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No contact groups found.")
 				return nil
 			}

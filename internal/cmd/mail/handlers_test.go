@@ -96,6 +96,29 @@ func TestSearchCommand_NoResults(t *testing.T) {
 	})
 }
 
+func TestSearchCommand_NoResults_JSON(t *testing.T) {
+	mock := &MockGmailClient{
+		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
+			return []*gmailapi.Message{}, 0, nil
+		},
+	}
+
+	cmd := newSearchCommand()
+	cmd.SetArgs([]string{"nonexistent", "--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var messages []any
+		err := json.Unmarshal([]byte(output), &messages)
+		testutil.NoError(t, err)
+		testutil.Len(t, messages, 0)
+	})
+}
+
 func TestSearchCommand_APIError(t *testing.T) {
 	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
@@ -306,6 +329,29 @@ func TestLabelsCommand_JSONOutput(t *testing.T) {
 	})
 }
 
+func TestThreadCommand_NoResults_JSON(t *testing.T) {
+	mock := &MockGmailClient{
+		GetThreadFunc: func(_ context.Context, _ string) ([]*gmailapi.Message, error) {
+			return []*gmailapi.Message{}, nil
+		},
+	}
+
+	cmd := newThreadCommand()
+	cmd.SetArgs([]string{"thread123", "--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var messages []any
+		err := json.Unmarshal([]byte(output), &messages)
+		testutil.NoError(t, err)
+		testutil.Len(t, messages, 0)
+	})
+}
+
 func TestLabelsCommand_Empty(t *testing.T) {
 	mock := &MockGmailClient{
 		FetchLabelsFunc: func(_ context.Context) error {
@@ -325,6 +371,32 @@ func TestLabelsCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No labels found")
+	})
+}
+
+func TestLabelsCommand_Empty_JSON(t *testing.T) {
+	mock := &MockGmailClient{
+		FetchLabelsFunc: func(_ context.Context) error {
+			return nil
+		},
+		GetLabelsFunc: func() []*gmail.Label {
+			return []*gmail.Label{}
+		},
+	}
+
+	cmd := newLabelsCommand()
+	cmd.SetArgs([]string{"--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var labels []any
+		err := json.Unmarshal([]byte(output), &labels)
+		testutil.NoError(t, err)
+		testutil.Len(t, labels, 0)
 	})
 }
 
@@ -370,5 +442,28 @@ func TestListAttachmentsCommand_NoAttachments(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No attachments found")
+	})
+}
+
+func TestListAttachmentsCommand_NoAttachments_JSON(t *testing.T) {
+	mock := &MockGmailClient{
+		GetAttachmentsFunc: func(_ context.Context, _ string) ([]*gmailapi.Attachment, error) {
+			return []*gmailapi.Attachment{}, nil
+		},
+	}
+
+	cmd := newListAttachmentsCommand()
+	cmd.SetArgs([]string{"msg123", "--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var attachments []any
+		err := json.Unmarshal([]byte(output), &attachments)
+		testutil.NoError(t, err)
+		testutil.Len(t, attachments, 0)
 	})
 }

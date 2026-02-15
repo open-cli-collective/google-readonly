@@ -87,6 +87,10 @@ Examples:
 			}
 
 			if len(drives) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No shared drives found.")
 				return nil
 			}

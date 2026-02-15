@@ -78,6 +78,10 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			}
 
 			if len(files) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				if query != "" {
 					fmt.Printf("No files found matching \"%s\".\n", query)
 				} else {

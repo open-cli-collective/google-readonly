@@ -100,6 +100,31 @@ func TestListCommand_Empty(t *testing.T) {
 	})
 }
 
+func TestListCommand_Empty_JSON(t *testing.T) {
+	mock := &MockContactsClient{
+		ListContactsFunc: func(_ context.Context, _ string, _ int64) (*people.ListConnectionsResponse, error) {
+			return &people.ListConnectionsResponse{
+				Connections: []*people.Person{},
+			}, nil
+		},
+	}
+
+	cmd := newListCommand()
+	cmd.SetArgs([]string{"--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var contacts []any
+		err := json.Unmarshal([]byte(output), &contacts)
+		testutil.NoError(t, err)
+		testutil.Len(t, contacts, 0)
+	})
+}
+
 func TestListCommand_APIError(t *testing.T) {
 	mock := &MockContactsClient{
 		ListContactsFunc: func(_ context.Context, _ string, _ int64) (*people.ListConnectionsResponse, error) {
@@ -198,6 +223,31 @@ func TestSearchCommand_NoResults(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No contacts found")
+	})
+}
+
+func TestSearchCommand_NoResults_JSON(t *testing.T) {
+	mock := &MockContactsClient{
+		SearchContactsFunc: func(_ context.Context, _ string, _ int64) (*people.SearchResponse, error) {
+			return &people.SearchResponse{
+				Results: []*people.SearchResult{},
+			}, nil
+		},
+	}
+
+	cmd := newSearchCommand()
+	cmd.SetArgs([]string{"nonexistent", "--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var contacts []any
+		err := json.Unmarshal([]byte(output), &contacts)
+		testutil.NoError(t, err)
+		testutil.Len(t, contacts, 0)
 	})
 }
 
@@ -368,6 +418,31 @@ func TestGroupsCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No contact groups found")
+	})
+}
+
+func TestGroupsCommand_Empty_JSON(t *testing.T) {
+	mock := &MockContactsClient{
+		ListContactGroupsFunc: func(_ context.Context, _ string, _ int64) (*people.ListContactGroupsResponse, error) {
+			return &people.ListContactGroupsResponse{
+				ContactGroups: []*people.ContactGroup{},
+			}, nil
+		},
+	}
+
+	cmd := newGroupsCommand()
+	cmd.SetArgs([]string{"--json"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		var groups []any
+		err := json.Unmarshal([]byte(output), &groups)
+		testutil.NoError(t, err)
+		testutil.Len(t, groups, 0)
 	})
 }
 
