@@ -3,39 +3,39 @@ package root
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestRootCommand(t *testing.T) {
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "gro", rootCmd.Use)
+		testutil.Equal(t, rootCmd.Use, "gro")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, rootCmd.Short)
+		testutil.NotEmpty(t, rootCmd.Short)
 	})
 
 	t.Run("has long description", func(t *testing.T) {
-		assert.NotEmpty(t, rootCmd.Long)
-		assert.Contains(t, rootCmd.Long, "read-only")
+		testutil.NotEmpty(t, rootCmd.Long)
+		testutil.Contains(t, rootCmd.Long, "read-only")
 	})
 
 	t.Run("has version set", func(t *testing.T) {
-		assert.NotEmpty(t, rootCmd.Version)
+		testutil.NotEmpty(t, rootCmd.Version)
 	})
 
 	t.Run("has subcommands", func(t *testing.T) {
 		subcommands := rootCmd.Commands()
-		assert.GreaterOrEqual(t, len(subcommands), 5)
+		testutil.GreaterOrEqual(t, len(subcommands), 5)
 
 		var names []string
 		for _, sub := range subcommands {
 			names = append(names, sub.Name())
 		}
-		assert.Contains(t, names, "init")
-		assert.Contains(t, names, "config")
-		assert.Contains(t, names, "mail")
-		assert.Contains(t, names, "calendar")
-		assert.Contains(t, names, "contacts")
+		testutil.SliceContains(t, names, "init")
+		testutil.SliceContains(t, names, "config")
+		testutil.SliceContains(t, names, "mail")
+		testutil.SliceContains(t, names, "calendar")
+		testutil.SliceContains(t, names, "contacts")
 	})
 }

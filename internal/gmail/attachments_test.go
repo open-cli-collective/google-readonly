@@ -3,7 +3,6 @@ package gmail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/gmail/v1"
 )
 
@@ -13,7 +12,9 @@ func TestFindPart(t *testing.T) {
 			MimeType: "text/plain",
 		}
 		result := findPart(payload, "")
-		assert.Equal(t, payload, result)
+		if result != payload {
+			t.Errorf("got %v, want %v", result, payload)
+		}
 	})
 
 	t.Run("finds part at index 0", func(t *testing.T) {
@@ -23,7 +24,9 @@ func TestFindPart(t *testing.T) {
 			Parts:    []*gmail.MessagePart{child},
 		}
 		result := findPart(payload, "0")
-		assert.Equal(t, child, result)
+		if result != child {
+			t.Errorf("got %v, want %v", result, child)
+		}
 	})
 
 	t.Run("finds nested part", func(t *testing.T) {
@@ -41,7 +44,9 @@ func TestFindPart(t *testing.T) {
 			},
 		}
 		result := findPart(payload, "0.1")
-		assert.Equal(t, deepChild, result)
+		if result != deepChild {
+			t.Errorf("got %v, want %v", result, deepChild)
+		}
 	})
 
 	t.Run("returns nil for invalid index", func(t *testing.T) {
@@ -50,7 +55,9 @@ func TestFindPart(t *testing.T) {
 			Parts:    []*gmail.MessagePart{{MimeType: "text/plain"}},
 		}
 		result := findPart(payload, "5")
-		assert.Nil(t, result)
+		if result != nil {
+			t.Errorf("got %v, want nil", result)
+		}
 	})
 
 	t.Run("returns nil for negative index", func(t *testing.T) {
@@ -59,7 +66,9 @@ func TestFindPart(t *testing.T) {
 			Parts:    []*gmail.MessagePart{{MimeType: "text/plain"}},
 		}
 		result := findPart(payload, "-1")
-		assert.Nil(t, result)
+		if result != nil {
+			t.Errorf("got %v, want nil", result)
+		}
 	})
 
 	t.Run("returns nil for non-numeric path", func(t *testing.T) {
@@ -68,7 +77,9 @@ func TestFindPart(t *testing.T) {
 			Parts:    []*gmail.MessagePart{{MimeType: "text/plain"}},
 		}
 		result := findPart(payload, "abc")
-		assert.Nil(t, result)
+		if result != nil {
+			t.Errorf("got %v, want nil", result)
+		}
 	})
 
 	t.Run("returns nil for out of bounds nested path", func(t *testing.T) {
@@ -82,7 +93,9 @@ func TestFindPart(t *testing.T) {
 			},
 		}
 		result := findPart(payload, "0.5")
-		assert.Nil(t, result)
+		if result != nil {
+			t.Errorf("got %v, want nil", result)
+		}
 	})
 
 	t.Run("handles deeply nested path", func(t *testing.T) {
@@ -101,6 +114,8 @@ func TestFindPart(t *testing.T) {
 			},
 		}
 		result := findPart(payload, "0.0.0")
-		assert.Equal(t, deepest, result)
+		if result != deepest {
+			t.Errorf("got %v, want %v", result, deepest)
+		}
 	})
 }

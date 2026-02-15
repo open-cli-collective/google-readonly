@@ -3,11 +3,9 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGetConfigDir(t *testing.T) {
@@ -16,24 +14,36 @@ func TestGetConfigDir(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		dir, err := GetConfigDir()
-		require.NoError(t, err)
-		assert.Equal(t, filepath.Join(tmpDir, DirName), dir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if dir != filepath.Join(tmpDir, DirName) {
+			t.Errorf("got %v, want %v", dir, filepath.Join(tmpDir, DirName))
+		}
 
 		// Verify directory was created
 		info, err := os.Stat(dir)
-		require.NoError(t, err)
-		assert.True(t, info.IsDir())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !info.IsDir() {
+			t.Error("got false, want true")
+		}
 	})
 
 	t.Run("uses ~/.config if XDG_CONFIG_HOME not set", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", "")
 
 		dir, err := GetConfigDir()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		home, _ := os.UserHomeDir()
 		expected := filepath.Join(home, ".config", DirName)
-		assert.Equal(t, expected, dir)
+		if dir != expected {
+			t.Errorf("got %v, want %v", dir, expected)
+		}
 	})
 
 	t.Run("creates directory with correct permissions", func(t *testing.T) {
@@ -41,11 +51,17 @@ func TestGetConfigDir(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		dir, err := GetConfigDir()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		info, err := os.Stat(dir)
-		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if info.Mode().Perm() != os.FileMode(0700) {
+			t.Errorf("got %v, want %v", info.Mode().Perm(), os.FileMode(0700))
+		}
 	})
 }
 
@@ -54,8 +70,12 @@ func TestGetCredentialsPath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	path, err := GetCredentialsPath()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, DirName, CredentialsFile), path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if path != filepath.Join(tmpDir, DirName, CredentialsFile) {
+		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, CredentialsFile))
+	}
 }
 
 func TestGetTokenPath(t *testing.T) {
@@ -63,13 +83,19 @@ func TestGetTokenPath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	path, err := GetTokenPath()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, DirName, TokenFile), path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if path != filepath.Join(tmpDir, DirName, TokenFile) {
+		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, TokenFile))
+	}
 }
 
 func TestShortenPath(t *testing.T) {
 	home, err := os.UserHomeDir()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	tests := []struct {
 		name     string
@@ -106,17 +132,29 @@ func TestShortenPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ShortenPath(tt.input)
-			assert.Equal(t, tt.expected, result)
+			if result != tt.expected {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
 		})
 	}
 }
 
 func TestConstants(t *testing.T) {
-	assert.Equal(t, "google-readonly", DirName)
-	assert.Equal(t, "credentials.json", CredentialsFile)
-	assert.Equal(t, "token.json", TokenFile)
-	assert.Equal(t, "config.json", ConfigFile)
-	assert.Equal(t, 24, DefaultCacheTTLHours)
+	if DirName != "google-readonly" {
+		t.Errorf("got %v, want %v", DirName, "google-readonly")
+	}
+	if CredentialsFile != "credentials.json" {
+		t.Errorf("got %v, want %v", CredentialsFile, "credentials.json")
+	}
+	if TokenFile != "token.json" {
+		t.Errorf("got %v, want %v", TokenFile, "token.json")
+	}
+	if ConfigFile != "config.json" {
+		t.Errorf("got %v, want %v", ConfigFile, "config.json")
+	}
+	if DefaultCacheTTLHours != 24 {
+		t.Errorf("got %v, want %v", DefaultCacheTTLHours, 24)
+	}
 }
 
 func TestGetConfigPath(t *testing.T) {
@@ -124,8 +162,12 @@ func TestGetConfigPath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	path, err := GetConfigPath()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(tmpDir, DirName, ConfigFile), path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if path != filepath.Join(tmpDir, DirName, ConfigFile) {
+		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, ConfigFile))
+	}
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -134,8 +176,12 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		cfg, err := LoadConfig()
-		require.NoError(t, err)
-		assert.Equal(t, DefaultCacheTTLHours, cfg.CacheTTLHours)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.CacheTTLHours != DefaultCacheTTLHours {
+			t.Errorf("got %v, want %v", cfg.CacheTTLHours, DefaultCacheTTLHours)
+		}
 	})
 
 	t.Run("loads config from file", func(t *testing.T) {
@@ -144,14 +190,22 @@ func TestLoadConfig(t *testing.T) {
 
 		// Create config directory and file
 		configDir := filepath.Join(tmpDir, DirName)
-		require.NoError(t, os.MkdirAll(configDir, DirPerm))
+		if err := os.MkdirAll(configDir, DirPerm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		configData := `{"cache_ttl_hours": 48}`
-		require.NoError(t, os.WriteFile(filepath.Join(configDir, ConfigFile), []byte(configData), TokenPerm))
+		if err := os.WriteFile(filepath.Join(configDir, ConfigFile), []byte(configData), TokenPerm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		cfg, err := LoadConfig()
-		require.NoError(t, err)
-		assert.Equal(t, 48, cfg.CacheTTLHours)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.CacheTTLHours != 48 {
+			t.Errorf("got %v, want %v", cfg.CacheTTLHours, 48)
+		}
 	})
 
 	t.Run("applies default for zero or negative TTL", func(t *testing.T) {
@@ -159,14 +213,22 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		configDir := filepath.Join(tmpDir, DirName)
-		require.NoError(t, os.MkdirAll(configDir, DirPerm))
+		if err := os.MkdirAll(configDir, DirPerm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		configData := `{"cache_ttl_hours": 0}`
-		require.NoError(t, os.WriteFile(filepath.Join(configDir, ConfigFile), []byte(configData), TokenPerm))
+		if err := os.WriteFile(filepath.Join(configDir, ConfigFile), []byte(configData), TokenPerm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		cfg, err := LoadConfig()
-		require.NoError(t, err)
-		assert.Equal(t, DefaultCacheTTLHours, cfg.CacheTTLHours)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.CacheTTLHours != DefaultCacheTTLHours {
+			t.Errorf("got %v, want %v", cfg.CacheTTLHours, DefaultCacheTTLHours)
+		}
 	})
 
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
@@ -174,12 +236,18 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		configDir := filepath.Join(tmpDir, DirName)
-		require.NoError(t, os.MkdirAll(configDir, DirPerm))
+		if err := os.MkdirAll(configDir, DirPerm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		require.NoError(t, os.WriteFile(filepath.Join(configDir, ConfigFile), []byte("not json"), TokenPerm))
+		if err := os.WriteFile(filepath.Join(configDir, ConfigFile), []byte("not json"), TokenPerm); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		_, err := LoadConfig()
-		assert.Error(t, err)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
 	})
 }
 
@@ -190,13 +258,19 @@ func TestSaveConfig(t *testing.T) {
 
 		cfg := &Config{CacheTTLHours: 12}
 		err := SaveConfig(cfg)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Verify file was created
 		path, _ := GetConfigPath()
 		data, err := os.ReadFile(path)
-		require.NoError(t, err)
-		assert.Contains(t, string(data), `"cache_ttl_hours": 12`)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(string(data), `"cache_ttl_hours": 12`) {
+			t.Errorf("expected %q to contain %q", string(data), `"cache_ttl_hours": 12`)
+		}
 	})
 
 	t.Run("overwrites existing config", func(t *testing.T) {
@@ -205,16 +279,24 @@ func TestSaveConfig(t *testing.T) {
 
 		// Save initial config
 		cfg1 := &Config{CacheTTLHours: 12}
-		require.NoError(t, SaveConfig(cfg1))
+		if err := SaveConfig(cfg1); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Save new config
 		cfg2 := &Config{CacheTTLHours: 36}
-		require.NoError(t, SaveConfig(cfg2))
+		if err := SaveConfig(cfg2); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Verify new value
 		loaded, err := LoadConfig()
-		require.NoError(t, err)
-		assert.Equal(t, 36, loaded.CacheTTLHours)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if loaded.CacheTTLHours != 36 {
+			t.Errorf("got %v, want %v", loaded.CacheTTLHours, 36)
+		}
 	})
 }
 
@@ -224,10 +306,14 @@ func TestGetCacheTTL(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		cfg := &Config{CacheTTLHours: 12}
-		require.NoError(t, SaveConfig(cfg))
+		if err := SaveConfig(cfg); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		ttl := GetCacheTTL()
-		assert.Equal(t, 12*time.Hour, ttl)
+		if ttl != 12*time.Hour {
+			t.Errorf("got %v, want %v", ttl, 12*time.Hour)
+		}
 	})
 
 	t.Run("returns default TTL when no config exists", func(t *testing.T) {
@@ -235,7 +321,9 @@ func TestGetCacheTTL(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		ttl := GetCacheTTL()
-		assert.Equal(t, time.Duration(DefaultCacheTTLHours)*time.Hour, ttl)
+		if ttl != time.Duration(DefaultCacheTTLHours)*time.Hour {
+			t.Errorf("got %v, want %v", ttl, time.Duration(DefaultCacheTTLHours)*time.Hour)
+		}
 	})
 }
 
@@ -245,10 +333,14 @@ func TestGetCacheTTLHours(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		cfg := &Config{CacheTTLHours: 48}
-		require.NoError(t, SaveConfig(cfg))
+		if err := SaveConfig(cfg); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		hours := GetCacheTTLHours()
-		assert.Equal(t, 48, hours)
+		if hours != 48 {
+			t.Errorf("got %v, want %v", hours, 48)
+		}
 	})
 
 	t.Run("returns default TTL when no config exists", func(t *testing.T) {
@@ -256,6 +348,8 @@ func TestGetCacheTTLHours(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		hours := GetCacheTTLHours()
-		assert.Equal(t, DefaultCacheTTLHours, hours)
+		if hours != DefaultCacheTTLHours {
+			t.Errorf("got %v, want %v", hours, DefaultCacheTTLHours)
+		}
 	})
 }

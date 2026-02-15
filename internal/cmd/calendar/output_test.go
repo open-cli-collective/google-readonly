@@ -8,10 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestPrintJSON(t *testing.T) {
@@ -61,7 +59,7 @@ func TestPrintJSON(t *testing.T) {
 			os.Stdout = w
 
 			err := printJSON(tt.data)
-			require.NoError(t, err)
+			testutil.NoError(t, err)
 
 			w.Close()
 			os.Stdout = oldStdout
@@ -70,15 +68,15 @@ func TestPrintJSON(t *testing.T) {
 			io.Copy(&buf, r)
 
 			output := buf.String()
-			assert.NotEmpty(t, output)
+			testutil.NotEmpty(t, output)
 
 			// Verify it's valid JSON
 			var parsed any
 			err = json.Unmarshal([]byte(output), &parsed)
-			assert.NoError(t, err, "output should be valid JSON")
+			testutil.NoError(t, err)
 
 			if tt.wantJSON != "" {
-				assert.Equal(t, tt.wantJSON, output)
+				testutil.Equal(t, output, tt.wantJSON)
 			}
 		})
 	}
@@ -241,10 +239,10 @@ func TestPrintEvent(t *testing.T) {
 			output := buf.String()
 
 			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want)
+				testutil.Contains(t, output, want)
 			}
 			for _, notWant := range tt.wantNotContains {
-				assert.NotContains(t, output, notWant)
+				testutil.NotContains(t, output, notWant)
 			}
 		})
 	}
@@ -317,7 +315,7 @@ func TestPrintEventSummary(t *testing.T) {
 			output := buf.String()
 
 			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want)
+				testutil.Contains(t, output, want)
 			}
 		})
 	}
@@ -397,22 +395,22 @@ func TestPrintCalendar(t *testing.T) {
 			output := buf.String()
 
 			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want)
+				testutil.Contains(t, output, want)
 			}
 
 			// Check that non-primary calendars don't have "(primary)"
 			if !tt.cal.Primary {
-				assert.NotContains(t, output, "(primary)")
+				testutil.NotContains(t, output, "(primary)")
 			}
 
 			// Check that empty descriptions aren't printed
 			if tt.cal.Description == "" {
-				assert.NotContains(t, output, "Description:")
+				testutil.NotContains(t, output, "Description:")
 			}
 
 			// Check that empty timezones aren't printed
 			if tt.cal.TimeZone == "" {
-				assert.NotContains(t, output, "Timezone:")
+				testutil.NotContains(t, output, "Timezone:")
 			}
 		})
 	}
@@ -440,8 +438,8 @@ func TestPrintCalendarNoPrimary(t *testing.T) {
 	output := buf.String()
 
 	// Should have the ID without "(primary)"
-	assert.Contains(t, output, "ID: other@google.com")
-	assert.NotContains(t, output, "(primary)")
+	testutil.Contains(t, output, "ID: other@google.com")
+	testutil.NotContains(t, output, "(primary)")
 }
 
 func TestPrintAttendeeWithoutStatus(t *testing.T) {
@@ -472,8 +470,8 @@ func TestPrintAttendeeWithoutStatus(t *testing.T) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "Alice") {
-			assert.NotContains(t, line, "()")
-			assert.Contains(t, line, "Alice <alice@example.com>")
+			testutil.NotContains(t, line, "()")
+			testutil.Contains(t, line, "Alice <alice@example.com>")
 		}
 	}
 }

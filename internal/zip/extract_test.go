@@ -8,25 +8,24 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func createTestZip(t *testing.T, files map[string][]byte) string {
 	t.Helper()
 
 	tmpFile, err := os.CreateTemp("", "test-*.zip")
-	require.NoError(t, err)
+	testutil.NoError(t, err)
 	defer tmpFile.Close()
 
 	w := zip.NewWriter(tmpFile)
 	for name, content := range files {
 		f, err := w.Create(name)
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		_, err = f.Write(content)
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 	}
-	require.NoError(t, w.Close())
+	testutil.NoError(t, w.Close())
 
 	return tmpFile.Name()
 }
@@ -41,15 +40,15 @@ func TestExtract(t *testing.T) {
 
 		destDir := t.TempDir()
 		err := Extract(zipPath, destDir, DefaultOptions())
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 
 		content1, err := os.ReadFile(filepath.Join(destDir, "file1.txt"))
-		require.NoError(t, err)
-		assert.Equal(t, "content 1", string(content1))
+		testutil.NoError(t, err)
+		testutil.Equal(t, string(content1), "content 1")
 
 		content2, err := os.ReadFile(filepath.Join(destDir, "file2.txt"))
-		require.NoError(t, err)
-		assert.Equal(t, "content 2", string(content2))
+		testutil.NoError(t, err)
+		testutil.Equal(t, string(content2), "content 2")
 	})
 
 	t.Run("extracts nested directories", func(t *testing.T) {
@@ -61,11 +60,11 @@ func TestExtract(t *testing.T) {
 
 		destDir := t.TempDir()
 		err := Extract(zipPath, destDir, DefaultOptions())
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 
 		content, err := os.ReadFile(filepath.Join(destDir, "dir1", "dir2", "file2.txt"))
-		require.NoError(t, err)
-		assert.Equal(t, "nested 2", string(content))
+		testutil.NoError(t, err)
+		testutil.Equal(t, string(content), "nested 2")
 	})
 
 	t.Run("creates destination directory if not exists", func(t *testing.T) {
@@ -76,23 +75,23 @@ func TestExtract(t *testing.T) {
 
 		destDir := filepath.Join(t.TempDir(), "new", "nested", "dir")
 		err := Extract(zipPath, destDir, DefaultOptions())
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 
 		_, err = os.Stat(filepath.Join(destDir, "test.txt"))
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("rejects invalid zip file", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp("", "invalid-*.zip")
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		tmpFile.WriteString("not a zip file")
 		tmpFile.Close()
 		defer os.Remove(tmpFile.Name())
 
 		destDir := t.TempDir()
 		err = Extract(tmpFile.Name(), destDir, DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to open zip")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "failed to open zip")
 	})
 }
 
@@ -100,7 +99,7 @@ func TestExtractSecurityPathTraversal(t *testing.T) {
 	t.Run("rejects path with leading ..", func(t *testing.T) {
 		// Create a malicious zip with path traversal
 		tmpFile, err := os.CreateTemp("", "malicious-*.zip")
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		defer os.Remove(tmpFile.Name())
 
 		w := zip.NewWriter(tmpFile)
@@ -110,20 +109,20 @@ func TestExtractSecurityPathTraversal(t *testing.T) {
 			Method: zip.Store,
 		}
 		f, err := w.CreateHeader(header)
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		f.Write([]byte("malicious"))
 		w.Close()
 		tmpFile.Close()
 
 		destDir := t.TempDir()
 		err = Extract(tmpFile.Name(), destDir, DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid file path")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "invalid file path")
 	})
 
 	t.Run("rejects absolute paths", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp("", "malicious-*.zip")
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		defer os.Remove(tmpFile.Name())
 
 		w := zip.NewWriter(tmpFile)
@@ -132,14 +131,14 @@ func TestExtractSecurityPathTraversal(t *testing.T) {
 			Method: zip.Store,
 		}
 		f, err := w.CreateHeader(header)
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		f.Write([]byte("malicious"))
 		w.Close()
 		tmpFile.Close()
 
 		destDir := t.TempDir()
 		err = Extract(tmpFile.Name(), destDir, DefaultOptions())
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 }
 
@@ -160,8 +159,8 @@ func TestExtractSecurityLimits(t *testing.T) {
 			MaxDepth:     MaxDepth,
 		}
 		err := Extract(zipPath, destDir, opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "too many files")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "too many files")
 	})
 
 	t.Run("rejects file exceeding max size", func(t *testing.T) {
@@ -178,8 +177,8 @@ func TestExtractSecurityLimits(t *testing.T) {
 			MaxDepth:     MaxDepth,
 		}
 		err := Extract(zipPath, destDir, opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "exceeds max size")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "exceeds max size")
 	})
 
 	t.Run("rejects total size exceeding limit", func(t *testing.T) {
@@ -197,8 +196,8 @@ func TestExtractSecurityLimits(t *testing.T) {
 			MaxDepth:     MaxDepth,
 		}
 		err := Extract(zipPath, destDir, opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "exceeds limit")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "exceeds limit")
 	})
 
 	t.Run("rejects path too deep", func(t *testing.T) {
@@ -215,17 +214,17 @@ func TestExtractSecurityLimits(t *testing.T) {
 			MaxDepth:     3, // Less than actual depth
 		}
 		err := Extract(zipPath, destDir, opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "too deep")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "too deep")
 	})
 }
 
 func TestDefaultOptions(t *testing.T) {
 	opts := DefaultOptions()
-	assert.Equal(t, int64(MaxFileSize), opts.MaxFileSize)
-	assert.Equal(t, int64(MaxTotalSize), opts.MaxTotalSize)
-	assert.Equal(t, MaxFiles, opts.MaxFiles)
-	assert.Equal(t, MaxDepth, opts.MaxDepth)
+	testutil.Equal(t, opts.MaxFileSize, int64(MaxFileSize))
+	testutil.Equal(t, opts.MaxTotalSize, int64(MaxTotalSize))
+	testutil.Equal(t, opts.MaxFiles, MaxFiles)
+	testutil.Equal(t, opts.MaxDepth, MaxDepth)
 }
 
 func TestValidateZip(t *testing.T) {
@@ -236,11 +235,11 @@ func TestValidateZip(t *testing.T) {
 		defer os.Remove(zipPath)
 
 		r, err := zip.OpenReader(zipPath)
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		defer r.Close()
 
 		err = validateZip(&r.Reader, DefaultOptions())
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 }
 
@@ -323,8 +322,8 @@ func TestExtractFileSystemErrors(t *testing.T) {
 		defer os.Remove(zipPath)
 
 		err := Extract(zipPath, "/tmp/test-dest", DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to create destination")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "failed to create destination")
 	})
 
 	t.Run("returns error when MkdirAll fails for parent directory", func(t *testing.T) {
@@ -340,8 +339,8 @@ func TestExtractFileSystemErrors(t *testing.T) {
 
 		destDir := t.TempDir()
 		err := Extract(zipPath, destDir, DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "disk full")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "disk full")
 	})
 
 	t.Run("returns error when OpenFile fails", func(t *testing.T) {
@@ -356,8 +355,8 @@ func TestExtractFileSystemErrors(t *testing.T) {
 
 		destDir := t.TempDir()
 		err := Extract(zipPath, destDir, DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "too many open files")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "too many open files")
 	})
 
 	t.Run("returns error when io.Copy fails", func(t *testing.T) {
@@ -375,8 +374,8 @@ func TestExtractFileSystemErrors(t *testing.T) {
 
 		destDir := t.TempDir()
 		err := Extract(zipPath, destDir, DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "write error")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "write error")
 	})
 }
 
@@ -388,7 +387,7 @@ func TestExtractDirectoryEntry(t *testing.T) {
 	t.Run("extracts directory entries", func(t *testing.T) {
 		// Create zip with explicit directory entry
 		tmpFile, err := os.CreateTemp("", "dir-test-*.zip")
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		defer os.Remove(tmpFile.Name())
 
 		w := zip.NewWriter(tmpFile)
@@ -399,18 +398,18 @@ func TestExtractDirectoryEntry(t *testing.T) {
 		}
 		header.SetMode(os.ModeDir | 0755)
 		_, err = w.CreateHeader(header)
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		w.Close()
 		tmpFile.Close()
 
 		destDir := t.TempDir()
 		err = Extract(tmpFile.Name(), destDir, DefaultOptions())
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 
 		// Verify directory was created
 		info, err := os.Stat(filepath.Join(destDir, "mydir"))
-		require.NoError(t, err)
-		assert.True(t, info.IsDir())
+		testutil.NoError(t, err)
+		testutil.True(t, info.IsDir())
 	})
 
 	t.Run("returns error when MkdirAll fails for directory entry", func(t *testing.T) {
@@ -421,18 +420,18 @@ func TestExtractDirectoryEntry(t *testing.T) {
 
 		// Create zip with explicit directory entry
 		tmpFile, err := os.CreateTemp("", "dir-test-*.zip")
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		defer os.Remove(tmpFile.Name())
 
 		w := zip.NewWriter(tmpFile)
 		_, err = w.Create("mydir/")
-		require.NoError(t, err)
+		testutil.NoError(t, err)
 		w.Close()
 		tmpFile.Close()
 
 		destDir := t.TempDir()
 		err = Extract(tmpFile.Name(), destDir, DefaultOptions())
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot create directory")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "cannot create directory")
 	})
 }

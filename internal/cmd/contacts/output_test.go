@@ -7,10 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/open-cli-collective/google-readonly/internal/contacts"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestPrintJSON(t *testing.T) {
@@ -50,7 +48,7 @@ func TestPrintJSON(t *testing.T) {
 			os.Stdout = w
 
 			err := printJSON(tt.data)
-			require.NoError(t, err)
+			testutil.NoError(t, err)
 
 			w.Close()
 			os.Stdout = oldStdout
@@ -59,12 +57,12 @@ func TestPrintJSON(t *testing.T) {
 			io.Copy(&buf, r)
 
 			output := buf.String()
-			assert.NotEmpty(t, output)
+			testutil.NotEmpty(t, output)
 
 			// Verify it's valid JSON
 			var parsed any
 			err = json.Unmarshal([]byte(output), &parsed)
-			assert.NoError(t, err, "output should be valid JSON")
+			testutil.NoError(t, err)
 		})
 	}
 }
@@ -239,10 +237,10 @@ func TestPrintContact(t *testing.T) {
 			output := buf.String()
 
 			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want)
+				testutil.Contains(t, output, want)
 			}
 			for _, notWant := range tt.wantNotContains {
-				assert.NotContains(t, output, notWant)
+				testutil.NotContains(t, output, notWant)
 			}
 		})
 	}
@@ -303,7 +301,7 @@ func TestPrintContactSummary(t *testing.T) {
 			output := buf.String()
 
 			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want)
+				testutil.Contains(t, output, want)
 			}
 		})
 	}
@@ -377,7 +375,7 @@ func TestPrintContactGroup(t *testing.T) {
 			output := buf.String()
 
 			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want)
+				testutil.Contains(t, output, want)
 			}
 		})
 	}

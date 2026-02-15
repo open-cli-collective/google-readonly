@@ -3,41 +3,41 @@ package contacts
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestContactsCommand(t *testing.T) {
 	cmd := NewCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "contacts", cmd.Use)
+		testutil.Equal(t, cmd.Use, "contacts")
 	})
 
 	t.Run("has ppl alias", func(t *testing.T) {
-		assert.Contains(t, cmd.Aliases, "ppl")
+		testutil.SliceContains(t, cmd.Aliases, "ppl")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has long description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Long)
-		assert.Contains(t, cmd.Long, "read-only")
+		testutil.NotEmpty(t, cmd.Long)
+		testutil.Contains(t, cmd.Long, "read-only")
 	})
 
 	t.Run("has subcommands", func(t *testing.T) {
 		subcommands := cmd.Commands()
-		assert.GreaterOrEqual(t, len(subcommands), 4)
+		testutil.GreaterOrEqual(t, len(subcommands), 4)
 
 		var names []string
 		for _, sub := range subcommands {
 			names = append(names, sub.Name())
 		}
-		assert.Contains(t, names, "list")
-		assert.Contains(t, names, "search")
-		assert.Contains(t, names, "get")
-		assert.Contains(t, names, "groups")
+		testutil.SliceContains(t, names, "list")
+		testutil.SliceContains(t, names, "search")
+		testutil.SliceContains(t, names, "get")
+		testutil.SliceContains(t, names, "groups")
 	})
 }
 
@@ -45,35 +45,35 @@ func TestListCommand(t *testing.T) {
 	cmd := newListCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "list", cmd.Use)
+		testutil.Equal(t, cmd.Use, "list")
 	})
 
 	t.Run("requires no arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("rejects arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{"extra"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has max flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("max")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "m", flag.Shorthand)
-		assert.Equal(t, "10", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "m")
+		testutil.Equal(t, flag.DefValue, "10")
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
-		assert.Equal(t, "false", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+		testutil.Equal(t, flag.DefValue, "false")
 	})
 }
 
@@ -81,38 +81,38 @@ func TestSearchCommand(t *testing.T) {
 	cmd := newSearchCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "search <query>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "search <query>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{"query"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("rejects no arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("rejects multiple arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{"query1", "query2"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has max flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("max")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "m", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "m")
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
 	})
 }
 
@@ -120,27 +120,27 @@ func TestGetCommand(t *testing.T) {
 	cmd := newGetCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "get <resource-name>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "get <resource-name>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{"people/c123"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("rejects no arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
 	})
 }
 
@@ -148,33 +148,33 @@ func TestGroupsCommand(t *testing.T) {
 	cmd := newGroupsCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "groups", cmd.Use)
+		testutil.Equal(t, cmd.Use, "groups")
 	})
 
 	t.Run("requires no arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("rejects arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{"extra"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has max flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("max")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "m", flag.Shorthand)
-		assert.Equal(t, "30", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "m")
+		testutil.Equal(t, flag.DefValue, "30")
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
 	})
 }

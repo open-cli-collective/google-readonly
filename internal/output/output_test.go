@@ -5,8 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestJSON(t *testing.T) {
@@ -41,8 +40,8 @@ func TestJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			err := JSON(&buf, tt.data)
-			require.NoError(t, err)
-			assert.Equal(t, tt.expected, buf.String())
+			testutil.NoError(t, err)
+			testutil.Equal(t, buf.String(), tt.expected)
 		})
 	}
 }
@@ -58,12 +57,12 @@ func TestJSON_indentation(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := JSON(&buf, data)
-	require.NoError(t, err)
+	testutil.NoError(t, err)
 
 	// Check that indentation uses 2 spaces
 	lines := strings.Split(buf.String(), "\n")
-	assert.True(t, strings.HasPrefix(lines[1], "  "), "expected 2-space indentation")
-	assert.True(t, strings.HasPrefix(lines[2], "    "), "expected 4-space indentation for nested")
+	testutil.True(t, strings.HasPrefix(lines[1], "  "))
+	testutil.True(t, strings.HasPrefix(lines[2], "    "))
 }
 
 func TestJSON_error(t *testing.T) {
@@ -72,5 +71,5 @@ func TestJSON_error(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := JSON(&buf, data)
-	assert.Error(t, err)
+	testutil.Error(t, err)
 }

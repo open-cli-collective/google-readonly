@@ -1,9 +1,11 @@
 package drive
 
 import (
+	"reflect"
+	"slices"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/drive/v3"
 )
 
@@ -23,15 +25,33 @@ func TestParseFile(t *testing.T) {
 
 		result := ParseFile(f)
 
-		assert.Equal(t, "123", result.ID)
-		assert.Equal(t, "test.txt", result.Name)
-		assert.Equal(t, "text/plain", result.MimeType)
-		assert.Equal(t, int64(1024), result.Size)
-		assert.Equal(t, 2024, result.CreatedTime.Year())
-		assert.Equal(t, 2024, result.ModifiedTime.Year())
-		assert.Equal(t, []string{"parent1"}, result.Parents)
-		assert.Equal(t, "https://drive.google.com/file/d/123", result.WebViewLink)
-		assert.True(t, result.Shared)
+		if result.ID != "123" {
+			t.Errorf("got %v, want %v", result.ID, "123")
+		}
+		if result.Name != "test.txt" {
+			t.Errorf("got %v, want %v", result.Name, "test.txt")
+		}
+		if result.MimeType != "text/plain" {
+			t.Errorf("got %v, want %v", result.MimeType, "text/plain")
+		}
+		if result.Size != int64(1024) {
+			t.Errorf("got %v, want %v", result.Size, int64(1024))
+		}
+		if result.CreatedTime.Year() != 2024 {
+			t.Errorf("got %v, want %v", result.CreatedTime.Year(), 2024)
+		}
+		if result.ModifiedTime.Year() != 2024 {
+			t.Errorf("got %v, want %v", result.ModifiedTime.Year(), 2024)
+		}
+		if !reflect.DeepEqual(result.Parents, []string{"parent1"}) {
+			t.Errorf("got %v, want %v", result.Parents, []string{"parent1"})
+		}
+		if result.WebViewLink != "https://drive.google.com/file/d/123" {
+			t.Errorf("got %v, want %v", result.WebViewLink, "https://drive.google.com/file/d/123")
+		}
+		if !result.Shared {
+			t.Error("got false, want true")
+		}
 	})
 
 	t.Run("parses file with owners", func(t *testing.T) {
@@ -47,7 +67,10 @@ func TestParseFile(t *testing.T) {
 
 		result := ParseFile(f)
 
-		assert.Equal(t, []string{"owner1@example.com", "owner2@example.com"}, result.Owners)
+		expected := []string{"owner1@example.com", "owner2@example.com"}
+		if !reflect.DeepEqual(result.Owners, expected) {
+			t.Errorf("got %v, want %v", result.Owners, expected)
+		}
 	})
 
 	t.Run("handles empty timestamps", func(t *testing.T) {
@@ -61,8 +84,12 @@ func TestParseFile(t *testing.T) {
 
 		result := ParseFile(f)
 
-		assert.True(t, result.CreatedTime.IsZero())
-		assert.True(t, result.ModifiedTime.IsZero())
+		if !result.CreatedTime.IsZero() {
+			t.Error("got false, want true")
+		}
+		if !result.ModifiedTime.IsZero() {
+			t.Error("got false, want true")
+		}
 	})
 
 	t.Run("handles malformed timestamps", func(t *testing.T) {
@@ -76,8 +103,12 @@ func TestParseFile(t *testing.T) {
 
 		result := ParseFile(f)
 
-		assert.True(t, result.CreatedTime.IsZero())
-		assert.True(t, result.ModifiedTime.IsZero())
+		if !result.CreatedTime.IsZero() {
+			t.Error("got false, want true")
+		}
+		if !result.ModifiedTime.IsZero() {
+			t.Error("got false, want true")
+		}
 	})
 
 	t.Run("handles nil owners", func(t *testing.T) {
@@ -90,7 +121,9 @@ func TestParseFile(t *testing.T) {
 
 		result := ParseFile(f)
 
-		assert.Nil(t, result.Owners)
+		if result.Owners != nil {
+			t.Errorf("got %v, want nil", result.Owners)
+		}
 	})
 
 	t.Run("handles empty owners slice", func(t *testing.T) {
@@ -103,7 +136,9 @@ func TestParseFile(t *testing.T) {
 
 		result := ParseFile(f)
 
-		assert.Nil(t, result.Owners)
+		if result.Owners != nil {
+			t.Errorf("got %v, want nil", result.Owners)
+		}
 	})
 }
 
@@ -142,7 +177,9 @@ func TestGetTypeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.mimeType, func(t *testing.T) {
 			result := GetTypeName(tt.mimeType)
-			assert.Equal(t, tt.expected, result)
+			if result != tt.expected {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
 		})
 	}
 }
@@ -159,7 +196,9 @@ func TestIsGoogleWorkspaceFile(t *testing.T) {
 		}
 
 		for _, mimeType := range workspaceTypes {
-			assert.True(t, IsGoogleWorkspaceFile(mimeType), "expected true for %s", mimeType)
+			if !IsGoogleWorkspaceFile(mimeType) {
+				t.Errorf("got false, want true for %s", mimeType)
+			}
 		}
 	})
 
@@ -175,7 +214,9 @@ func TestIsGoogleWorkspaceFile(t *testing.T) {
 		}
 
 		for _, mimeType := range nonWorkspaceTypes {
-			assert.False(t, IsGoogleWorkspaceFile(mimeType), "expected false for %s", mimeType)
+			if IsGoogleWorkspaceFile(mimeType) {
+				t.Errorf("got true, want false for %s", mimeType)
+			}
 		}
 	})
 }
@@ -196,8 +237,12 @@ func TestGetExportMimeType(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.format, func(t *testing.T) {
 				result, err := GetExportMimeType(MimeTypeDocument, tt.format)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("got %v, want %v", result, tt.expected)
+				}
 			})
 		}
 	})
@@ -215,61 +260,97 @@ func TestGetExportMimeType(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.format, func(t *testing.T) {
 				result, err := GetExportMimeType(MimeTypeSpreadsheet, tt.format)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("got %v, want %v", result, tt.expected)
+				}
 			})
 		}
 	})
 
 	t.Run("returns correct MIME type for Presentation exports", func(t *testing.T) {
 		result, err := GetExportMimeType(MimeTypePresentation, "pptx")
-		assert.NoError(t, err)
-		assert.Equal(t, "application/vnd.openxmlformats-officedocument.presentationml.presentation", result)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "application/vnd.openxmlformats-officedocument.presentationml.presentation" {
+			t.Errorf("got %v, want %v", result, "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+		}
 	})
 
 	t.Run("returns correct MIME type for Drawing exports", func(t *testing.T) {
 		result, err := GetExportMimeType(MimeTypeDrawing, "png")
-		assert.NoError(t, err)
-		assert.Equal(t, "image/png", result)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "image/png" {
+			t.Errorf("got %v, want %v", result, "image/png")
+		}
 	})
 
 	t.Run("returns error for unsupported format", func(t *testing.T) {
 		_, err := GetExportMimeType(MimeTypeDocument, "xyz")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not supported")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "not supported") {
+			t.Errorf("expected %q to contain %q", err.Error(), "not supported")
+		}
 	})
 
 	t.Run("returns error for non-exportable file type", func(t *testing.T) {
 		_, err := GetExportMimeType("application/pdf", "docx")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "does not support export")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "does not support export") {
+			t.Errorf("expected %q to contain %q", err.Error(), "does not support export")
+		}
 	})
 
 	t.Run("returns error for format not matching file type", func(t *testing.T) {
 		// csv is valid for spreadsheets but not documents
 		_, err := GetExportMimeType(MimeTypeDocument, "csv")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not supported for Google Document")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "not supported for Google Document") {
+			t.Errorf("expected %q to contain %q", err.Error(), "not supported for Google Document")
+		}
 	})
 }
 
 func TestGetSupportedExportFormats(t *testing.T) {
 	t.Run("returns formats for Document", func(t *testing.T) {
 		formats := GetSupportedExportFormats(MimeTypeDocument)
-		assert.Contains(t, formats, "pdf")
-		assert.Contains(t, formats, "docx")
-		assert.Contains(t, formats, "txt")
+		if !slices.Contains(formats, "pdf") {
+			t.Errorf("expected formats to contain %q", "pdf")
+		}
+		if !slices.Contains(formats, "docx") {
+			t.Errorf("expected formats to contain %q", "docx")
+		}
+		if !slices.Contains(formats, "txt") {
+			t.Errorf("expected formats to contain %q", "txt")
+		}
 	})
 
 	t.Run("returns formats for Spreadsheet", func(t *testing.T) {
 		formats := GetSupportedExportFormats(MimeTypeSpreadsheet)
-		assert.Contains(t, formats, "xlsx")
-		assert.Contains(t, formats, "csv")
+		if !slices.Contains(formats, "xlsx") {
+			t.Errorf("expected formats to contain %q", "xlsx")
+		}
+		if !slices.Contains(formats, "csv") {
+			t.Errorf("expected formats to contain %q", "csv")
+		}
 	})
 
 	t.Run("returns nil for non-exportable file", func(t *testing.T) {
 		formats := GetSupportedExportFormats("application/pdf")
-		assert.Nil(t, formats)
+		if formats != nil {
+			t.Errorf("got %v, want nil", formats)
+		}
 	})
 }
 
@@ -295,7 +376,9 @@ func TestGetFileExtension(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.format, func(t *testing.T) {
 			result := GetFileExtension(tt.format)
-			assert.Equal(t, tt.expected, result)
+			if result != tt.expected {
+				t.Errorf("got %v, want %v", result, tt.expected)
+			}
 		})
 	}
 }

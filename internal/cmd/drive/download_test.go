@@ -3,68 +3,68 @@ package drive
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestDownloadCommand(t *testing.T) {
 	cmd := newDownloadCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "download <file-id>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "download <file-id>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 
 		err = cmd.Args(cmd, []string{"file-id"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 
 		err = cmd.Args(cmd, []string{"file-id", "extra"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has output flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("output")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "o", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "o")
 	})
 
 	t.Run("has format flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("format")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "f", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "f")
 	})
 
 	t.Run("has stdout flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("stdout")
-		assert.NotNil(t, flag)
+		testutil.NotNil(t, flag)
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.Contains(t, cmd.Short, "Download")
+		testutil.Contains(t, cmd.Short, "Download")
 	})
 }
 
 func TestDetermineOutputPath(t *testing.T) {
 	t.Run("uses user-specified output path", func(t *testing.T) {
 		result := determineOutputPath("original.doc", "pdf", "/custom/path.pdf")
-		assert.Equal(t, "/custom/path.pdf", result)
+		testutil.Equal(t, result, "/custom/path.pdf")
 	})
 
 	t.Run("uses original name when no format or output", func(t *testing.T) {
 		result := determineOutputPath("document.pdf", "", "")
-		assert.Equal(t, "document.pdf", result)
+		testutil.Equal(t, result, "document.pdf")
 	})
 
 	t.Run("replaces extension when format specified", func(t *testing.T) {
 		result := determineOutputPath("Report", "pdf", "")
-		assert.Equal(t, "Report.pdf", result)
+		testutil.Equal(t, result, "Report.pdf")
 	})
 
 	t.Run("replaces existing extension when format specified", func(t *testing.T) {
 		result := determineOutputPath("Report.gdoc", "docx", "")
-		assert.Equal(t, "Report.docx", result)
+		testutil.Equal(t, result, "Report.docx")
 	})
 
 	t.Run("handles various export formats", func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestDetermineOutputPath(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.format, func(t *testing.T) {
 				result := determineOutputPath(tt.name, tt.format, "")
-				assert.Equal(t, tt.expected, result)
+				testutil.Equal(t, result, tt.expected)
 			})
 		}
 	})

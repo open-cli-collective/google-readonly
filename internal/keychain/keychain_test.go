@@ -2,13 +2,14 @@ package keychain
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
 	"github.com/open-cli-collective/google-readonly/internal/config"
@@ -33,17 +34,29 @@ func TestConfigFile_TokenRoundTrip(t *testing.T) {
 
 	// Store token
 	err := setInConfigFile(token)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Retrieve token
 	retrieved, err := getFromConfigFile()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	assert.Equal(t, token.AccessToken, retrieved.AccessToken)
-	assert.Equal(t, token.RefreshToken, retrieved.RefreshToken)
-	assert.Equal(t, token.TokenType, retrieved.TokenType)
+	if retrieved.AccessToken != token.AccessToken {
+		t.Errorf("got %v, want %v", retrieved.AccessToken, token.AccessToken)
+	}
+	if retrieved.RefreshToken != token.RefreshToken {
+		t.Errorf("got %v, want %v", retrieved.RefreshToken, token.RefreshToken)
+	}
+	if retrieved.TokenType != token.TokenType {
+		t.Errorf("got %v, want %v", retrieved.TokenType, token.TokenType)
+	}
 	// Compare times with tolerance for JSON marshaling
-	assert.WithinDuration(t, token.Expiry, retrieved.Expiry, time.Second)
+	if diff := token.Expiry.Sub(retrieved.Expiry); diff < -time.Second || diff > time.Second {
+		t.Errorf("times differ by %v, max allowed %v", diff, time.Second)
+	}
 }
 
 func TestConfigFile_Permissions(t *testing.T) {
@@ -61,15 +74,21 @@ func TestConfigFile_Permissions(t *testing.T) {
 	}
 
 	err := setInConfigFile(token)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Check file permissions
 	path := filepath.Join(tmpDir, serviceName, config.TokenFile)
 	info, err := os.Stat(path)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Verify 0600 permissions (read/write for owner only)
-	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	if info.Mode().Perm() != os.FileMode(0600) {
+		t.Errorf("got %v, want %v", info.Mode().Perm(), os.FileMode(0600))
+	}
 }
 
 func TestConfigFile_DirectoryPermissions(t *testing.T) {
@@ -87,15 +106,21 @@ func TestConfigFile_DirectoryPermissions(t *testing.T) {
 	}
 
 	err := setInConfigFile(token)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Check directory permissions
 	dir := filepath.Join(tmpDir, serviceName)
 	info, err := os.Stat(dir)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Verify 0700 permissions (read/write/execute for owner only)
-	assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+	if info.Mode().Perm() != os.FileMode(0700) {
+		t.Errorf("got %v, want %v", info.Mode().Perm(), os.FileMode(0700))
+	}
 }
 
 func TestConfigFile_NotFound(t *testing.T) {
@@ -108,7 +133,9 @@ func TestConfigFile_NotFound(t *testing.T) {
 	defer os.Setenv("XDG_CONFIG_HOME", originalXDG)
 
 	_, err := getFromConfigFile()
-	assert.ErrorIs(t, err, ErrTokenNotFound)
+	if !errors.Is(err, ErrTokenNotFound) {
+		t.Errorf("got %v, want %v", err, ErrTokenNotFound)
+	}
 }
 
 func TestConfigFile_InvalidJSON(t *testing.T) {
@@ -123,16 +150,24 @@ func TestConfigFile_InvalidJSON(t *testing.T) {
 	// Create config directory
 	configDir := filepath.Join(tmpDir, serviceName)
 	err := os.MkdirAll(configDir, 0700)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Write invalid JSON
 	path := filepath.Join(configDir, config.TokenFile)
 	err = os.WriteFile(path, []byte("invalid json"), 0600)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	_, err = getFromConfigFile()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse token file")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to parse token file") {
+		t.Errorf("expected %q to contain %q", err.Error(), "failed to parse token file")
+	}
 }
 
 func TestConfigFile_Overwrite(t *testing.T) {
@@ -150,7 +185,9 @@ func TestConfigFile_Overwrite(t *testing.T) {
 		TokenType:   "Bearer",
 	}
 	err := setInConfigFile(token1)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Store second token
 	token2 := &oauth2.Token{
@@ -158,12 +195,18 @@ func TestConfigFile_Overwrite(t *testing.T) {
 		TokenType:   "Bearer",
 	}
 	err = setInConfigFile(token2)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Retrieve should return second token
 	retrieved, err := getFromConfigFile()
-	require.NoError(t, err)
-	assert.Equal(t, "second-token", retrieved.AccessToken)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrieved.AccessToken != "second-token" {
+		t.Errorf("got %v, want %v", retrieved.AccessToken, "second-token")
+	}
 }
 
 func TestConfigFile_Delete(t *testing.T) {
@@ -181,15 +224,21 @@ func TestConfigFile_Delete(t *testing.T) {
 		TokenType:   "Bearer",
 	}
 	err := setInConfigFile(token)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Delete token
 	err = deleteFromConfigFile()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Should be gone
 	_, err = getFromConfigFile()
-	assert.ErrorIs(t, err, ErrTokenNotFound)
+	if !errors.Is(err, ErrTokenNotFound) {
+		t.Errorf("got %v, want %v", err, ErrTokenNotFound)
+	}
 }
 
 func TestConfigFile_DeleteNonExistent(t *testing.T) {
@@ -203,13 +252,17 @@ func TestConfigFile_DeleteNonExistent(t *testing.T) {
 
 	// Delete should not error on non-existent file
 	err := deleteFromConfigFile()
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 func TestMigrateFromFile_NoFile(t *testing.T) {
 	// Migration should succeed (no-op) when file doesn't exist
 	err := MigrateFromFile("/nonexistent/path/token.json")
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 func TestMigrateFromFile_InvalidJSON(t *testing.T) {
@@ -232,7 +285,9 @@ func TestMigrateFromFile_InvalidJSON(t *testing.T) {
 	// Create temp file with invalid JSON
 	tokenPath := filepath.Join(tmpDir, "token.json")
 	err := os.WriteFile(tokenPath, []byte("invalid json"), 0600)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// If secure storage has a token (e.g., from real keychain), migration is skipped
 	// In that case, we test the direct file parsing instead
@@ -241,8 +296,12 @@ func TestMigrateFromFile_InvalidJSON(t *testing.T) {
 	}
 
 	err = MigrateFromFile(tokenPath)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse token file")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to parse token file") {
+		t.Errorf("expected %q to contain %q", err.Error(), "failed to parse token file")
+	}
 }
 
 func TestMigrateFromFile_Success(t *testing.T) {
@@ -273,30 +332,44 @@ func TestMigrateFromFile_Success(t *testing.T) {
 	}
 	tokenPath := filepath.Join(tmpDir, "token.json")
 	data, err := json.Marshal(token)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	err = os.WriteFile(tokenPath, data, 0600)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Run migration
 	err = MigrateFromFile(tokenPath)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Verify token was stored (uses GetToken to check all backends)
 	retrieved, err := GetToken()
-	require.NoError(t, err)
-	assert.Equal(t, "migrated-token", retrieved.AccessToken)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrieved.AccessToken != "migrated-token" {
+		t.Errorf("got %v, want %v", retrieved.AccessToken, "migrated-token")
+	}
 
 	// Clean up: delete the token we just stored
 	defer DeleteToken()
 
 	// Verify original file was securely deleted (not renamed to backup)
 	_, err = os.Stat(tokenPath)
-	assert.True(t, os.IsNotExist(err), "original token file should be deleted")
+	if !os.IsNotExist(err) {
+		t.Error("original token file should be deleted")
+	}
 
 	// Verify no backup file was created (secure delete, not rename)
 	backupPath := tokenPath + ".backup"
 	_, err = os.Stat(backupPath)
-	assert.True(t, os.IsNotExist(err), "backup file should not exist (secure delete)")
+	if !os.IsNotExist(err) {
+		t.Error("backup file should not exist (secure delete)")
+	}
 }
 
 func TestHasStoredToken_ConfigFile(t *testing.T) {
@@ -314,7 +387,9 @@ func TestHasStoredToken_ConfigFile(t *testing.T) {
 
 	// Should return error when no token file
 	_, err := getFromConfigFile()
-	assert.ErrorIs(t, err, ErrTokenNotFound)
+	if !errors.Is(err, ErrTokenNotFound) {
+		t.Errorf("got %v, want %v", err, ErrTokenNotFound)
+	}
 
 	// Store a token in config file
 	token := &oauth2.Token{
@@ -322,24 +397,40 @@ func TestHasStoredToken_ConfigFile(t *testing.T) {
 		TokenType:   "Bearer",
 	}
 	err = setInConfigFile(token)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Should successfully retrieve from config file
 	retrieved, err := getFromConfigFile()
-	require.NoError(t, err)
-	assert.Equal(t, "test-token", retrieved.AccessToken)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrieved.AccessToken != "test-token" {
+		t.Errorf("got %v, want %v", retrieved.AccessToken, "test-token")
+	}
 }
 
 func TestGetStorageBackend(t *testing.T) {
 	// Just verify it returns a valid backend
 	backend := GetStorageBackend()
-	assert.Contains(t, []StorageBackend{BackendKeychain, BackendSecretTool, BackendFile}, backend)
+	validBackends := []StorageBackend{BackendKeychain, BackendSecretTool, BackendFile}
+	found := false
+	for _, v := range validBackends {
+		if v == backend {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("got %v, want one of %v", backend, validBackends)
+	}
 }
 
 func TestIsSecureStorage(t *testing.T) {
 	// This will vary by platform - just verify it returns a bool
-	result := IsSecureStorage()
-	assert.IsType(t, true, result)
+	// Go enforces the type at compile time, so no runtime check needed
+	_ = IsSecureStorage()
 }
 
 func TestTokenFilePath(t *testing.T) {
@@ -348,17 +439,25 @@ func TestTokenFilePath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	path, err := tokenFilePath()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	configPath, err := config.GetTokenPath()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	assert.Equal(t, configPath, path)
+	if path != configPath {
+		t.Errorf("got %v, want %v", path, configPath)
+	}
 }
 
 func TestServiceNameConstant(t *testing.T) {
 	// Verify serviceName matches config.DirName
-	assert.Equal(t, config.DirName, serviceName)
+	if serviceName != config.DirName {
+		t.Errorf("got %v, want %v", serviceName, config.DirName)
+	}
 }
 
 func TestSecureDelete(t *testing.T) {
@@ -369,25 +468,35 @@ func TestSecureDelete(t *testing.T) {
 		// Create file with sensitive data
 		sensitiveData := []byte("super secret token data")
 		err := os.WriteFile(path, sensitiveData, 0600)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Verify file exists
 		_, err = os.Stat(path)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Secure delete
 		err = secureDelete(path)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Verify file is gone
 		_, err = os.Stat(path)
-		assert.True(t, os.IsNotExist(err))
+		if !os.IsNotExist(err) {
+			t.Error("got false, want true")
+		}
 	})
 
 	t.Run("handles non-existent file", func(t *testing.T) {
 		// Should not error on non-existent file
 		err := secureDelete("/nonexistent/path/file.txt")
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 	})
 
 	t.Run("overwrites file content before deletion", func(t *testing.T) {
@@ -397,50 +506,70 @@ func TestSecureDelete(t *testing.T) {
 		// Create file with known content
 		sensitiveData := []byte("secret123456")
 		err := os.WriteFile(path, sensitiveData, 0600)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Get file size before deletion
 		info, err := os.Stat(path)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		originalSize := info.Size()
 
 		// Create a copy to verify overwrite behavior
 		// We'll use a custom path that we keep open to observe the overwrite
 		copyPath := filepath.Join(tmpDir, "observe.txt")
 		err = os.WriteFile(copyPath, sensitiveData, 0600)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Open the file to observe content after overwrite but before unlink
 		// This simulates what forensic tools would see
 		f, err := os.OpenFile(copyPath, os.O_RDWR, 0)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// Overwrite with zeros (simulating what secureDelete does)
 		zeros := make([]byte, originalSize)
 		_, err = f.Write(zeros)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		_ = f.Sync()
 
 		// Read back - should be all zeros
 		_, err = f.Seek(0, 0)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		content := make([]byte, originalSize)
 		_, err = f.Read(content)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		f.Close()
 
 		// Verify content is all zeros
 		for i, b := range content {
-			assert.Equal(t, byte(0), b, "byte %d should be zero", i)
+			if b != byte(0) {
+				t.Errorf("byte %d: got %v, want %v", i, b, byte(0))
+			}
 		}
 
 		// Now test actual secureDelete
 		err = secureDelete(path)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// File should be gone
 		_, err = os.Stat(path)
-		assert.True(t, os.IsNotExist(err))
+		if !os.IsNotExist(err) {
+			t.Error("got false, want true")
+		}
 	})
 }
 
@@ -476,12 +605,20 @@ func TestPersistentTokenSource_NoChange(t *testing.T) {
 
 	// Call Token()
 	token, err := pts.Token()
-	require.NoError(t, err)
-	assert.Equal(t, "initial-token", token.AccessToken)
-	assert.Equal(t, 1, mock.calls)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token.AccessToken != "initial-token" {
+		t.Errorf("got %v, want %v", token.AccessToken, "initial-token")
+	}
+	if mock.calls != 1 {
+		t.Errorf("got %v, want %v", mock.calls, 1)
+	}
 
 	// current should remain the same (same pointer)
-	assert.Same(t, initialToken, pts.current)
+	if pts.current != initialToken {
+		t.Errorf("expected same pointer, got different")
+	}
 }
 
 func TestPersistentTokenSource_RefreshUpdatesCurrent(t *testing.T) {
@@ -512,13 +649,23 @@ func TestPersistentTokenSource_RefreshUpdatesCurrent(t *testing.T) {
 
 	// Call Token() - should detect change and update current
 	token, err := pts.Token()
-	require.NoError(t, err)
-	assert.Equal(t, "refreshed-token", token.AccessToken)
-	assert.Equal(t, 1, mock.calls)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token.AccessToken != "refreshed-token" {
+		t.Errorf("got %v, want %v", token.AccessToken, "refreshed-token")
+	}
+	if mock.calls != 1 {
+		t.Errorf("got %v, want %v", mock.calls, 1)
+	}
 
 	// Verify current was updated to the refreshed token
-	assert.Equal(t, "refreshed-token", pts.current.AccessToken)
-	assert.Equal(t, "new-refresh-token", pts.current.RefreshToken)
+	if pts.current.AccessToken != "refreshed-token" {
+		t.Errorf("got %v, want %v", pts.current.AccessToken, "refreshed-token")
+	}
+	if pts.current.RefreshToken != "new-refresh-token" {
+		t.Errorf("got %v, want %v", pts.current.RefreshToken, "new-refresh-token")
+	}
 }
 
 func TestPersistentTokenSource_NilCurrentUpdatesCurrent(t *testing.T) {
@@ -541,19 +688,27 @@ func TestPersistentTokenSource_NilCurrentUpdatesCurrent(t *testing.T) {
 
 	// Call Token() - should detect as change (nil -> token) and update current
 	token, err := pts.Token()
-	require.NoError(t, err)
-	assert.Equal(t, "new-token", token.AccessToken)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token.AccessToken != "new-token" {
+		t.Errorf("got %v, want %v", token.AccessToken, "new-token")
+	}
 
 	// Verify current was set
-	require.NotNil(t, pts.current)
-	assert.Equal(t, "new-token", pts.current.AccessToken)
+	if pts.current == nil {
+		t.Fatal("expected non-nil, got nil")
+	}
+	if pts.current.AccessToken != "new-token" {
+		t.Errorf("got %v, want %v", pts.current.AccessToken, "new-token")
+	}
 }
 
 func TestPersistentTokenSource_BaseError(t *testing.T) {
 	// Mock returns an error
 	mock := &mockTokenSource{
 		token: nil,
-		err:   assert.AnError,
+		err:   fmt.Errorf("mock error"),
 	}
 
 	initialToken := &oauth2.Token{
@@ -569,12 +724,20 @@ func TestPersistentTokenSource_BaseError(t *testing.T) {
 
 	// Call Token() - should propagate error
 	token, err := pts.Token()
-	assert.Error(t, err)
-	assert.Nil(t, token)
-	assert.Equal(t, 1, mock.calls)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if token != nil {
+		t.Errorf("got %v, want nil", token)
+	}
+	if mock.calls != 1 {
+		t.Errorf("got %v, want %v", mock.calls, 1)
+	}
 
 	// current should remain unchanged on error
-	assert.Equal(t, "initial-token", pts.current.AccessToken)
+	if pts.current.AccessToken != "initial-token" {
+		t.Errorf("got %v, want %v", pts.current.AccessToken, "initial-token")
+	}
 }
 
 func TestPersistentTokenSource_MultipleCalls_NoChange(t *testing.T) {
@@ -598,15 +761,23 @@ func TestPersistentTokenSource_MultipleCalls_NoChange(t *testing.T) {
 	// Multiple calls should all succeed
 	for i := 0; i < 3; i++ {
 		token, err := pts.Token()
-		require.NoError(t, err)
-		assert.Equal(t, "stable-token", token.AccessToken)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if token.AccessToken != "stable-token" {
+			t.Errorf("got %v, want %v", token.AccessToken, "stable-token")
+		}
 	}
 
 	// Verify mock was called 3 times
-	assert.Equal(t, 3, mock.calls)
+	if mock.calls != 3 {
+		t.Errorf("got %v, want %v", mock.calls, 3)
+	}
 
 	// current should still be the same
-	assert.Same(t, stableToken, pts.current)
+	if pts.current != stableToken {
+		t.Errorf("expected same pointer, got different")
+	}
 }
 
 func TestPersistentTokenSource_ChangeDetection(t *testing.T) {
@@ -627,24 +798,38 @@ func TestPersistentTokenSource_ChangeDetection(t *testing.T) {
 
 	// First call: nil -> token1 (change detected)
 	_, err := pts.Token()
-	require.NoError(t, err)
-	assert.Equal(t, "token-1", pts.current.AccessToken)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pts.current.AccessToken != "token-1" {
+		t.Errorf("got %v, want %v", pts.current.AccessToken, "token-1")
+	}
 	originalCurrent := pts.current
 
 	// Second call: token1 -> token2 (change detected)
 	mock.token = token2
 	_, err = pts.Token()
-	require.NoError(t, err)
-	assert.Equal(t, "token-2", pts.current.AccessToken)
-	assert.NotSame(t, originalCurrent, pts.current) // current was updated
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pts.current.AccessToken != "token-2" {
+		t.Errorf("got %v, want %v", pts.current.AccessToken, "token-2")
+	}
+	if pts.current == originalCurrent {
+		t.Errorf("expected different pointers, got same")
+	}
 
 	// Third call: token2 -> token3 (same AccessToken, no change)
 	secondCurrent := pts.current
 	mock.token = token3
 	_, err = pts.Token()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	// current should not have changed since AccessToken is the same
-	assert.Same(t, secondCurrent, pts.current)
+	if pts.current != secondCurrent {
+		t.Errorf("expected same pointer, got different")
+	}
 }
 
 func TestPersistentTokenSource_ReturnsCorrectToken(t *testing.T) {
@@ -660,8 +845,12 @@ func TestPersistentTokenSource_ReturnsCorrectToken(t *testing.T) {
 	}
 
 	token, err := pts.Token()
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Should return the token from base, not current
-	assert.Equal(t, "from-base", token.AccessToken)
+	if token.AccessToken != "from-base" {
+		t.Errorf("got %v, want %v", token.AccessToken, "from-base")
+	}
 }

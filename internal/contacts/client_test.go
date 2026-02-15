@@ -2,13 +2,13 @@ package contacts
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestClientStructure(t *testing.T) {
 	t.Run("Client has private service field", func(t *testing.T) {
 		client := &Client{}
-		assert.Nil(t, client.service)
+		if client.service != nil {
+			t.Errorf("got %v, want nil", client.service)
+		}
 	})
 }

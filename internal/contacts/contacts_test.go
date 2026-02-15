@@ -3,7 +3,6 @@ package contacts
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/people/v1"
 )
 
@@ -22,11 +21,21 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Equal(t, "people/c123", contact.ResourceName)
-		assert.Equal(t, "John Doe", contact.DisplayName)
-		assert.Len(t, contact.Names, 1)
-		assert.Equal(t, "John", contact.Names[0].GivenName)
-		assert.Equal(t, "Doe", contact.Names[0].FamilyName)
+		if contact.ResourceName != "people/c123" {
+			t.Errorf("got %v, want %v", contact.ResourceName, "people/c123")
+		}
+		if contact.DisplayName != "John Doe" {
+			t.Errorf("got %v, want %v", contact.DisplayName, "John Doe")
+		}
+		if len(contact.Names) != 1 {
+			t.Errorf("got length %d, want %d", len(contact.Names), 1)
+		}
+		if contact.Names[0].GivenName != "John" {
+			t.Errorf("got %v, want %v", contact.Names[0].GivenName, "John")
+		}
+		if contact.Names[0].FamilyName != "Doe" {
+			t.Errorf("got %v, want %v", contact.Names[0].FamilyName, "Doe")
+		}
 	})
 
 	t.Run("parses contact with email", func(t *testing.T) {
@@ -50,12 +59,24 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Len(t, contact.Emails, 2)
-		assert.Equal(t, "jane@example.com", contact.Emails[0].Value)
-		assert.Equal(t, "work", contact.Emails[0].Type)
-		assert.True(t, contact.Emails[0].Primary)
-		assert.Equal(t, "jane.personal@example.com", contact.Emails[1].Value)
-		assert.False(t, contact.Emails[1].Primary)
+		if len(contact.Emails) != 2 {
+			t.Errorf("got length %d, want %d", len(contact.Emails), 2)
+		}
+		if contact.Emails[0].Value != "jane@example.com" {
+			t.Errorf("got %v, want %v", contact.Emails[0].Value, "jane@example.com")
+		}
+		if contact.Emails[0].Type != "work" {
+			t.Errorf("got %v, want %v", contact.Emails[0].Type, "work")
+		}
+		if !contact.Emails[0].Primary {
+			t.Error("got false, want true")
+		}
+		if contact.Emails[1].Value != "jane.personal@example.com" {
+			t.Errorf("got %v, want %v", contact.Emails[1].Value, "jane.personal@example.com")
+		}
+		if contact.Emails[1].Primary {
+			t.Error("got true, want false")
+		}
 	})
 
 	t.Run("parses contact with phone numbers", func(t *testing.T) {
@@ -69,9 +90,15 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Len(t, contact.Phones, 2)
-		assert.Equal(t, "+1-555-123-4567", contact.Phones[0].Value)
-		assert.Equal(t, "mobile", contact.Phones[0].Type)
+		if len(contact.Phones) != 2 {
+			t.Errorf("got length %d, want %d", len(contact.Phones), 2)
+		}
+		if contact.Phones[0].Value != "+1-555-123-4567" {
+			t.Errorf("got %v, want %v", contact.Phones[0].Value, "+1-555-123-4567")
+		}
+		if contact.Phones[0].Type != "mobile" {
+			t.Errorf("got %v, want %v", contact.Phones[0].Type, "mobile")
+		}
 	})
 
 	t.Run("parses contact with organization", func(t *testing.T) {
@@ -88,10 +115,18 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Len(t, contact.Organizations, 1)
-		assert.Equal(t, "Acme Corp", contact.Organizations[0].Name)
-		assert.Equal(t, "Software Engineer", contact.Organizations[0].Title)
-		assert.Equal(t, "Engineering", contact.Organizations[0].Department)
+		if len(contact.Organizations) != 1 {
+			t.Errorf("got length %d, want %d", len(contact.Organizations), 1)
+		}
+		if contact.Organizations[0].Name != "Acme Corp" {
+			t.Errorf("got %v, want %v", contact.Organizations[0].Name, "Acme Corp")
+		}
+		if contact.Organizations[0].Title != "Software Engineer" {
+			t.Errorf("got %v, want %v", contact.Organizations[0].Title, "Software Engineer")
+		}
+		if contact.Organizations[0].Department != "Engineering" {
+			t.Errorf("got %v, want %v", contact.Organizations[0].Department, "Engineering")
+		}
 	})
 
 	t.Run("parses contact with address", func(t *testing.T) {
@@ -111,10 +146,18 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Len(t, contact.Addresses, 1)
-		assert.Equal(t, "home", contact.Addresses[0].Type)
-		assert.Equal(t, "San Francisco", contact.Addresses[0].City)
-		assert.Equal(t, "94102", contact.Addresses[0].PostalCode)
+		if len(contact.Addresses) != 1 {
+			t.Errorf("got length %d, want %d", len(contact.Addresses), 1)
+		}
+		if contact.Addresses[0].Type != "home" {
+			t.Errorf("got %v, want %v", contact.Addresses[0].Type, "home")
+		}
+		if contact.Addresses[0].City != "San Francisco" {
+			t.Errorf("got %v, want %v", contact.Addresses[0].City, "San Francisco")
+		}
+		if contact.Addresses[0].PostalCode != "94102" {
+			t.Errorf("got %v, want %v", contact.Addresses[0].PostalCode, "94102")
+		}
 	})
 
 	t.Run("parses contact with URLs", func(t *testing.T) {
@@ -128,8 +171,12 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Len(t, contact.URLs, 2)
-		assert.Equal(t, "https://linkedin.com/in/johndoe", contact.URLs[0].Value)
+		if len(contact.URLs) != 2 {
+			t.Errorf("got length %d, want %d", len(contact.URLs), 2)
+		}
+		if contact.URLs[0].Value != "https://linkedin.com/in/johndoe" {
+			t.Errorf("got %v, want %v", contact.URLs[0].Value, "https://linkedin.com/in/johndoe")
+		}
 	})
 
 	t.Run("parses contact with biography", func(t *testing.T) {
@@ -142,7 +189,9 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Equal(t, "A passionate software developer.", contact.Biography)
+		if contact.Biography != "A passionate software developer." {
+			t.Errorf("got %v, want %v", contact.Biography, "A passionate software developer.")
+		}
 	})
 
 	t.Run("parses contact with birthday including year", func(t *testing.T) {
@@ -155,7 +204,9 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Equal(t, "1990-06-15", contact.Birthday)
+		if contact.Birthday != "1990-06-15" {
+			t.Errorf("got %v, want %v", contact.Birthday, "1990-06-15")
+		}
 	})
 
 	t.Run("parses contact with birthday month/day only", func(t *testing.T) {
@@ -168,7 +219,9 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Equal(t, "12-25", contact.Birthday)
+		if contact.Birthday != "12-25" {
+			t.Errorf("got %v, want %v", contact.Birthday, "12-25")
+		}
 	})
 
 	t.Run("parses contact with photo", func(t *testing.T) {
@@ -181,12 +234,16 @@ func TestParseContact(t *testing.T) {
 
 		contact := ParseContact(p)
 
-		assert.Equal(t, "https://example.com/photo.jpg", contact.PhotoURL)
+		if contact.PhotoURL != "https://example.com/photo.jpg" {
+			t.Errorf("got %v, want %v", contact.PhotoURL, "https://example.com/photo.jpg")
+		}
 	})
 
 	t.Run("handles nil person", func(t *testing.T) {
 		contact := ParseContact(nil)
-		assert.Nil(t, contact)
+		if contact != nil {
+			t.Errorf("got %v, want nil", contact)
+		}
 	})
 }
 
@@ -201,15 +258,25 @@ func TestParseContactGroup(t *testing.T) {
 
 		group := ParseContactGroup(g)
 
-		assert.Equal(t, "contactGroups/abc123", group.ResourceName)
-		assert.Equal(t, "Work", group.Name)
-		assert.Equal(t, "USER_CONTACT_GROUP", group.GroupType)
-		assert.Equal(t, int64(42), group.MemberCount)
+		if group.ResourceName != "contactGroups/abc123" {
+			t.Errorf("got %v, want %v", group.ResourceName, "contactGroups/abc123")
+		}
+		if group.Name != "Work" {
+			t.Errorf("got %v, want %v", group.Name, "Work")
+		}
+		if group.GroupType != "USER_CONTACT_GROUP" {
+			t.Errorf("got %v, want %v", group.GroupType, "USER_CONTACT_GROUP")
+		}
+		if group.MemberCount != int64(42) {
+			t.Errorf("got %v, want %v", group.MemberCount, int64(42))
+		}
 	})
 
 	t.Run("handles nil group", func(t *testing.T) {
 		group := ParseContactGroup(nil)
-		assert.Nil(t, group)
+		if group != nil {
+			t.Errorf("got %v, want nil", group)
+		}
 	})
 }
 
@@ -219,7 +286,9 @@ func TestContactGetDisplayName(t *testing.T) {
 			ResourceName: "people/c1",
 			DisplayName:  "John Doe",
 		}
-		assert.Equal(t, "John Doe", c.GetDisplayName())
+		if c.GetDisplayName() != "John Doe" {
+			t.Errorf("got %v, want %v", c.GetDisplayName(), "John Doe")
+		}
 	})
 
 	t.Run("falls back to names array", func(t *testing.T) {
@@ -229,7 +298,9 @@ func TestContactGetDisplayName(t *testing.T) {
 				{DisplayName: "Jane Smith"},
 			},
 		}
-		assert.Equal(t, "Jane Smith", c.GetDisplayName())
+		if c.GetDisplayName() != "Jane Smith" {
+			t.Errorf("got %v, want %v", c.GetDisplayName(), "Jane Smith")
+		}
 	})
 
 	t.Run("falls back to email", func(t *testing.T) {
@@ -239,14 +310,18 @@ func TestContactGetDisplayName(t *testing.T) {
 				{Value: "test@example.com"},
 			},
 		}
-		assert.Equal(t, "test@example.com", c.GetDisplayName())
+		if c.GetDisplayName() != "test@example.com" {
+			t.Errorf("got %v, want %v", c.GetDisplayName(), "test@example.com")
+		}
 	})
 
 	t.Run("falls back to resource name", func(t *testing.T) {
 		c := &Contact{
 			ResourceName: "people/c4",
 		}
-		assert.Equal(t, "people/c4", c.GetDisplayName())
+		if c.GetDisplayName() != "people/c4" {
+			t.Errorf("got %v, want %v", c.GetDisplayName(), "people/c4")
+		}
 	})
 }
 
@@ -258,7 +333,9 @@ func TestContactGetPrimaryEmail(t *testing.T) {
 				{Value: "primary@example.com", Primary: true},
 			},
 		}
-		assert.Equal(t, "primary@example.com", c.GetPrimaryEmail())
+		if c.GetPrimaryEmail() != "primary@example.com" {
+			t.Errorf("got %v, want %v", c.GetPrimaryEmail(), "primary@example.com")
+		}
 	})
 
 	t.Run("returns first email when no primary", func(t *testing.T) {
@@ -268,12 +345,16 @@ func TestContactGetPrimaryEmail(t *testing.T) {
 				{Value: "second@example.com"},
 			},
 		}
-		assert.Equal(t, "first@example.com", c.GetPrimaryEmail())
+		if c.GetPrimaryEmail() != "first@example.com" {
+			t.Errorf("got %v, want %v", c.GetPrimaryEmail(), "first@example.com")
+		}
 	})
 
 	t.Run("returns empty string when no emails", func(t *testing.T) {
 		c := &Contact{}
-		assert.Equal(t, "", c.GetPrimaryEmail())
+		if c.GetPrimaryEmail() != "" {
+			t.Errorf("got %v, want %v", c.GetPrimaryEmail(), "")
+		}
 	})
 }
 
@@ -285,12 +366,16 @@ func TestContactGetPrimaryPhone(t *testing.T) {
 				{Value: "+1-555-987-6543"},
 			},
 		}
-		assert.Equal(t, "+1-555-123-4567", c.GetPrimaryPhone())
+		if c.GetPrimaryPhone() != "+1-555-123-4567" {
+			t.Errorf("got %v, want %v", c.GetPrimaryPhone(), "+1-555-123-4567")
+		}
 	})
 
 	t.Run("returns empty string when no phones", func(t *testing.T) {
 		c := &Contact{}
-		assert.Equal(t, "", c.GetPrimaryPhone())
+		if c.GetPrimaryPhone() != "" {
+			t.Errorf("got %v, want %v", c.GetPrimaryPhone(), "")
+		}
 	})
 }
 
@@ -301,7 +386,9 @@ func TestContactGetOrganization(t *testing.T) {
 				{Name: "Acme Corp", Title: "Engineer"},
 			},
 		}
-		assert.Equal(t, "Acme Corp", c.GetOrganization())
+		if c.GetOrganization() != "Acme Corp" {
+			t.Errorf("got %v, want %v", c.GetOrganization(), "Acme Corp")
+		}
 	})
 
 	t.Run("returns title when no name", func(t *testing.T) {
@@ -310,12 +397,16 @@ func TestContactGetOrganization(t *testing.T) {
 				{Title: "Freelance Developer"},
 			},
 		}
-		assert.Equal(t, "Freelance Developer", c.GetOrganization())
+		if c.GetOrganization() != "Freelance Developer" {
+			t.Errorf("got %v, want %v", c.GetOrganization(), "Freelance Developer")
+		}
 	})
 
 	t.Run("returns empty string when no organizations", func(t *testing.T) {
 		c := &Contact{}
-		assert.Equal(t, "", c.GetOrganization())
+		if c.GetOrganization() != "" {
+			t.Errorf("got %v, want %v", c.GetOrganization(), "")
+		}
 	})
 }
 
@@ -335,7 +426,9 @@ func TestFormatDate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatDate(tt.year, tt.month, tt.day)
-			assert.Equal(t, tt.expect, result)
+			if result != tt.expect {
+				t.Errorf("got %v, want %v", result, tt.expect)
+			}
 		})
 	}
 }
@@ -355,7 +448,9 @@ func TestFormatMonthDay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatMonthDay(tt.month, tt.day)
-			assert.Equal(t, tt.expect, result)
+			if result != tt.expect {
+				t.Errorf("got %v, want %v", result, tt.expect)
+			}
 		})
 	}
 }

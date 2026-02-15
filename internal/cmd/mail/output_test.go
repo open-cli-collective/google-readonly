@@ -3,16 +3,16 @@ package mail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestMessagePrintOptions(t *testing.T) {
 	t.Run("default options are all false", func(t *testing.T) {
 		opts := MessagePrintOptions{}
-		assert.False(t, opts.IncludeThreadID)
-		assert.False(t, opts.IncludeTo)
-		assert.False(t, opts.IncludeSnippet)
-		assert.False(t, opts.IncludeBody)
+		testutil.False(t, opts.IncludeThreadID)
+		testutil.False(t, opts.IncludeTo)
+		testutil.False(t, opts.IncludeSnippet)
+		testutil.False(t, opts.IncludeBody)
 	})
 
 	t.Run("options can be set individually", func(t *testing.T) {
@@ -20,9 +20,9 @@ func TestMessagePrintOptions(t *testing.T) {
 			IncludeThreadID: true,
 			IncludeBody:     true,
 		}
-		assert.True(t, opts.IncludeThreadID)
-		assert.False(t, opts.IncludeTo)
-		assert.False(t, opts.IncludeSnippet)
-		assert.True(t, opts.IncludeBody)
+		testutil.True(t, opts.IncludeThreadID)
+		testutil.False(t, opts.IncludeTo)
+		testutil.False(t, opts.IncludeSnippet)
+		testutil.True(t, opts.IncludeBody)
 	})
 }

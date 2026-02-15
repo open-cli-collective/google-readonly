@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 )
 
 func TestDebug_WhenVerboseTrue(t *testing.T) {
@@ -29,8 +28,12 @@ func TestDebug_WhenVerboseTrue(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	assert.Contains(t, output, "[DEBUG]")
-	assert.Contains(t, output, "test message 42")
+	if !strings.Contains(output, "[DEBUG]") {
+		t.Errorf("expected %q to contain %q", output, "[DEBUG]")
+	}
+	if !strings.Contains(output, "test message 42") {
+		t.Errorf("expected %q to contain %q", output, "test message 42")
+	}
 }
 
 func TestDebug_WhenVerboseFalse(t *testing.T) {
@@ -53,7 +56,9 @@ func TestDebug_WhenVerboseFalse(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	assert.Empty(t, output)
+	if output != "" {
+		t.Errorf("got %q, want empty string", output)
+	}
 }
 
 func TestInfo(t *testing.T) {
@@ -70,8 +75,12 @@ func TestInfo(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	assert.Equal(t, "info message test\n", output)
-	assert.False(t, strings.Contains(output, "[INFO]")) // No prefix for info
+	if output != "info message test\n" {
+		t.Errorf("got %v, want %v", output, "info message test\n")
+	}
+	if strings.Contains(output, "[INFO]") {
+		t.Error("got true, want false")
+	} // No prefix for info
 }
 
 func TestWarn(t *testing.T) {
@@ -88,8 +97,12 @@ func TestWarn(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	assert.Contains(t, output, "[WARN]")
-	assert.Contains(t, output, "warning: something")
+	if !strings.Contains(output, "[WARN]") {
+		t.Errorf("expected %q to contain %q", output, "[WARN]")
+	}
+	if !strings.Contains(output, "warning: something") {
+		t.Errorf("expected %q to contain %q", output, "warning: something")
+	}
 }
 
 func TestError(t *testing.T) {
@@ -106,6 +119,10 @@ func TestError(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	assert.Contains(t, output, "[ERROR]")
-	assert.Contains(t, output, "error occurred: failure")
+	if !strings.Contains(output, "[ERROR]") {
+		t.Errorf("expected %q to contain %q", output, "[ERROR]")
+	}
+	if !strings.Contains(output, "error occurred: failure") {
+		t.Errorf("expected %q to contain %q", output, "error occurred: failure")
+	}
 }

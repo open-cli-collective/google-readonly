@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -63,11 +64,21 @@ func Len[T any](t testing.TB, slice []T, want int) {
 }
 
 // Nil checks that val is nil.
+// Uses reflection to handle nil slices, maps, pointers, channels, and functions
+// that appear non-nil when boxed into an interface.
 func Nil(t testing.TB, val any) {
 	t.Helper()
-	if val != nil {
-		t.Errorf("got %v, want nil", val)
+	if val == nil {
+		return
 	}
+	v := reflect.ValueOf(val)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func, reflect.Interface:
+		if v.IsNil() {
+			return
+		}
+	}
+	t.Errorf("got %v, want nil", val)
 }
 
 // NotNil fails the test immediately if val is nil.
@@ -131,5 +142,25 @@ func Less(t testing.TB, a, b int) {
 	t.Helper()
 	if a >= b {
 		t.Errorf("got %d, want less than %d", a, b)
+	}
+}
+
+// SliceContains checks that the slice contains the target value.
+func SliceContains[T comparable](t testing.TB, slice []T, target T) {
+	t.Helper()
+	for _, v := range slice {
+		if v == target {
+			return
+		}
+	}
+	t.Errorf("slice %v does not contain %v", slice, target)
+}
+
+// LenSlice checks that an arbitrary slice has the expected length.
+// Use this when Len's type parameter cannot be inferred.
+func LenSlice(t testing.TB, length, want int) {
+	t.Helper()
+	if length != want {
+		t.Errorf("got length %d, want %d", length, want)
 	}
 }

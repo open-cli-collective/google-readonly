@@ -3,7 +3,7 @@ package format
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestTruncate(t *testing.T) {
@@ -24,7 +24,7 @@ func TestTruncate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Truncate(tt.input, tt.maxLen)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
@@ -48,7 +48,7 @@ func TestSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Size(tt.bytes)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }

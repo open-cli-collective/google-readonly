@@ -3,7 +3,7 @@ package mail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestSanitizeOutput(t *testing.T) {
@@ -122,7 +122,7 @@ func TestSanitizeOutput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeOutput(tt.input)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
@@ -183,7 +183,7 @@ func TestSanitizeFilename(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeFilename(tt.input)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
@@ -214,7 +214,7 @@ func TestSanitizeOutput_RealWorldExamples(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeOutput(tt.input)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
