@@ -31,7 +31,7 @@ func GetOAuthConfig() (*oauth2.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := os.ReadFile(credPath)
+	b, err := os.ReadFile(credPath) //nolint:gosec // Path from user config directory
 	if err != nil {
 		return nil, fmt.Errorf("unable to read credentials file: %w", err)
 	}
@@ -77,7 +77,7 @@ func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (
 }
 
 func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
+	f, err := os.Open(file) //nolint:gosec // Path from user config directory
 	if err != nil {
 		return nil, err
 	}

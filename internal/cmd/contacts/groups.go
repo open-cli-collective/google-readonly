@@ -26,7 +26,7 @@ Examples:
   gro contacts groups --max 50
   gro ppl groups --json`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newContactsClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Contacts client: %w", err)

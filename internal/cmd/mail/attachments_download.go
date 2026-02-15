@@ -38,7 +38,7 @@ Examples:
   gro mail attachments download 18abc123def456 --all --output ~/Downloads
   gro mail attachments download 18abc123def456 --filename archive.zip --extract`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if filename == "" && !all {
 				return fmt.Errorf("must specify --filename or --all")
 			}

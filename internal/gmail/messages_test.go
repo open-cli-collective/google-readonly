@@ -544,37 +544,37 @@ func TestParseMessageWithAttachments(t *testing.T) {
 
 func TestExtractLabelsAndCategories(t *testing.T) {
 	t.Run("separates user labels from categories", func(t *testing.T) {
-		labelIds := []string{"Label_1", "CATEGORY_UPDATES", "Label_2", "CATEGORY_SOCIAL"}
+		labelIDs := []string{"Label_1", "CATEGORY_UPDATES", "Label_2", "CATEGORY_SOCIAL"}
 		resolver := func(id string) string { return id }
 
-		labels, categories := extractLabelsAndCategories(labelIds, resolver)
+		labels, categories := extractLabelsAndCategories(labelIDs, resolver)
 
 		assert.ElementsMatch(t, []string{"Label_1", "Label_2"}, labels)
 		assert.ElementsMatch(t, []string{"updates", "social"}, categories)
 	})
 
 	t.Run("filters out system labels", func(t *testing.T) {
-		labelIds := []string{"INBOX", "Label_1", "UNREAD", "STARRED", "IMPORTANT"}
+		labelIDs := []string{"INBOX", "Label_1", "UNREAD", "STARRED", "IMPORTANT"}
 		resolver := func(id string) string { return id }
 
-		labels, categories := extractLabelsAndCategories(labelIds, resolver)
+		labels, categories := extractLabelsAndCategories(labelIDs, resolver)
 
 		assert.Equal(t, []string{"Label_1"}, labels)
 		assert.Empty(t, categories)
 	})
 
 	t.Run("filters out CATEGORY_PERSONAL", func(t *testing.T) {
-		labelIds := []string{"CATEGORY_PERSONAL", "CATEGORY_UPDATES"}
+		labelIDs := []string{"CATEGORY_PERSONAL", "CATEGORY_UPDATES"}
 		resolver := func(id string) string { return id }
 
-		labels, categories := extractLabelsAndCategories(labelIds, resolver)
+		labels, categories := extractLabelsAndCategories(labelIDs, resolver)
 
 		assert.Empty(t, labels)
 		assert.Equal(t, []string{"updates"}, categories)
 	})
 
 	t.Run("uses resolver to translate label IDs", func(t *testing.T) {
-		labelIds := []string{"Label_123", "Label_456"}
+		labelIDs := []string{"Label_123", "Label_456"}
 		resolver := func(id string) string {
 			if id == "Label_123" {
 				return "Work"
@@ -585,16 +585,16 @@ func TestExtractLabelsAndCategories(t *testing.T) {
 			return id
 		}
 
-		labels, categories := extractLabelsAndCategories(labelIds, resolver)
+		labels, categories := extractLabelsAndCategories(labelIDs, resolver)
 
 		assert.ElementsMatch(t, []string{"Work", "Personal"}, labels)
 		assert.Empty(t, categories)
 	})
 
 	t.Run("handles nil resolver", func(t *testing.T) {
-		labelIds := []string{"Label_1", "CATEGORY_SOCIAL"}
+		labelIDs := []string{"Label_1", "CATEGORY_SOCIAL"}
 
-		labels, categories := extractLabelsAndCategories(labelIds, nil)
+		labels, categories := extractLabelsAndCategories(labelIDs, nil)
 
 		assert.Equal(t, []string{"Label_1"}, labels)
 		assert.Equal(t, []string{"social"}, categories)

@@ -160,7 +160,7 @@ func parseMessage(msg *gmail.Message, includeBody bool, resolver LabelResolver) 
 }
 
 // extractLabelsAndCategories separates label IDs into user labels and Gmail categories
-func extractLabelsAndCategories(labelIds []string, resolver LabelResolver) ([]string, []string) {
+func extractLabelsAndCategories(labelIDs []string, resolver LabelResolver) ([]string, []string) {
 	var labels, categories []string
 
 	// System labels to exclude from display
@@ -170,7 +170,7 @@ func extractLabelsAndCategories(labelIds []string, resolver LabelResolver) ([]st
 		"CHAT": true, "CATEGORY_PERSONAL": true,
 	}
 
-	for _, labelID := range labelIds {
+	for _, labelID := range labelIDs {
 		// Check if it's a category
 		if strings.HasPrefix(labelID, "CATEGORY_") {
 			// Convert CATEGORY_UPDATES -> updates

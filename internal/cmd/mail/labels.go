@@ -34,7 +34,7 @@ Examples:
   gro mail labels
   gro mail labels --json`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newGmailClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Gmail client: %w", err)

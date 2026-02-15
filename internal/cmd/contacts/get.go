@@ -23,7 +23,7 @@ Examples:
   gro contacts get people/c123456789
   gro ppl get people/c123456789 --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			resourceName := args[0]
 
 			client, err := newContactsClient()

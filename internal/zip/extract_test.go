@@ -252,7 +252,7 @@ type mockFS struct {
 	failAfterN  int // fail MkdirAll after N calls (0 = fail immediately)
 }
 
-func (m *mockFS) MkdirAll(path string, perm os.FileMode) error {
+func (m *mockFS) MkdirAll(_ string, _ os.FileMode) error {
 	m.mkdirCalls++
 	if m.failAfterN > 0 && m.mkdirCalls <= m.failAfterN {
 		return nil
@@ -295,15 +295,15 @@ type mockFSWithErrorWriter struct {
 	writer *errorWriter
 }
 
-func (m *mockFSWithErrorWriter) MkdirAll(path string, perm os.FileMode) error {
+func (m *mockFSWithErrorWriter) MkdirAll(_ string, _ os.FileMode) error {
 	return nil
 }
 
-func (m *mockFSWithErrorWriter) OpenFile(name string, flag int, perm os.FileMode) (io.WriteCloser, error) {
+func (m *mockFSWithErrorWriter) OpenFile(_ string, _ int, _ os.FileMode) (io.WriteCloser, error) {
 	return m.writer, nil
 }
 
-func (m *mockFSWithErrorWriter) Remove(name string) error {
+func (m *mockFSWithErrorWriter) Remove(_ string) error {
 	return nil
 }
 

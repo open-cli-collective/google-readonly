@@ -32,7 +32,7 @@ Examples:
   gro cal events --from 2026-01-01 --to 2026-01-31
   gro calendar events work@group.calendar.google.com --json`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			calID := calendarID
 			if len(args) > 0 {
 				calID = args[0]

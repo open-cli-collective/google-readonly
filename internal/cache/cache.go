@@ -64,7 +64,7 @@ func New(ttlHours int) (*Cache, error) {
 func (c *Cache) GetDrives() ([]*CachedDrive, error) {
 	path := filepath.Join(c.dir, DrivesFile)
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // Path constructed from known config directory
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil // Cache miss, not an error
@@ -134,7 +134,7 @@ func (c *Cache) GetStatus() (*Status, error) {
 
 	// Check drives cache
 	drivesPath := filepath.Join(c.dir, DrivesFile)
-	data, err := os.ReadFile(drivesPath)
+	data, err := os.ReadFile(drivesPath) //nolint:gosec // Path constructed from known config directory
 	if err == nil {
 		var cache DriveCache
 		if json.Unmarshal(data, &cache) == nil {

@@ -110,7 +110,7 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // Path from user config directory
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Return default config

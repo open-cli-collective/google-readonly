@@ -139,7 +139,7 @@ func TestResolveDriveScope(t *testing.T) {
 
 	t.Run("resolves drive name to ID via API", func(t *testing.T) {
 		mock := &testutil.MockDriveClient{
-			ListSharedDrivesFunc: func(pageSize int64) ([]*drive.SharedDrive, error) {
+			ListSharedDrivesFunc: func(_ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 					{ID: "0ALfin456", Name: "Finance"},
@@ -155,7 +155,7 @@ func TestResolveDriveScope(t *testing.T) {
 
 	t.Run("resolves drive name case-insensitively", func(t *testing.T) {
 		mock := &testutil.MockDriveClient{
-			ListSharedDrivesFunc: func(pageSize int64) ([]*drive.SharedDrive, error) {
+			ListSharedDrivesFunc: func(_ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 				}, nil
@@ -170,7 +170,7 @@ func TestResolveDriveScope(t *testing.T) {
 
 	t.Run("returns error when drive name not found", func(t *testing.T) {
 		mock := &testutil.MockDriveClient{
-			ListSharedDrivesFunc: func(pageSize int64) ([]*drive.SharedDrive, error) {
+			ListSharedDrivesFunc: func(_ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 				}, nil

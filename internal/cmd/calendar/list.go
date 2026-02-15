@@ -22,7 +22,7 @@ Examples:
   gro calendar list
   gro cal list --json`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newCalendarClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Calendar client: %w", err)

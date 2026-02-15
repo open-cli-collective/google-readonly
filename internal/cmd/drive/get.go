@@ -22,7 +22,7 @@ Examples:
   gro drive get <file-id>        # Show file details
   gro drive get <file-id> --json # Output as JSON`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newDriveClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Drive client: %w", err)

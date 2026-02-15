@@ -79,14 +79,14 @@ func validateZip(r *zip.Reader, opts Options) error {
 	var totalSize uint64
 	for _, f := range r.File {
 		// Check for zip bomb (compression ratio attack)
-		if f.UncompressedSize64 > uint64(opts.MaxFileSize) {
+		if f.UncompressedSize64 > uint64(opts.MaxFileSize) { //nolint:gosec // MaxFileSize is always positive
 			return fmt.Errorf("file %s exceeds max size: %d bytes",
 				f.Name, f.UncompressedSize64)
 		}
 		totalSize += f.UncompressedSize64
 	}
 
-	if totalSize > uint64(opts.MaxTotalSize) {
+	if totalSize > uint64(opts.MaxTotalSize) { //nolint:gosec // MaxTotalSize is always positive
 		return fmt.Errorf("total extracted size exceeds limit: %d bytes (max %d)",
 			totalSize, opts.MaxTotalSize)
 	}

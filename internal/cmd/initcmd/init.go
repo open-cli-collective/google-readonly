@@ -3,6 +3,7 @@ package initcmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -45,7 +46,7 @@ Prerequisites:
 	return cmd
 }
 
-func runInit(cmd *cobra.Command, args []string) error {
+func runInit(_ *cobra.Command, _ []string) error {
 	// Step 1: Check for credentials.json
 	credPath, err := gmail.GetCredentialsPath()
 	if err != nil {
@@ -259,23 +260,7 @@ func isAuthError(err error) bool {
 }
 
 // errorAs is a wrapper for errors.As to make testing easier
-var errorAs = func(err error, target interface{}) bool {
-	switch t := target.(type) {
-	case **googleapi.Error:
-		for e := err; e != nil; {
-			if apiErr, ok := e.(*googleapi.Error); ok {
-				*t = apiErr
-				return true
-			}
-			if unwrapper, ok := e.(interface{ Unwrap() error }); ok {
-				e = unwrapper.Unwrap()
-			} else {
-				break
-			}
-		}
-	}
-	return false
-}
+var errorAs = errors.As
 
 // promptReauth asks the user if they want to re-authenticate
 func promptReauth() bool {

@@ -55,7 +55,7 @@ func withFailingClientFactory(f func()) {
 
 func TestListCommand_Success(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactsFunc: func(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error) {
+		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return &people.ListConnectionsResponse{
 				Connections: []*people.Person{
 					testutil.SamplePerson("people/c123"),
@@ -81,7 +81,7 @@ func TestListCommand_Success(t *testing.T) {
 
 func TestListCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactsFunc: func(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error) {
+		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return &people.ListConnectionsResponse{
 				Connections: []*people.Person{
 					testutil.SamplePerson("people/c123"),
@@ -108,7 +108,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 
 func TestListCommand_Empty(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactsFunc: func(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error) {
+		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return &people.ListConnectionsResponse{
 				Connections: []*people.Person{},
 			}, nil
@@ -129,7 +129,7 @@ func TestListCommand_Empty(t *testing.T) {
 
 func TestListCommand_APIError(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactsFunc: func(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error) {
+		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return nil, errors.New("API error")
 		},
 	}
@@ -155,7 +155,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 
 func TestSearchCommand_Success(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		SearchContactsFunc: func(query string, pageSize int64) (*people.SearchResponse, error) {
+		SearchContactsFunc: func(query string, _ int64) (*people.SearchResponse, error) {
 			assert.Equal(t, "John", query)
 			return &people.SearchResponse{
 				Results: []*people.SearchResult{
@@ -181,7 +181,7 @@ func TestSearchCommand_Success(t *testing.T) {
 
 func TestSearchCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		SearchContactsFunc: func(query string, pageSize int64) (*people.SearchResponse, error) {
+		SearchContactsFunc: func(_ string, _ int64) (*people.SearchResponse, error) {
 			return &people.SearchResponse{
 				Results: []*people.SearchResult{
 					{Person: testutil.SamplePerson("people/c123")},
@@ -208,7 +208,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 
 func TestSearchCommand_NoResults(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		SearchContactsFunc: func(query string, pageSize int64) (*people.SearchResponse, error) {
+		SearchContactsFunc: func(_ string, _ int64) (*people.SearchResponse, error) {
 			return &people.SearchResponse{
 				Results: []*people.SearchResult{},
 			}, nil
@@ -230,7 +230,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 
 func TestSearchCommand_APIError(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		SearchContactsFunc: func(query string, pageSize int64) (*people.SearchResponse, error) {
+		SearchContactsFunc: func(_ string, _ int64) (*people.SearchResponse, error) {
 			return nil, errors.New("API error")
 		},
 	}
@@ -270,7 +270,7 @@ func TestGetCommand_Success(t *testing.T) {
 
 func TestGetCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		GetContactFunc: func(resourceName string) (*people.Person, error) {
+		GetContactFunc: func(_ string) (*people.Person, error) {
 			return testutil.SamplePerson("people/c123"), nil
 		},
 	}
@@ -293,7 +293,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 
 func TestGetCommand_NotFound(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		GetContactFunc: func(resourceName string) (*people.Person, error) {
+		GetContactFunc: func(_ string) (*people.Person, error) {
 			return nil, errors.New("contact not found")
 		},
 	}
@@ -310,7 +310,7 @@ func TestGetCommand_NotFound(t *testing.T) {
 
 func TestGroupsCommand_Success(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactGroupsFunc: func(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error) {
+		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return &people.ListContactGroupsResponse{
 				ContactGroups: []*people.ContactGroup{
 					{
@@ -346,7 +346,7 @@ func TestGroupsCommand_Success(t *testing.T) {
 
 func TestGroupsCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactGroupsFunc: func(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error) {
+		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return &people.ListContactGroupsResponse{
 				ContactGroups: []*people.ContactGroup{
 					{
@@ -379,7 +379,7 @@ func TestGroupsCommand_JSONOutput(t *testing.T) {
 
 func TestGroupsCommand_Empty(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactGroupsFunc: func(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error) {
+		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return &people.ListContactGroupsResponse{
 				ContactGroups: []*people.ContactGroup{},
 			}, nil
@@ -400,7 +400,7 @@ func TestGroupsCommand_Empty(t *testing.T) {
 
 func TestGroupsCommand_APIError(t *testing.T) {
 	mock := &testutil.MockContactsClient{
-		ListContactGroupsFunc: func(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error) {
+		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return nil, errors.New("API error")
 		},
 	}

@@ -31,7 +31,7 @@ Examples:
   gro drive drives --refresh    # Force refresh from API
   gro drive drives --json       # Output as JSON`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			client, err := newDriveClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Drive client: %w", err)

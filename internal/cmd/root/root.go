@@ -31,7 +31,7 @@ To get started, run:
 
 This will guide you through OAuth setup for Google API access.`,
 	Version: version.Version,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(_ *cobra.Command, _ []string) {
 		log.Verbose = verbose
 	},
 }

@@ -20,7 +20,7 @@ Examples:
   gro mail read 18abc123def456
   gro mail read 18abc123def456 --json`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newGmailClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Gmail client: %w", err)

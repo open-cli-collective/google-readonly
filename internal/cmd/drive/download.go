@@ -41,7 +41,7 @@ Export formats:
   Presentations: pdf, pptx, odp
   Drawings:      pdf, png, svg, jpg`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			client, err := newDriveClient()
 			if err != nil {
 				return fmt.Errorf("failed to create Drive client: %w", err)

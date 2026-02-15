@@ -65,7 +65,7 @@ The credentials.json file (OAuth client config) is not removed.`,
 	}
 }
 
-func runShow(cmd *cobra.Command, args []string) error {
+func runShow(_ *cobra.Command, _ []string) error {
 	// Check credentials file
 	credPath, err := gmail.GetCredentialsPath()
 	if err != nil {
@@ -127,7 +127,7 @@ func runShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runTest(cmd *cobra.Command, args []string) error {
+func runTest(_ *cobra.Command, _ []string) error {
 	fmt.Println("Testing Gmail API connection...")
 	fmt.Println()
 
@@ -166,7 +166,7 @@ func runTest(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runClear(cmd *cobra.Command, args []string) error {
+func runClear(_ *cobra.Command, _ []string) error {
 	if !keychain.HasStoredToken() {
 		fmt.Println("No OAuth token found to clear.")
 		return nil

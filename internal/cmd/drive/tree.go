@@ -42,7 +42,7 @@ Examples:
   gro drive tree --files                # Include files, not just folders
   gro drive tree --json                 # Output as JSON`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			// Validate mutually exclusive flags
 			if myDrive && driveFlag != "" {
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")

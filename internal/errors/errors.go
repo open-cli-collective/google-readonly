@@ -2,7 +2,10 @@
 // and system errors, allowing commands to provide appropriate guidance.
 package errors
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // UserError represents an error caused by invalid user input or action.
 // These errors are actionable - the user can fix them.
@@ -49,7 +52,8 @@ func NewSystemError(message string, cause error, retryable bool) SystemError {
 
 // IsRetryable returns true if the error is a retryable SystemError.
 func IsRetryable(err error) bool {
-	if sysErr, ok := err.(SystemError); ok {
+	var sysErr SystemError
+	if errors.As(err, &sysErr) {
 		return sysErr.Retryable
 	}
 	return false

@@ -3,11 +3,15 @@ version: "2"
 linters:
   enable:
     - errcheck
+    - errorlint
+    - exhaustive
     - govet
+    - gosec
     - ineffassign
+    - misspell
+    - revive
     - staticcheck
     - unused
-    - misspell
   settings:
     errcheck:
       exclude-functions:
@@ -19,9 +23,27 @@ linters:
       - path: _test\.go
         linters:
           - errcheck
+          - gosec
       - linters:
           - errcheck
         source: "defer.*\\.Close\\(\\)"
+      # Stuttering names will be fixed when interfaces are relocated (commit 5)
+      - linters:
+          - revive
+        text: "stutters"
+      # Package comments will be added in commit 9
+      - linters:
+          - revive
+        text: "package-comments"
+      # Mock exported methods will be deleted when mocks move to test files (commit 5)
+      - linters:
+          - revive
+        text: "exported"
+        path: testutil/mocks\.go
+      # Standard library package name conflicts are intentional
+      - linters:
+          - revive
+        text: "avoid package names that conflict"
 
 formatters:
   enable:

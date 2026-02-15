@@ -26,7 +26,7 @@ Examples:
   gro cal get abc123xyz --json
   gro cal get abc123xyz --calendar work@group.calendar.google.com`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			eventID := args[0]
 
 			client, err := newCalendarClient()

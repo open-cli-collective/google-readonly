@@ -80,7 +80,7 @@ func TestSearchCommand_Success(t *testing.T) {
 
 func TestSearchCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		SearchMessagesFunc: func(query string, maxResults int64) ([]*gmailapi.Message, int, error) {
+		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return testutil.SampleMessages(1), 0, nil
 		},
 	}
@@ -105,7 +105,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 
 func TestSearchCommand_NoResults(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		SearchMessagesFunc: func(query string, maxResults int64) ([]*gmailapi.Message, int, error) {
+		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return []*gmailapi.Message{}, 0, nil
 		},
 	}
@@ -125,7 +125,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 
 func TestSearchCommand_APIError(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		SearchMessagesFunc: func(query string, maxResults int64) ([]*gmailapi.Message, int, error) {
+		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return nil, 0, errors.New("API quota exceeded")
 		},
 	}
@@ -153,7 +153,7 @@ func TestSearchCommand_ClientCreationError(t *testing.T) {
 
 func TestSearchCommand_SkippedMessages(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		SearchMessagesFunc: func(query string, maxResults int64) ([]*gmailapi.Message, int, error) {
+		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return testutil.SampleMessages(2), 3, nil // 3 messages skipped
 		},
 	}
@@ -197,7 +197,7 @@ func TestReadCommand_Success(t *testing.T) {
 
 func TestReadCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		GetMessageFunc: func(messageID string, includeBody bool) (*gmailapi.Message, error) {
+		GetMessageFunc: func(_ string, _ bool) (*gmailapi.Message, error) {
 			return testutil.SampleMessage("msg123"), nil
 		},
 	}
@@ -220,7 +220,7 @@ func TestReadCommand_JSONOutput(t *testing.T) {
 
 func TestReadCommand_NotFound(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		GetMessageFunc: func(messageID string, includeBody bool) (*gmailapi.Message, error) {
+		GetMessageFunc: func(_ string, _ bool) (*gmailapi.Message, error) {
 			return nil, errors.New("message not found")
 		},
 	}
@@ -261,7 +261,7 @@ func TestThreadCommand_Success(t *testing.T) {
 
 func TestThreadCommand_JSONOutput(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		GetThreadFunc: func(id string) ([]*gmailapi.Message, error) {
+		GetThreadFunc: func(_ string) ([]*gmailapi.Message, error) {
 			return testutil.SampleMessages(2), nil
 		},
 	}
@@ -357,7 +357,7 @@ func TestLabelsCommand_Empty(t *testing.T) {
 
 func TestListAttachmentsCommand_Success(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		GetAttachmentsFunc: func(messageID string) ([]*gmailapi.Attachment, error) {
+		GetAttachmentsFunc: func(_ string) ([]*gmailapi.Attachment, error) {
 			return []*gmailapi.Attachment{
 				testutil.SampleAttachment("report.pdf"),
 				testutil.SampleAttachment("data.xlsx"),
@@ -382,7 +382,7 @@ func TestListAttachmentsCommand_Success(t *testing.T) {
 
 func TestListAttachmentsCommand_NoAttachments(t *testing.T) {
 	mock := &testutil.MockGmailClient{
-		GetAttachmentsFunc: func(messageID string) ([]*gmailapi.Attachment, error) {
+		GetAttachmentsFunc: func(_ string) ([]*gmailapi.Attachment, error) {
 			return []*gmailapi.Attachment{}, nil
 		},
 	}
