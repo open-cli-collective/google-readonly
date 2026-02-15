@@ -1,13 +1,9 @@
 package gmail
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	gmailapi "google.golang.org/api/gmail/v1"
-
-	"github.com/open-cli-collective/google-readonly/internal/auth"
 )
 
 func TestGetLabelName(t *testing.T) {
@@ -109,63 +105,6 @@ func TestGetLabels(t *testing.T) {
 		}
 		if len(result) != 0 {
 			t.Errorf("got length %d, want 0", len(result))
-		}
-	})
-}
-
-// TestDeprecatedWrappers verifies that the deprecated wrappers delegate correctly to the auth package
-func TestDeprecatedWrappers(t *testing.T) {
-	t.Run("GetConfigDir delegates to auth package", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		gmailDir, err := GetConfigDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		authDir, err := auth.GetConfigDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if gmailDir != authDir {
-			t.Errorf("got %v, want %v", gmailDir, authDir)
-		}
-	})
-
-	t.Run("GetCredentialsPath delegates to auth package", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		gmailPath, err := GetCredentialsPath()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		authPath, err := auth.GetCredentialsPath()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if gmailPath != authPath {
-			t.Errorf("got %v, want %v", gmailPath, authPath)
-		}
-	})
-
-	t.Run("ShortenPath delegates to auth package", func(t *testing.T) {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		testPath := filepath.Join(home, ".config", "test")
-
-		gmailResult := ShortenPath(testPath)
-		authResult := auth.ShortenPath(testPath)
-
-		if gmailResult != authResult {
-			t.Errorf("got %v, want %v", gmailResult, authResult)
 		}
 	})
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/api/googleapi"
 
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
@@ -48,12 +49,12 @@ Prerequisites:
 
 func runInit(cmd *cobra.Command, _ []string) error {
 	// Step 1: Check for credentials.json
-	credPath, err := gmail.GetCredentialsPath()
+	credPath, err := auth.GetCredentialsPath()
 	if err != nil {
 		return fmt.Errorf("getting credentials path: %w", err)
 	}
 
-	shortPath := gmail.ShortenPath(credPath)
+	shortPath := auth.ShortenPath(credPath)
 	if _, err := os.Stat(credPath); os.IsNotExist(err) {
 		fmt.Println("Credentials file not found.")
 		fmt.Println()
@@ -63,7 +64,7 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Printf("Credentials: %s\n", shortPath)
 
 	// Step 2: Load OAuth config
-	config, err := gmail.GetOAuthConfig()
+	config, err := auth.GetOAuthConfig()
 	if err != nil {
 		return fmt.Errorf("loading OAuth config: %w", err)
 	}
@@ -112,7 +113,7 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Println("Token:       Not found - starting OAuth flow")
 	fmt.Println()
 
-	authURL := gmail.GetAuthURL(config)
+	authURL := auth.GetAuthURL(config)
 	fmt.Println("Open this URL in your browser:")
 	fmt.Println()
 	fmt.Println(authURL)
@@ -141,7 +142,7 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Println("Exchanging authorization code...")
 
-	token, err := gmail.ExchangeAuthCode(cmd.Context(), config, code)
+	token, err := auth.ExchangeAuthCode(cmd.Context(), config, code)
 	if err != nil {
 		return fmt.Errorf("exchanging authorization code: %w", err)
 	}

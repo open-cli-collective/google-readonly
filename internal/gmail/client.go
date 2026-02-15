@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 
@@ -116,40 +115,4 @@ func (c *Client) GetProfile() (*Profile, error) {
 		MessagesTotal: profile.MessagesTotal,
 		ThreadsTotal:  profile.ThreadsTotal,
 	}, nil
-}
-
-// GetConfigDir returns the configuration directory path
-// Deprecated: Use auth.GetConfigDir() instead
-func GetConfigDir() (string, error) {
-	return auth.GetConfigDir()
-}
-
-// GetCredentialsPath returns the path to credentials.json
-// Deprecated: Use auth.GetCredentialsPath() instead
-func GetCredentialsPath() (string, error) {
-	return auth.GetCredentialsPath()
-}
-
-// GetOAuthConfig loads OAuth config from credentials file
-// Deprecated: Use auth.GetOAuthConfig() instead
-func GetOAuthConfig() (*oauth2.Config, error) {
-	return auth.GetOAuthConfig()
-}
-
-// ExchangeAuthCode exchanges an authorization code for a token
-// Deprecated: Use auth.ExchangeAuthCode() instead
-func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (*oauth2.Token, error) {
-	return auth.ExchangeAuthCode(ctx, config, code)
-}
-
-// GetAuthURL returns the OAuth authorization URL
-// Deprecated: Use auth.GetAuthURL() instead
-func GetAuthURL(config *oauth2.Config) string {
-	return auth.GetAuthURL(config)
-}
-
-// ShortenPath replaces the home directory prefix with ~ for display purposes.
-// Deprecated: Use auth.ShortenPath() instead
-func ShortenPath(path string) string {
-	return auth.ShortenPath(path)
 }

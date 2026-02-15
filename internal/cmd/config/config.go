@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
@@ -66,7 +67,7 @@ The credentials.json file (OAuth client config) is not removed.`,
 
 func runShow(cmd *cobra.Command, _ []string) error {
 	// Check credentials file
-	credPath, err := gmail.GetCredentialsPath()
+	credPath, err := auth.GetCredentialsPath()
 	if err != nil {
 		return fmt.Errorf("getting credentials path: %w", err)
 	}
