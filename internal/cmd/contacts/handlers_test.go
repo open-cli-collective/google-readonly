@@ -32,9 +32,9 @@ func captureOutput(t *testing.T, f func()) string {
 }
 
 // withMockClient sets up a mock client factory for tests
-func withMockClient(mock contactsapi.ContactsClientInterface, f func()) {
+func withMockClient(mock ContactsClient, f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (contactsapi.ContactsClientInterface, error) {
+	ClientFactory = func() (ContactsClient, error) {
 		return mock, nil
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -44,7 +44,7 @@ func withMockClient(mock contactsapi.ContactsClientInterface, f func()) {
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (contactsapi.ContactsClientInterface, error) {
+	ClientFactory = func() (ContactsClient, error) {
 		return nil, errors.New("connection failed")
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -52,7 +52,7 @@ func withFailingClientFactory(f func()) {
 }
 
 func TestListCommand_Success(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return &people.ListConnectionsResponse{
 				Connections: []*people.Person{
@@ -78,7 +78,7 @@ func TestListCommand_Success(t *testing.T) {
 }
 
 func TestListCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return &people.ListConnectionsResponse{
 				Connections: []*people.Person{
@@ -105,7 +105,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 }
 
 func TestListCommand_Empty(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return &people.ListConnectionsResponse{
 				Connections: []*people.Person{},
@@ -126,7 +126,7 @@ func TestListCommand_Empty(t *testing.T) {
 }
 
 func TestListCommand_APIError(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactsFunc: func(_ string, _ int64) (*people.ListConnectionsResponse, error) {
 			return nil, errors.New("API error")
 		},
@@ -152,7 +152,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 }
 
 func TestSearchCommand_Success(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		SearchContactsFunc: func(query string, _ int64) (*people.SearchResponse, error) {
 			testutil.Equal(t, query, "John")
 			return &people.SearchResponse{
@@ -178,7 +178,7 @@ func TestSearchCommand_Success(t *testing.T) {
 }
 
 func TestSearchCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		SearchContactsFunc: func(_ string, _ int64) (*people.SearchResponse, error) {
 			return &people.SearchResponse{
 				Results: []*people.SearchResult{
@@ -205,7 +205,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 }
 
 func TestSearchCommand_NoResults(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		SearchContactsFunc: func(_ string, _ int64) (*people.SearchResponse, error) {
 			return &people.SearchResponse{
 				Results: []*people.SearchResult{},
@@ -227,7 +227,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 }
 
 func TestSearchCommand_APIError(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		SearchContactsFunc: func(_ string, _ int64) (*people.SearchResponse, error) {
 			return nil, errors.New("API error")
 		},
@@ -244,7 +244,7 @@ func TestSearchCommand_APIError(t *testing.T) {
 }
 
 func TestGetCommand_Success(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		GetContactFunc: func(resourceName string) (*people.Person, error) {
 			testutil.Equal(t, resourceName, "people/c123")
 			return testutil.SamplePerson("people/c123"), nil
@@ -267,7 +267,7 @@ func TestGetCommand_Success(t *testing.T) {
 }
 
 func TestGetCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		GetContactFunc: func(_ string) (*people.Person, error) {
 			return testutil.SamplePerson("people/c123"), nil
 		},
@@ -290,7 +290,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 }
 
 func TestGetCommand_NotFound(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		GetContactFunc: func(_ string) (*people.Person, error) {
 			return nil, errors.New("contact not found")
 		},
@@ -307,7 +307,7 @@ func TestGetCommand_NotFound(t *testing.T) {
 }
 
 func TestGroupsCommand_Success(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return &people.ListContactGroupsResponse{
 				ContactGroups: []*people.ContactGroup{
@@ -343,7 +343,7 @@ func TestGroupsCommand_Success(t *testing.T) {
 }
 
 func TestGroupsCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return &people.ListContactGroupsResponse{
 				ContactGroups: []*people.ContactGroup{
@@ -376,7 +376,7 @@ func TestGroupsCommand_JSONOutput(t *testing.T) {
 }
 
 func TestGroupsCommand_Empty(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return &people.ListContactGroupsResponse{
 				ContactGroups: []*people.ContactGroup{},
@@ -397,7 +397,7 @@ func TestGroupsCommand_Empty(t *testing.T) {
 }
 
 func TestGroupsCommand_APIError(t *testing.T) {
-	mock := &testutil.MockContactsClient{
+	mock := &MockContactsClient{
 		ListContactGroupsFunc: func(_ string, _ int64) (*people.ListContactGroupsResponse, error) {
 			return nil, errors.New("API error")
 		},

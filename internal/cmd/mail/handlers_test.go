@@ -32,9 +32,9 @@ func captureOutput(t *testing.T, f func()) string {
 }
 
 // withMockClient sets up a mock client factory for tests
-func withMockClient(mock gmailapi.GmailClientInterface, f func()) {
+func withMockClient(mock MailClient, f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (gmailapi.GmailClientInterface, error) {
+	ClientFactory = func() (MailClient, error) {
 		return mock, nil
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -44,7 +44,7 @@ func withMockClient(mock gmailapi.GmailClientInterface, f func()) {
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (gmailapi.GmailClientInterface, error) {
+	ClientFactory = func() (MailClient, error) {
 		return nil, errors.New("connection failed")
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -52,7 +52,7 @@ func withFailingClientFactory(f func()) {
 }
 
 func TestSearchCommand_Success(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		SearchMessagesFunc: func(query string, maxResults int64) ([]*gmailapi.Message, int, error) {
 			testutil.Equal(t, query, "is:unread")
 			testutil.Equal(t, maxResults, int64(10))
@@ -77,7 +77,7 @@ func TestSearchCommand_Success(t *testing.T) {
 }
 
 func TestSearchCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return testutil.SampleMessages(1), 0, nil
 		},
@@ -102,7 +102,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 }
 
 func TestSearchCommand_NoResults(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return []*gmailapi.Message{}, 0, nil
 		},
@@ -122,7 +122,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 }
 
 func TestSearchCommand_APIError(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return nil, 0, errors.New("API quota exceeded")
 		},
@@ -150,7 +150,7 @@ func TestSearchCommand_ClientCreationError(t *testing.T) {
 }
 
 func TestSearchCommand_SkippedMessages(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ string, _ int64) ([]*gmailapi.Message, int, error) {
 			return testutil.SampleMessages(2), 3, nil // 3 messages skipped
 		},
@@ -170,7 +170,7 @@ func TestSearchCommand_SkippedMessages(t *testing.T) {
 }
 
 func TestReadCommand_Success(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetMessageFunc: func(messageID string, includeBody bool) (*gmailapi.Message, error) {
 			testutil.Equal(t, messageID, "msg123")
 			testutil.True(t, includeBody)
@@ -194,7 +194,7 @@ func TestReadCommand_Success(t *testing.T) {
 }
 
 func TestReadCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetMessageFunc: func(_ string, _ bool) (*gmailapi.Message, error) {
 			return testutil.SampleMessage("msg123"), nil
 		},
@@ -217,7 +217,7 @@ func TestReadCommand_JSONOutput(t *testing.T) {
 }
 
 func TestReadCommand_NotFound(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetMessageFunc: func(_ string, _ bool) (*gmailapi.Message, error) {
 			return nil, errors.New("message not found")
 		},
@@ -234,7 +234,7 @@ func TestReadCommand_NotFound(t *testing.T) {
 }
 
 func TestThreadCommand_Success(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetThreadFunc: func(id string) ([]*gmailapi.Message, error) {
 			testutil.Equal(t, id, "thread123")
 			return testutil.SampleMessages(3), nil
@@ -258,7 +258,7 @@ func TestThreadCommand_Success(t *testing.T) {
 }
 
 func TestThreadCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetThreadFunc: func(_ string) ([]*gmailapi.Message, error) {
 			return testutil.SampleMessages(2), nil
 		},
@@ -281,7 +281,7 @@ func TestThreadCommand_JSONOutput(t *testing.T) {
 }
 
 func TestLabelsCommand_Success(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		FetchLabelsFunc: func() error {
 			return nil
 		},
@@ -306,7 +306,7 @@ func TestLabelsCommand_Success(t *testing.T) {
 }
 
 func TestLabelsCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		FetchLabelsFunc: func() error {
 			return nil
 		},
@@ -332,7 +332,7 @@ func TestLabelsCommand_JSONOutput(t *testing.T) {
 }
 
 func TestLabelsCommand_Empty(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		FetchLabelsFunc: func() error {
 			return nil
 		},
@@ -354,7 +354,7 @@ func TestLabelsCommand_Empty(t *testing.T) {
 }
 
 func TestListAttachmentsCommand_Success(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetAttachmentsFunc: func(_ string) ([]*gmailapi.Attachment, error) {
 			return []*gmailapi.Attachment{
 				testutil.SampleAttachment("report.pdf"),
@@ -379,7 +379,7 @@ func TestListAttachmentsCommand_Success(t *testing.T) {
 }
 
 func TestListAttachmentsCommand_NoAttachments(t *testing.T) {
-	mock := &testutil.MockGmailClient{
+	mock := &MockGmailClient{
 		GetAttachmentsFunc: func(_ string) ([]*gmailapi.Attachment, error) {
 			return []*gmailapi.Attachment{}, nil
 		},

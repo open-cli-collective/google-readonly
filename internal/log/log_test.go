@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
 )
 
 func TestDebug_WhenVerboseTrue(t *testing.T) {

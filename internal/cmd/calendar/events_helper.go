@@ -19,7 +19,7 @@ type EventListOptions struct {
 
 // listAndPrintEvents fetches events and prints them according to the options.
 // This is a shared helper used by today, week, and events commands.
-func listAndPrintEvents(client calendar.CalendarClientInterface, opts EventListOptions) error {
+func listAndPrintEvents(client CalendarClient, opts EventListOptions) error {
 	events, err := client.ListEvents(opts.CalendarID, opts.TimeMin, opts.TimeMax, opts.MaxResults)
 	if err != nil {
 		return err

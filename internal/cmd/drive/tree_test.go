@@ -215,7 +215,7 @@ func TestTreeNode(t *testing.T) {
 	})
 }
 
-// mockDriveClient implements drive.DriveClientInterface for testing
+// mockDriveClient implements DriveClient for testing
 type mockDriveClient struct {
 	files    map[string]*drive.File   // fileID -> File
 	children map[string][]*drive.File // folderID -> children

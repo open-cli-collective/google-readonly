@@ -30,9 +30,9 @@ func captureOutput(t *testing.T, f func()) string {
 }
 
 // withMockClient sets up a mock client factory for tests
-func withMockClient(mock driveapi.DriveClientInterface, f func()) {
+func withMockClient(mock DriveClient, f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (driveapi.DriveClientInterface, error) {
+	ClientFactory = func() (DriveClient, error) {
 		return mock, nil
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -42,7 +42,7 @@ func withMockClient(mock driveapi.DriveClientInterface, f func()) {
 // withFailingClientFactory sets up a factory that returns an error
 func withFailingClientFactory(f func()) {
 	originalFactory := ClientFactory
-	ClientFactory = func() (driveapi.DriveClientInterface, error) {
+	ClientFactory = func() (DriveClient, error) {
 		return nil, errors.New("connection failed")
 	}
 	defer func() { ClientFactory = originalFactory }()
@@ -50,7 +50,7 @@ func withFailingClientFactory(f func()) {
 }
 
 func TestListCommand_Success(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "'root' in parents")
 			return testutil.SampleDriveFiles(2), nil
@@ -71,7 +71,7 @@ func TestListCommand_Success(t *testing.T) {
 }
 
 func TestListCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
 			return testutil.SampleDriveFiles(1), nil
 		},
@@ -94,7 +94,7 @@ func TestListCommand_JSONOutput(t *testing.T) {
 }
 
 func TestListCommand_Empty(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
 			return []*driveapi.File{}, nil
 		},
@@ -113,7 +113,7 @@ func TestListCommand_Empty(t *testing.T) {
 }
 
 func TestListCommand_WithFolder(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "'folder123' in parents")
 			return testutil.SampleDriveFiles(1), nil
@@ -134,7 +134,7 @@ func TestListCommand_WithFolder(t *testing.T) {
 }
 
 func TestListCommand_WithTypeFilter(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "mimeType")
 			return testutil.SampleDriveFiles(1), nil
@@ -158,7 +158,7 @@ func TestListCommand_InvalidType(t *testing.T) {
 	cmd := newListCommand()
 	cmd.SetArgs([]string{"--type", "invalid"})
 
-	withMockClient(&testutil.MockDriveClient{}, func() {
+	withMockClient(&MockDriveClient{}, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
 		testutil.Contains(t, err.Error(), "unknown file type")
@@ -166,7 +166,7 @@ func TestListCommand_InvalidType(t *testing.T) {
 }
 
 func TestListCommand_APIError(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
 			return nil, errors.New("API error")
 		},
@@ -192,7 +192,7 @@ func TestListCommand_ClientCreationError(t *testing.T) {
 }
 
 func TestSearchCommand_Success(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "fullText contains 'report'")
 			return testutil.SampleDriveFiles(2), nil
@@ -214,7 +214,7 @@ func TestSearchCommand_Success(t *testing.T) {
 }
 
 func TestSearchCommand_NameOnly(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(query string, _ int64) ([]*driveapi.File, error) {
 			testutil.Contains(t, query, "name contains 'budget'")
 			return testutil.SampleDriveFiles(1), nil
@@ -235,7 +235,7 @@ func TestSearchCommand_NameOnly(t *testing.T) {
 }
 
 func TestSearchCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
 			return testutil.SampleDriveFiles(1), nil
 		},
@@ -258,7 +258,7 @@ func TestSearchCommand_JSONOutput(t *testing.T) {
 }
 
 func TestSearchCommand_NoResults(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
 			return []*driveapi.File{}, nil
 		},
@@ -278,7 +278,7 @@ func TestSearchCommand_NoResults(t *testing.T) {
 }
 
 func TestSearchCommand_APIError(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		ListFilesFunc: func(_ string, _ int64) ([]*driveapi.File, error) {
 			return nil, errors.New("API error")
 		},
@@ -295,7 +295,7 @@ func TestSearchCommand_APIError(t *testing.T) {
 }
 
 func TestGetCommand_Success(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(fileID string) (*driveapi.File, error) {
 			testutil.Equal(t, fileID, "file123")
 			return testutil.SampleDriveFile("file123"), nil
@@ -318,7 +318,7 @@ func TestGetCommand_Success(t *testing.T) {
 }
 
 func TestGetCommand_JSONOutput(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
@@ -341,7 +341,7 @@ func TestGetCommand_JSONOutput(t *testing.T) {
 }
 
 func TestGetCommand_NotFound(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return nil, errors.New("file not found")
 		},
@@ -364,7 +364,7 @@ func TestDownloadCommand_RegularFile(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(origDir)
 
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
@@ -389,7 +389,7 @@ func TestDownloadCommand_RegularFile(t *testing.T) {
 }
 
 func TestDownloadCommand_ToStdout(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
@@ -412,7 +412,7 @@ func TestDownloadCommand_ToStdout(t *testing.T) {
 }
 
 func TestDownloadCommand_GoogleDocRequiresFormat(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleGoogleDoc("doc123"), nil
 		},
@@ -435,7 +435,7 @@ func TestDownloadCommand_ExportGoogleDoc(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(origDir)
 
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleGoogleDoc("doc123"), nil
 		},
@@ -461,7 +461,7 @@ func TestDownloadCommand_ExportGoogleDoc(t *testing.T) {
 }
 
 func TestDownloadCommand_RegularFileCannotUseFormat(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},
@@ -478,7 +478,7 @@ func TestDownloadCommand_RegularFileCannotUseFormat(t *testing.T) {
 }
 
 func TestDownloadCommand_APIError(t *testing.T) {
-	mock := &testutil.MockDriveClient{
+	mock := &MockDriveClient{
 		GetFileFunc: func(_ string) (*driveapi.File, error) {
 			return testutil.SampleDriveFile("file123"), nil
 		},

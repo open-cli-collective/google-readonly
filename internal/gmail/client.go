@@ -98,6 +98,13 @@ func (c *Client) GetLabels() []*gmail.Label {
 	return labels
 }
 
+// Profile represents a Gmail user profile.
+type Profile struct {
+	EmailAddress  string
+	MessagesTotal int64
+	ThreadsTotal  int64
+}
+
 // GetProfile retrieves the authenticated user's profile
 func (c *Client) GetProfile() (*Profile, error) {
 	profile, err := c.service.Users.GetProfile(c.userID).Do()

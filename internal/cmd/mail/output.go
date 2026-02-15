@@ -5,18 +5,34 @@ import (
 	"fmt"
 	"strings"
 
+	gmailv1 "google.golang.org/api/gmail/v1"
+
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
+// MailClient defines the interface for Gmail client operations used by mail commands.
+type MailClient interface {
+	GetMessage(messageID string, includeBody bool) (*gmail.Message, error)
+	SearchMessages(query string, maxResults int64) ([]*gmail.Message, int, error)
+	GetThread(id string) ([]*gmail.Message, error)
+	FetchLabels() error
+	GetLabelName(labelID string) string
+	GetLabels() []*gmailv1.Label
+	GetAttachments(messageID string) ([]*gmail.Attachment, error)
+	DownloadAttachment(messageID string, attachmentID string) ([]byte, error)
+	DownloadInlineAttachment(messageID string, partID string) ([]byte, error)
+	GetProfile() (*gmail.Profile, error)
+}
+
 // ClientFactory is the function used to create Gmail clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (gmail.GmailClientInterface, error) {
+var ClientFactory = func() (MailClient, error) {
 	return gmail.NewClient(context.Background())
 }
 
 // newGmailClient creates and returns a new Gmail client
-func newGmailClient() (gmail.GmailClientInterface, error) {
+func newGmailClient() (MailClient, error) {
 	return ClientFactory()
 }
 

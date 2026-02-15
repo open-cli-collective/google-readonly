@@ -94,12 +94,12 @@ Examples:
 }
 
 // buildTree recursively builds the folder tree structure
-func buildTree(client drive.DriveClientInterface, folderID string, depth int, includeFiles bool) (*TreeNode, error) {
+func buildTree(client DriveClient, folderID string, depth int, includeFiles bool) (*TreeNode, error) {
 	return buildTreeWithScope(client, folderID, "", depth, includeFiles)
 }
 
 // buildTreeWithScope builds folder tree with optional root name override
-func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName string, depth int, includeFiles bool) (*TreeNode, error) {
+func buildTreeWithScope(client DriveClient, folderID, rootName string, depth int, includeFiles bool) (*TreeNode, error) {
 	// Get folder info
 	var folderName string
 	var folderType string

@@ -12,7 +12,7 @@ type mockT struct {
 	message string
 }
 
-func (m *mockT) Helper()                       {}
+func (m *mockT) Helper()                        {}
 func (m *mockT) Errorf(format string, a ...any) { m.failed = true }
 func (m *mockT) Error(a ...any)                 { m.failed = true }
 func (m *mockT) Fatalf(format string, a ...any) { m.failed = true }

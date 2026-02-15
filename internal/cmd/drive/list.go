@@ -141,7 +141,7 @@ func buildListQueryWithScope(folderID, fileType string, scope drive.DriveScope) 
 
 // resolveDriveScopeForList resolves the scope for list operations
 // List has slightly different behavior - defaults to My Drive root if no flags
-func resolveDriveScopeForList(client drive.DriveClientInterface, myDrive bool, driveFlag, folderID string) (drive.DriveScope, error) {
+func resolveDriveScopeForList(client DriveClient, myDrive bool, driveFlag, folderID string) (drive.DriveScope, error) {
 	// If a folder ID is provided, we need to support all drives to access it
 	if folderID != "" && !myDrive && driveFlag == "" {
 		return drive.DriveScope{AllDrives: true}, nil

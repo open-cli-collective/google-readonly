@@ -118,7 +118,7 @@ func printSharedDrives(drives []*drive.SharedDrive) {
 }
 
 // resolveDriveScope converts command flags to a DriveScope, resolving drive names via cache
-func resolveDriveScope(client drive.DriveClientInterface, myDrive bool, driveFlag string) (drive.DriveScope, error) {
+func resolveDriveScope(client DriveClient, myDrive bool, driveFlag string) (drive.DriveScope, error) {
 	// --my-drive flag
 	if myDrive {
 		return drive.DriveScope{MyDriveOnly: true}, nil

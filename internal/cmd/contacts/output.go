@@ -4,18 +4,28 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/api/people/v1"
+
 	"github.com/open-cli-collective/google-readonly/internal/contacts"
 	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
+// ContactsClient defines the interface for Contacts client operations used by contacts commands.
+type ContactsClient interface {
+	ListContacts(pageToken string, pageSize int64) (*people.ListConnectionsResponse, error)
+	SearchContacts(query string, pageSize int64) (*people.SearchResponse, error)
+	GetContact(resourceName string) (*people.Person, error)
+	ListContactGroups(pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error)
+}
+
 // ClientFactory is the function used to create Contacts clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (contacts.ContactsClientInterface, error) {
+var ClientFactory = func() (ContactsClient, error) {
 	return contacts.NewClient(context.Background())
 }
 
 // newContactsClient creates a new contacts client
-func newContactsClient() (contacts.ContactsClientInterface, error) {
+func newContactsClient() (ContactsClient, error) {
 	return ClientFactory()
 }
 
