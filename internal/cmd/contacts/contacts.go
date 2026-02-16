@@ -1,3 +1,4 @@
+// Package contacts implements the gro contacts command and subcommands.
 package contacts
 
 import (

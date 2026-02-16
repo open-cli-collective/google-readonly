@@ -35,17 +35,21 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			query := args[0]
 
-			client, err := newContactsClient()
+			client, err := newContactsClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Contacts client: %w", err)
+				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
-			resp, err := client.SearchContacts(query, maxResults)
+			resp, err := client.SearchContacts(cmd.Context(), query, maxResults)
 			if err != nil {
-				return fmt.Errorf("failed to search contacts: %w", err)
+				return fmt.Errorf("searching contacts: %w", err)
 			}
 
 			if len(resp.Results) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Printf("No contacts found matching \"%s\".\n", query)
 				return nil
 			}

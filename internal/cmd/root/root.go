@@ -1,6 +1,8 @@
+// Package root provides the top-level gro command and global flags.
 package root
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -31,14 +33,19 @@ To get started, run:
 
 This will guide you through OAuth setup for Google API access.`,
 	Version: version.Version,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(_ *cobra.Command, _ []string) {
 		log.Verbose = verbose
 	},
 }
 
-// Execute runs the root command
+// Execute runs the root command with a background context
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	ExecuteContext(context.Background())
+}
+
+// ExecuteContext runs the root command with the given context
+func ExecuteContext(ctx context.Context) {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

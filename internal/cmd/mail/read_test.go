@@ -3,40 +3,40 @@ package mail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestReadCommand(t *testing.T) {
 	cmd := newReadCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "read <message-id>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "read <message-id>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 
 		err = cmd.Args(cmd, []string{"msg123"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 
 		err = cmd.Args(cmd, []string{"msg1", "msg2"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
-		assert.Equal(t, "false", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+		testutil.Equal(t, flag.DefValue, "false")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
-		assert.Contains(t, cmd.Short, "message")
+		testutil.NotEmpty(t, cmd.Short)
+		testutil.Contains(t, cmd.Short, "message")
 	})
 
 	t.Run("long description mentions message ID source", func(t *testing.T) {
-		assert.Contains(t, cmd.Long, "search")
+		testutil.Contains(t, cmd.Long, "search")
 	})
 }

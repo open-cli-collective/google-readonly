@@ -3,44 +3,44 @@ package mail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestSearchCommand(t *testing.T) {
 	cmd := newSearchCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "search <query>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "search <query>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 
 		err = cmd.Args(cmd, []string{"query"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 
 		err = cmd.Args(cmd, []string{"query1", "query2"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has max flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("max")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "m", flag.Shorthand)
-		assert.Equal(t, "10", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "m")
+		testutil.Equal(t, flag.DefValue, "10")
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
-		assert.Equal(t, "false", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+		testutil.Equal(t, flag.DefValue, "false")
 	})
 
 	t.Run("has examples in long description", func(t *testing.T) {
-		assert.Contains(t, cmd.Long, "from:")
-		assert.Contains(t, cmd.Long, "subject:")
-		assert.Contains(t, cmd.Long, "is:unread")
+		testutil.Contains(t, cmd.Long, "from:")
+		testutil.Contains(t, cmd.Long, "subject:")
+		testutil.Contains(t, cmd.Long, "is:unread")
 	})
 }

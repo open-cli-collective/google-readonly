@@ -26,18 +26,22 @@ Examples:
   gro contacts groups --max 50
   gro ppl groups --json`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newContactsClient()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := newContactsClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Contacts client: %w", err)
+				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
-			resp, err := client.ListContactGroups("", maxResults)
+			resp, err := client.ListContactGroups(cmd.Context(), "", maxResults)
 			if err != nil {
-				return fmt.Errorf("failed to list contact groups: %w", err)
+				return fmt.Errorf("listing contact groups: %w", err)
 			}
 
 			if len(resp.ContactGroups) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No contact groups found.")
 				return nil
 			}

@@ -3,7 +3,7 @@ package mail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestIsZipFile(t *testing.T) {
@@ -28,7 +28,7 @@ func TestIsZipFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isZipFile(tt.filename, tt.mimeType)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
@@ -39,19 +39,19 @@ func TestAttachmentsCommand(t *testing.T) {
 	cmd := newAttachmentsCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "attachments", cmd.Use)
+		testutil.Equal(t, cmd.Use, "attachments")
 	})
 
 	t.Run("has subcommands", func(t *testing.T) {
 		subcommands := cmd.Commands()
-		assert.GreaterOrEqual(t, len(subcommands), 2)
+		testutil.GreaterOrEqual(t, len(subcommands), 2)
 
 		var names []string
 		for _, cmd := range subcommands {
 			names = append(names, cmd.Name())
 		}
-		assert.Contains(t, names, "list")
-		assert.Contains(t, names, "download")
+		testutil.SliceContains(t, names, "list")
+		testutil.SliceContains(t, names, "download")
 	})
 }
 
@@ -59,21 +59,21 @@ func TestListAttachmentsCommand(t *testing.T) {
 	cmd := newListAttachmentsCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "list <message-id>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "list <message-id>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 
 		err = cmd.Args(cmd, []string{"msg123"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
 	})
 }
 
@@ -81,15 +81,15 @@ func TestDownloadAttachmentsCommand(t *testing.T) {
 	cmd := newDownloadAttachmentsCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "download <message-id>", cmd.Use)
+		testutil.Equal(t, cmd.Use, "download <message-id>")
 	})
 
 	t.Run("requires exactly one argument", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 
 		err = cmd.Args(cmd, []string{"msg123"})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 	})
 
 	t.Run("has required flags", func(t *testing.T) {
@@ -105,8 +105,8 @@ func TestDownloadAttachmentsCommand(t *testing.T) {
 
 		for _, f := range flags {
 			flag := cmd.Flags().Lookup(f.name)
-			assert.NotNil(t, flag, "flag %s should exist", f.name)
-			assert.Equal(t, f.shorthand, flag.Shorthand, "flag %s should have shorthand %s", f.name, f.shorthand)
+			testutil.NotNil(t, flag)
+			testutil.Equal(t, flag.Shorthand, f.shorthand)
 		}
 	})
 }

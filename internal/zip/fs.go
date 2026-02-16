@@ -20,7 +20,7 @@ func (osFS) MkdirAll(path string, perm os.FileMode) error {
 }
 
 func (osFS) OpenFile(name string, flag int, perm os.FileMode) (io.WriteCloser, error) {
-	return os.OpenFile(name, flag, perm)
+	return os.OpenFile(name, flag, perm) //nolint:gosec // Path validated by caller in extractFile
 }
 
 func (osFS) Remove(name string) error {

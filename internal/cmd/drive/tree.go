@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -48,9 +49,9 @@ Examples:
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
 			}
 
-			client, err := newDriveClient()
+			client, err := newDriveClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			folderID := "root"
@@ -61,18 +62,18 @@ Examples:
 				rootName = "" // Will be fetched from folder info
 			} else if driveFlag != "" {
 				// Resolve shared drive
-				scope, err := resolveDriveScope(client, false, driveFlag)
+				scope, err := resolveDriveScope(cmd.Context(), client, false, driveFlag)
 				if err != nil {
-					return fmt.Errorf("failed to resolve drive: %w", err)
+					return fmt.Errorf("resolving drive: %w", err)
 				}
 				folderID = scope.DriveID
 				rootName = driveFlag // Use the provided name
 			}
 
 			// Build the tree
-			tree, err := buildTreeWithScope(client, folderID, rootName, depth, files)
+			tree, err := buildTreeWithScope(cmd.Context(), client, folderID, rootName, depth, files)
 			if err != nil {
-				return fmt.Errorf("failed to build folder tree: %w", err)
+				return fmt.Errorf("building folder tree: %w", err)
 			}
 
 			if jsonOutput {
@@ -94,12 +95,12 @@ Examples:
 }
 
 // buildTree recursively builds the folder tree structure
-func buildTree(client drive.DriveClientInterface, folderID string, depth int, includeFiles bool) (*TreeNode, error) {
-	return buildTreeWithScope(client, folderID, "", depth, includeFiles)
+func buildTree(ctx context.Context, client DriveClient, folderID string, depth int, includeFiles bool) (*TreeNode, error) {
+	return buildTreeWithScope(ctx, client, folderID, "", depth, includeFiles)
 }
 
 // buildTreeWithScope builds folder tree with optional root name override
-func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName string, depth int, includeFiles bool) (*TreeNode, error) {
+func buildTreeWithScope(ctx context.Context, client DriveClient, folderID, rootName string, depth int, includeFiles bool) (*TreeNode, error) {
 	// Get folder info
 	var folderName string
 	var folderType string
@@ -111,9 +112,9 @@ func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName st
 		folderName = rootName
 		folderType = "Shared Drive"
 	} else {
-		folder, err := client.GetFile(folderID)
+		folder, err := client.GetFile(ctx, folderID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get folder info: %w", err)
+			return nil, fmt.Errorf("getting folder info: %w", err)
 		}
 		folderName = folder.Name
 		folderType = drive.GetTypeName(folder.MimeType)
@@ -138,9 +139,9 @@ func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName st
 
 	// Use ListFilesWithScope to support shared drives
 	scope := drive.DriveScope{AllDrives: true}
-	children, err := client.ListFilesWithScope(query, 100, scope)
+	children, err := client.ListFilesWithScope(ctx, query, 100, scope)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list children: %w", err)
+		return nil, fmt.Errorf("listing children: %w", err)
 	}
 
 	// Sort children: folders first, then by name
@@ -157,7 +158,7 @@ func buildTreeWithScope(client drive.DriveClientInterface, folderID, rootName st
 	for _, child := range children {
 		if child.MimeType == drive.MimeTypeFolder {
 			// Recursively build subtree for folders (don't pass rootName on recursion)
-			childNode, err := buildTreeWithScope(client, child.ID, "", depth-1, includeFiles)
+			childNode, err := buildTreeWithScope(ctx, client, child.ID, "", depth-1, includeFiles)
 			if err != nil {
 				// Log error but continue with other children
 				continue

@@ -3,10 +3,8 @@ package auth
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/open-cli-collective/google-readonly/internal/config"
 )
@@ -18,12 +16,18 @@ func TestDeprecatedWrappers(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		authDir, err := GetConfigDir()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		configDir, err := config.GetConfigDir()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		assert.Equal(t, configDir, authDir)
+		if authDir != configDir {
+			t.Errorf("got %v, want %v", authDir, configDir)
+		}
 	})
 
 	t.Run("GetCredentialsPath delegates to config package", func(t *testing.T) {
@@ -31,12 +35,18 @@ func TestDeprecatedWrappers(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		authPath, err := GetCredentialsPath()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		configPath, err := config.GetCredentialsPath()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		assert.Equal(t, configPath, authPath)
+		if authPath != configPath {
+			t.Errorf("got %v, want %v", authPath, configPath)
+		}
 	})
 
 	t.Run("GetTokenPath delegates to config package", func(t *testing.T) {
@@ -44,43 +54,75 @@ func TestDeprecatedWrappers(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 		authPath, err := GetTokenPath()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		configPath, err := config.GetTokenPath()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		assert.Equal(t, configPath, authPath)
+		if authPath != configPath {
+			t.Errorf("got %v, want %v", authPath, configPath)
+		}
 	})
 
 	t.Run("ShortenPath delegates to config package", func(t *testing.T) {
+		t.Parallel()
 		home, err := os.UserHomeDir()
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		testPath := filepath.Join(home, ".config", "test")
 
 		authResult := ShortenPath(testPath)
 		configResult := config.ShortenPath(testPath)
 
-		assert.Equal(t, configResult, authResult)
+		if authResult != configResult {
+			t.Errorf("got %v, want %v", authResult, configResult)
+		}
 	})
 
 	t.Run("Constants match config package", func(t *testing.T) {
-		assert.Equal(t, config.DirName, ConfigDirName)
-		assert.Equal(t, config.CredentialsFile, CredentialsFile)
-		assert.Equal(t, config.TokenFile, TokenFile)
+		t.Parallel()
+		if ConfigDirName != config.DirName {
+			t.Errorf("got %v, want %v", ConfigDirName, config.DirName)
+		}
+		if CredentialsFile != config.CredentialsFile {
+			t.Errorf("got %v, want %v", CredentialsFile, config.CredentialsFile)
+		}
+		if TokenFile != config.TokenFile {
+			t.Errorf("got %v, want %v", TokenFile, config.TokenFile)
+		}
 	})
 }
 
 func TestAllScopes(t *testing.T) {
-	assert.Len(t, AllScopes, 4)
-	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/gmail.readonly")
-	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/calendar.readonly")
-	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/contacts.readonly")
-	assert.Contains(t, AllScopes, "https://www.googleapis.com/auth/drive.readonly")
+	t.Parallel()
+	if len(AllScopes) != 4 {
+		t.Errorf("got length %d, want %d", len(AllScopes), 4)
+	}
+	scopeSet := strings.Join(AllScopes, " ")
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/gmail.readonly") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/gmail.readonly")
+	}
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/calendar.readonly") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/calendar.readonly")
+	}
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/contacts.readonly") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/contacts.readonly")
+	}
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.readonly") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.readonly")
+	}
 }
 
 func TestTokenFromFile(t *testing.T) {
+	t.Parallel()
 	t.Run("reads valid token file", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		tokenPath := filepath.Join(tmpDir, "token.json")
 
@@ -91,28 +133,46 @@ func TestTokenFromFile(t *testing.T) {
 			"expiry": "2024-01-01T00:00:00Z"
 		}`
 		err := os.WriteFile(tokenPath, []byte(tokenData), 0600)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		token, err := tokenFromFile(tokenPath)
-		require.NoError(t, err)
-		assert.Equal(t, "test-access-token", token.AccessToken)
-		assert.Equal(t, "Bearer", token.TokenType)
-		assert.Equal(t, "test-refresh-token", token.RefreshToken)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if token.AccessToken != "test-access-token" {
+			t.Errorf("got %v, want %v", token.AccessToken, "test-access-token")
+		}
+		if token.TokenType != "Bearer" {
+			t.Errorf("got %v, want %v", token.TokenType, "Bearer")
+		}
+		if token.RefreshToken != "test-refresh-token" {
+			t.Errorf("got %v, want %v", token.RefreshToken, "test-refresh-token")
+		}
 	})
 
 	t.Run("returns error for non-existent file", func(t *testing.T) {
+		t.Parallel()
 		_, err := tokenFromFile("/nonexistent/token.json")
-		assert.Error(t, err)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
 	})
 
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		tokenPath := filepath.Join(tmpDir, "token.json")
 
 		err := os.WriteFile(tokenPath, []byte("not valid json"), 0600)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		_, err = tokenFromFile(tokenPath)
-		assert.Error(t, err)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
 	})
 }

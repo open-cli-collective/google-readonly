@@ -39,20 +39,20 @@ func newCacheShowCommand() *cobra.Command {
 - Configured TTL
 - Cached data status (when last updated, expiration)`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := configpkg.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				return fmt.Errorf("loading config: %w", err)
 			}
 
 			c, err := cache.New(cfg.CacheTTLHours)
 			if err != nil {
-				return fmt.Errorf("failed to initialize cache: %w", err)
+				return fmt.Errorf("initializing cache: %w", err)
 			}
 
 			status, err := c.GetStatus()
 			if err != nil {
-				return fmt.Errorf("failed to get cache status: %w", err)
+				return fmt.Errorf("getting cache status: %w", err)
 			}
 
 			if jsonOutput {
@@ -92,19 +92,19 @@ func newCacheClearCommand() *cobra.Command {
 		Short: "Clear all cached data",
 		Long:  `Remove all cached data. Cache will be repopulated on next use.`,
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := configpkg.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				return fmt.Errorf("loading config: %w", err)
 			}
 
 			c, err := cache.New(cfg.CacheTTLHours)
 			if err != nil {
-				return fmt.Errorf("failed to initialize cache: %w", err)
+				return fmt.Errorf("initializing cache: %w", err)
 			}
 
 			if err := c.Clear(); err != nil {
-				return fmt.Errorf("failed to clear cache: %w", err)
+				return fmt.Errorf("clearing cache: %w", err)
 			}
 
 			fmt.Println("Cache cleared.")
@@ -126,7 +126,7 @@ Examples:
   gro config cache ttl 12     # Set TTL to 12 hours
   gro config cache ttl 48     # Set TTL to 48 hours`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			ttl, err := strconv.Atoi(args[0])
 			if err != nil || ttl <= 0 {
 				return fmt.Errorf("invalid TTL value: must be a positive integer (hours)")
@@ -134,13 +134,13 @@ Examples:
 
 			cfg, err := configpkg.LoadConfig()
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				return fmt.Errorf("loading config: %w", err)
 			}
 
 			cfg.CacheTTLHours = ttl
 
 			if err := configpkg.SaveConfig(cfg); err != nil {
-				return fmt.Errorf("failed to save config: %w", err)
+				return fmt.Errorf("saving config: %w", err)
 			}
 
 			fmt.Printf("Cache TTL set to %d hours.\n", ttl)

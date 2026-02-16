@@ -29,14 +29,14 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			eventID := args[0]
 
-			client, err := newCalendarClient()
+			client, err := newCalendarClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
-			event, err := client.GetEvent(calendarID, eventID)
+			event, err := client.GetEvent(cmd.Context(), calendarID, eventID)
 			if err != nil {
-				return fmt.Errorf("failed to get event: %w", err)
+				return fmt.Errorf("getting event: %w", err)
 			}
 
 			parsedEvent := calendar.ParseEvent(event)

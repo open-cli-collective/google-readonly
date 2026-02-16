@@ -26,17 +26,21 @@ Examples:
 For more query operators, see: https://support.google.com/mail/answer/7190`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newGmailClient()
+			client, err := newGmailClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			messages, skipped, err := client.SearchMessages(args[0], maxResults)
+			messages, skipped, err := client.SearchMessages(cmd.Context(), args[0], maxResults)
 			if err != nil {
-				return fmt.Errorf("failed to search messages: %w", err)
+				return fmt.Errorf("searching messages: %w", err)
 			}
 
 			if len(messages) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No messages found.")
 				return nil
 			}

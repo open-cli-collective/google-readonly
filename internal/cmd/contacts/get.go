@@ -26,14 +26,14 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resourceName := args[0]
 
-			client, err := newContactsClient()
+			client, err := newContactsClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Contacts client: %w", err)
+				return fmt.Errorf("creating Contacts client: %w", err)
 			}
 
-			person, err := client.GetContact(resourceName)
+			person, err := client.GetContact(cmd.Context(), resourceName)
 			if err != nil {
-				return fmt.Errorf("failed to get contact: %w", err)
+				return fmt.Errorf("getting contact: %w", err)
 			}
 
 			contact := contacts.ParseContact(person)

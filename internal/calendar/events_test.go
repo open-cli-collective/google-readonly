@@ -1,14 +1,16 @@
 package calendar
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/calendar/v3"
 )
 
 func TestParseEvent(t *testing.T) {
+	t.Parallel()
 	t.Run("parses basic event", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:          "event123",
 			Summary:     "Team Meeting",
@@ -26,15 +28,28 @@ func TestParseEvent(t *testing.T) {
 
 		event := ParseEvent(apiEvent)
 
-		assert.Equal(t, "event123", event.ID)
-		assert.Equal(t, "Team Meeting", event.Summary)
-		assert.Equal(t, "Weekly sync", event.Description)
-		assert.Equal(t, "Conference Room A", event.Location)
-		assert.Equal(t, "confirmed", event.Status)
-		assert.False(t, event.AllDay)
+		if got := event.ID; got != "event123" {
+			t.Errorf("got %v, want %v", got, "event123")
+		}
+		if got := event.Summary; got != "Team Meeting" {
+			t.Errorf("got %v, want %v", got, "Team Meeting")
+		}
+		if got := event.Description; got != "Weekly sync" {
+			t.Errorf("got %v, want %v", got, "Weekly sync")
+		}
+		if got := event.Location; got != "Conference Room A" {
+			t.Errorf("got %v, want %v", got, "Conference Room A")
+		}
+		if got := event.Status; got != "confirmed" {
+			t.Errorf("got %v, want %v", got, "confirmed")
+		}
+		if event.AllDay {
+			t.Error("got true, want false")
+		}
 	})
 
 	t.Run("parses all-day event", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:      "allday123",
 			Summary: "Company Holiday",
@@ -48,12 +63,19 @@ func TestParseEvent(t *testing.T) {
 
 		event := ParseEvent(apiEvent)
 
-		assert.Equal(t, "allday123", event.ID)
-		assert.True(t, event.AllDay)
-		assert.Equal(t, "2026-01-01", event.Start.Date)
+		if got := event.ID; got != "allday123" {
+			t.Errorf("got %v, want %v", got, "allday123")
+		}
+		if !event.AllDay {
+			t.Error("got false, want true")
+		}
+		if got := event.Start.Date; got != "2026-01-01" {
+			t.Errorf("got %v, want %v", got, "2026-01-01")
+		}
 	})
 
 	t.Run("parses event with organizer", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:      "org123",
 			Summary: "Project Review",
@@ -72,12 +94,19 @@ func TestParseEvent(t *testing.T) {
 
 		event := ParseEvent(apiEvent)
 
-		assert.NotNil(t, event.Organizer)
-		assert.Equal(t, "boss@example.com", event.Organizer.Email)
-		assert.Equal(t, "The Boss", event.Organizer.DisplayName)
+		if event.Organizer == nil {
+			t.Fatal("expected non-nil, got nil")
+		}
+		if got := event.Organizer.Email; got != "boss@example.com" {
+			t.Errorf("got %v, want %v", got, "boss@example.com")
+		}
+		if got := event.Organizer.DisplayName; got != "The Boss" {
+			t.Errorf("got %v, want %v", got, "The Boss")
+		}
 	})
 
 	t.Run("parses event with attendees", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:      "att123",
 			Summary: "Team Standup",
@@ -104,14 +133,25 @@ func TestParseEvent(t *testing.T) {
 
 		event := ParseEvent(apiEvent)
 
-		assert.Len(t, event.Attendees, 2)
-		assert.Equal(t, "alice@example.com", event.Attendees[0].Email)
-		assert.Equal(t, "accepted", event.Attendees[0].Status)
-		assert.Equal(t, "bob@example.com", event.Attendees[1].Email)
-		assert.True(t, event.Attendees[1].Optional)
+		if len(event.Attendees) != 2 {
+			t.Errorf("got length %d, want %d", len(event.Attendees), 2)
+		}
+		if got := event.Attendees[0].Email; got != "alice@example.com" {
+			t.Errorf("got %v, want %v", got, "alice@example.com")
+		}
+		if got := event.Attendees[0].Status; got != "accepted" {
+			t.Errorf("got %v, want %v", got, "accepted")
+		}
+		if got := event.Attendees[1].Email; got != "bob@example.com" {
+			t.Errorf("got %v, want %v", got, "bob@example.com")
+		}
+		if !event.Attendees[1].Optional {
+			t.Error("got false, want true")
+		}
 	})
 
 	t.Run("handles event with hangout link", func(t *testing.T) {
+		t.Parallel()
 		apiEvent := &calendar.Event{
 			Id:          "meet123",
 			Summary:     "Video Call",
@@ -126,12 +166,16 @@ func TestParseEvent(t *testing.T) {
 
 		event := ParseEvent(apiEvent)
 
-		assert.Equal(t, "https://meet.google.com/abc-defg-hij", event.HangoutLink)
+		if got := event.HangoutLink; got != "https://meet.google.com/abc-defg-hij" {
+			t.Errorf("got %v, want %v", got, "https://meet.google.com/abc-defg-hij")
+		}
 	})
 }
 
 func TestParseCalendar(t *testing.T) {
+	t.Parallel()
 	t.Run("parses calendar entry", func(t *testing.T) {
+		t.Parallel()
 		apiCal := &calendar.CalendarListEntry{
 			Id:          "primary",
 			Summary:     "My Calendar",
@@ -143,15 +187,28 @@ func TestParseCalendar(t *testing.T) {
 
 		cal := ParseCalendar(apiCal)
 
-		assert.Equal(t, "primary", cal.ID)
-		assert.Equal(t, "My Calendar", cal.Summary)
-		assert.Equal(t, "Personal calendar", cal.Description)
-		assert.True(t, cal.Primary)
-		assert.Equal(t, "owner", cal.AccessRole)
-		assert.Equal(t, "America/New_York", cal.TimeZone)
+		if got := cal.ID; got != "primary" {
+			t.Errorf("got %v, want %v", got, "primary")
+		}
+		if got := cal.Summary; got != "My Calendar" {
+			t.Errorf("got %v, want %v", got, "My Calendar")
+		}
+		if got := cal.Description; got != "Personal calendar" {
+			t.Errorf("got %v, want %v", got, "Personal calendar")
+		}
+		if !cal.Primary {
+			t.Error("got false, want true")
+		}
+		if got := cal.AccessRole; got != "owner" {
+			t.Errorf("got %v, want %v", got, "owner")
+		}
+		if got := cal.TimeZone; got != "America/New_York" {
+			t.Errorf("got %v, want %v", got, "America/New_York")
+		}
 	})
 
 	t.Run("parses shared calendar", func(t *testing.T) {
+		t.Parallel()
 		apiCal := &calendar.CalendarListEntry{
 			Id:         "shared@group.calendar.google.com",
 			Summary:    "Team Calendar",
@@ -161,13 +218,19 @@ func TestParseCalendar(t *testing.T) {
 
 		cal := ParseCalendar(apiCal)
 
-		assert.False(t, cal.Primary)
-		assert.Equal(t, "reader", cal.AccessRole)
+		if cal.Primary {
+			t.Error("got true, want false")
+		}
+		if got := cal.AccessRole; got != "reader" {
+			t.Errorf("got %v, want %v", got, "reader")
+		}
 	})
 }
 
 func TestEventGetStartTime(t *testing.T) {
+	t.Parallel()
 	t.Run("parses datetime", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			Start: &EventTime{
 				DateTime: "2026-01-24T10:00:00-05:00",
@@ -175,13 +238,22 @@ func TestEventGetStartTime(t *testing.T) {
 		}
 
 		start, err := event.GetStartTime()
-		assert.NoError(t, err)
-		assert.Equal(t, 2026, start.Year())
-		assert.Equal(t, 1, int(start.Month()))
-		assert.Equal(t, 24, start.Day())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := start.Year(); got != 2026 {
+			t.Errorf("got %v, want %v", got, 2026)
+		}
+		if got := int(start.Month()); got != 1 {
+			t.Errorf("got %v, want %v", got, 1)
+		}
+		if got := start.Day(); got != 24 {
+			t.Errorf("got %v, want %v", got, 24)
+		}
 	})
 
 	t.Run("parses date for all-day event", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			AllDay: true,
 			Start: &EventTime{
@@ -190,21 +262,32 @@ func TestEventGetStartTime(t *testing.T) {
 		}
 
 		start, err := event.GetStartTime()
-		assert.NoError(t, err)
-		assert.Equal(t, 24, start.Day())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := start.Day(); got != 24 {
+			t.Errorf("got %v, want %v", got, 24)
+		}
 	})
 
 	t.Run("handles nil start", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{}
 
 		start, err := event.GetStartTime()
-		assert.NoError(t, err)
-		assert.True(t, start.IsZero())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !start.IsZero() {
+			t.Error("got false, want true")
+		}
 	})
 }
 
 func TestEventFormatTimeRange(t *testing.T) {
+	t.Parallel()
 	t.Run("formats same-day event", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			Start: &EventTime{
 				DateTime: "2026-01-24T10:00:00-05:00",
@@ -215,12 +298,19 @@ func TestEventFormatTimeRange(t *testing.T) {
 		}
 
 		result := event.FormatTimeRange()
-		assert.Contains(t, result, "Jan 24, 2026")
-		assert.Contains(t, result, "10:00")
-		assert.Contains(t, result, "11:00")
+		if !strings.Contains(result, "Jan 24, 2026") {
+			t.Errorf("expected %q to contain %q", result, "Jan 24, 2026")
+		}
+		if !strings.Contains(result, "10:00") {
+			t.Errorf("expected %q to contain %q", result, "10:00")
+		}
+		if !strings.Contains(result, "11:00") {
+			t.Errorf("expected %q to contain %q", result, "11:00")
+		}
 	})
 
 	t.Run("formats all-day event", func(t *testing.T) {
+		t.Parallel()
 		event := &Event{
 			AllDay: true,
 			Start: &EventTime{
@@ -232,7 +322,11 @@ func TestEventFormatTimeRange(t *testing.T) {
 		}
 
 		result := event.FormatTimeRange()
-		assert.Contains(t, result, "Jan 24, 2026")
-		assert.Contains(t, result, "all day")
+		if !strings.Contains(result, "Jan 24, 2026") {
+			t.Errorf("expected %q to contain %q", result, "Jan 24, 2026")
+		}
+		if !strings.Contains(result, "all day") {
+			t.Errorf("expected %q to contain %q", result, "all day")
+		}
 	})
 }

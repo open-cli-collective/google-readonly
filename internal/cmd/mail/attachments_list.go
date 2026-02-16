@@ -23,17 +23,21 @@ Examples:
   gro mail attachments list 18abc123def456 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newGmailClient()
+			client, err := newGmailClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			attachments, err := client.GetAttachments(args[0])
+			attachments, err := client.GetAttachments(cmd.Context(), args[0])
 			if err != nil {
-				return fmt.Errorf("failed to get attachments: %w", err)
+				return fmt.Errorf("getting attachments: %w", err)
 			}
 
 			if len(attachments) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No attachments found for message.")
 				return nil
 			}

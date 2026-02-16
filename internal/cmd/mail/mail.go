@@ -1,3 +1,4 @@
+// Package mail implements the gro mail command and subcommands.
 package mail
 
 import (

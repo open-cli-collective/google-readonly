@@ -50,9 +50,9 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
 			}
 
-			client, err := newDriveClient()
+			client, err := newDriveClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			query := ""
@@ -62,21 +62,26 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 
 			searchQuery, err := buildSearchQuery(query, nameOnly, fileType, owner, modAfter, modBefore, inFolder)
 			if err != nil {
-				return fmt.Errorf("failed to build search query: %w", err)
+				return fmt.Errorf("building search query: %w", err)
 			}
 
 			// Resolve drive scope
-			scope, err := resolveDriveScope(client, myDrive, driveFlag)
+			ctx := cmd.Context()
+			scope, err := resolveDriveScope(ctx, client, myDrive, driveFlag)
 			if err != nil {
-				return fmt.Errorf("failed to resolve drive scope: %w", err)
+				return fmt.Errorf("resolving drive scope: %w", err)
 			}
 
-			files, err := client.ListFilesWithScope(searchQuery, maxResults, scope)
+			files, err := client.ListFilesWithScope(ctx, searchQuery, maxResults, scope)
 			if err != nil {
-				return fmt.Errorf("failed to search files: %w", err)
+				return fmt.Errorf("searching files: %w", err)
 			}
 
 			if len(files) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				if query != "" {
 					fmt.Printf("No files found matching \"%s\".\n", query)
 				} else {

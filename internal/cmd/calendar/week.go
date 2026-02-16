@@ -25,16 +25,16 @@ Examples:
   gro cal week --json
   gro cal week --calendar work@group.calendar.google.com`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newCalendarClient()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := newCalendarClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
 			now := time.Now()
 			startOfWeek, endOfWeek := weekBounds(now)
 
-			return listAndPrintEvents(client, EventListOptions{
+			return listAndPrintEvents(cmd.Context(), client, EventListOptions{
 				CalendarID: calendarID,
 				TimeMin:    startOfWeek.Format(time.RFC3339),
 				TimeMax:    endOfWeek.Format(time.RFC3339),

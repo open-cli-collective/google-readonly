@@ -42,17 +42,19 @@ Export formats:
   Drawings:      pdf, png, svg, jpg`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newDriveClient()
+			client, err := newDriveClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			fileID := args[0]
 
+			ctx := cmd.Context()
+
 			// Get file metadata first
-			file, err := client.GetFile(fileID)
+			file, err := client.GetFile(ctx, fileID)
 			if err != nil {
-				return fmt.Errorf("failed to get file info: %w", err)
+				return fmt.Errorf("getting file info: %w", err)
 			}
 
 			var data []byte
@@ -67,7 +69,7 @@ Export formats:
 
 				exportMime, err := drive.GetExportMimeType(file.MimeType, format)
 				if err != nil {
-					return fmt.Errorf("failed to get export type: %w", err)
+					return fmt.Errorf("getting export type: %w", err)
 				}
 
 				if !stdout {
@@ -75,9 +77,9 @@ Export formats:
 					fmt.Printf("Format: %s\n", format)
 				}
 
-				data, err = client.ExportFile(fileID, exportMime)
+				data, err = client.ExportFile(ctx, fileID, exportMime)
 				if err != nil {
-					return fmt.Errorf("failed to export file: %w", err)
+					return fmt.Errorf("exporting file: %w", err)
 				}
 			} else {
 				// Regular file - download directly
@@ -90,9 +92,9 @@ Export formats:
 					fmt.Printf("Downloading: %s\n", file.Name)
 				}
 
-				data, err = client.DownloadFile(fileID)
+				data, err = client.DownloadFile(ctx, fileID)
 				if err != nil {
-					return fmt.Errorf("failed to download file: %w", err)
+					return fmt.Errorf("downloading file: %w", err)
 				}
 			}
 
@@ -100,7 +102,7 @@ Export formats:
 			if stdout {
 				_, err = os.Stdout.Write(data)
 				if err != nil {
-					return fmt.Errorf("failed to write to stdout: %w", err)
+					return fmt.Errorf("writing to stdout: %w", err)
 				}
 				return nil
 			}
@@ -108,7 +110,7 @@ Export formats:
 			outputPath := determineOutputPath(file.Name, format, output)
 
 			if err := os.WriteFile(outputPath, data, config.OutputFilePerm); err != nil {
-				return fmt.Errorf("failed to write file: %w", err)
+				return fmt.Errorf("writing file: %w", err)
 			}
 
 			fmt.Printf("Size: %s\n", formatpkg.Size(int64(len(data))))

@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestParseDate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -78,22 +78,24 @@ func TestParseDate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := parseDate(tt.input)
 
 			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "invalid date format")
+				testutil.Error(t, err)
+				testutil.Contains(t, err.Error(), "invalid date format")
 			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want.Year(), result.Year())
-				assert.Equal(t, tt.want.Month(), result.Month())
-				assert.Equal(t, tt.want.Day(), result.Day())
+				testutil.NoError(t, err)
+				testutil.Equal(t, result.Year(), tt.want.Year())
+				testutil.Equal(t, result.Month(), tt.want.Month())
+				testutil.Equal(t, result.Day(), tt.want.Day())
 			}
 		})
 	}
 }
 
 func TestEndOfDay(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input time.Time
@@ -123,13 +125,15 @@ func TestEndOfDay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := endOfDay(tt.input)
-			assert.Equal(t, tt.want, result)
+			testutil.Equal(t, result, tt.want)
 		})
 	}
 }
 
 func TestWeekBounds(t *testing.T) {
+	t.Parallel()
 	loc := time.UTC
 
 	tests := []struct {
@@ -202,31 +206,33 @@ func TestWeekBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start, end := weekBounds(tt.input)
 
-			assert.Equal(t, tt.wantStart, start, "start mismatch")
-			assert.Equal(t, tt.wantEnd, end, "end mismatch")
+			testutil.Equal(t, start, tt.wantStart)
+			testutil.Equal(t, end, tt.wantEnd)
 
 			// Verify start is Monday
-			assert.Equal(t, time.Monday, start.Weekday(), "start should be Monday")
+			testutil.Equal(t, start.Weekday(), time.Monday)
 
 			// Verify end is Sunday
-			assert.Equal(t, time.Sunday, end.Weekday(), "end should be Sunday")
+			testutil.Equal(t, end.Weekday(), time.Sunday)
 
 			// Verify start is at 00:00:00
-			assert.Equal(t, 0, start.Hour())
-			assert.Equal(t, 0, start.Minute())
-			assert.Equal(t, 0, start.Second())
+			testutil.Equal(t, start.Hour(), 0)
+			testutil.Equal(t, start.Minute(), 0)
+			testutil.Equal(t, start.Second(), 0)
 
 			// Verify end is at 23:59:59
-			assert.Equal(t, 23, end.Hour())
-			assert.Equal(t, 59, end.Minute())
-			assert.Equal(t, 59, end.Second())
+			testutil.Equal(t, end.Hour(), 23)
+			testutil.Equal(t, end.Minute(), 59)
+			testutil.Equal(t, end.Second(), 59)
 		})
 	}
 }
 
 func TestWeekBoundsSundayEdgeCase(t *testing.T) {
+	t.Parallel()
 	// Specific test for the Sunday edge case which requires special handling
 	loc := time.UTC
 
@@ -240,23 +246,25 @@ func TestWeekBoundsSundayEdgeCase(t *testing.T) {
 
 	for _, sunday := range sundays {
 		t.Run(sunday.Format("2006-01-02"), func(t *testing.T) {
+			t.Parallel()
 			start, end := weekBounds(sunday)
 
 			// The Sunday should be included in the week
-			assert.Equal(t, sunday.Year(), end.Year())
-			assert.Equal(t, sunday.Month(), end.Month())
-			assert.Equal(t, sunday.Day(), end.Day())
+			testutil.Equal(t, end.Year(), sunday.Year())
+			testutil.Equal(t, end.Month(), sunday.Month())
+			testutil.Equal(t, end.Day(), sunday.Day())
 
 			// The Monday should be 6 days before the Sunday
 			expectedMonday := sunday.AddDate(0, 0, -6)
-			assert.Equal(t, expectedMonday.Year(), start.Year())
-			assert.Equal(t, expectedMonday.Month(), start.Month())
-			assert.Equal(t, expectedMonday.Day(), start.Day())
+			testutil.Equal(t, start.Year(), expectedMonday.Year())
+			testutil.Equal(t, start.Month(), expectedMonday.Month())
+			testutil.Equal(t, start.Day(), expectedMonday.Day())
 		})
 	}
 }
 
 func TestTodayBounds(t *testing.T) {
+	t.Parallel()
 	loc := time.UTC
 
 	tests := []struct {
@@ -305,19 +313,20 @@ func TestTodayBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start, end := todayBounds(tt.input)
 
-			assert.Equal(t, tt.wantStart, start)
-			assert.Equal(t, tt.wantEnd, end)
+			testutil.Equal(t, start, tt.wantStart)
+			testutil.Equal(t, end, tt.wantEnd)
 
 			// Verify same day
-			assert.Equal(t, tt.input.Year(), start.Year())
-			assert.Equal(t, tt.input.Month(), start.Month())
-			assert.Equal(t, tt.input.Day(), start.Day())
+			testutil.Equal(t, start.Year(), tt.input.Year())
+			testutil.Equal(t, start.Month(), tt.input.Month())
+			testutil.Equal(t, start.Day(), tt.input.Day())
 
-			assert.Equal(t, tt.input.Year(), end.Year())
-			assert.Equal(t, tt.input.Month(), end.Month())
-			assert.Equal(t, tt.input.Day(), end.Day())
+			testutil.Equal(t, end.Year(), tt.input.Year())
+			testutil.Equal(t, end.Month(), tt.input.Month())
+			testutil.Equal(t, end.Day(), tt.input.Day())
 		})
 	}
 }

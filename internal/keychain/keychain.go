@@ -16,12 +16,13 @@ import (
 
 const (
 	serviceName = config.DirName
-	tokenKey    = "oauth_token"
+	tokenKey    = "oauth_token" //nolint:gosec // Not a credential; key name for keychain lookup
 )
 
 // StorageBackend represents where tokens are stored
 type StorageBackend string
 
+// StorageBackend constants define where OAuth tokens are persisted.
 const (
 	BackendKeychain   StorageBackend = "Keychain"    // macOS Keychain
 	BackendSecretTool StorageBackend = "secret-tool" // Linux libsecret
@@ -83,20 +84,20 @@ func MigrateFromFile(tokenFilePath string) error {
 	}
 
 	// Read token from file
-	f, err := os.Open(tokenFilePath)
+	f, err := os.Open(tokenFilePath) //nolint:gosec // Path from user config directory
 	if err != nil {
-		return fmt.Errorf("failed to open token file: %w", err)
+		return fmt.Errorf("opening token file: %w", err)
 	}
 	defer f.Close()
 
 	var token oauth2.Token
 	if err := json.NewDecoder(f).Decode(&token); err != nil {
-		return fmt.Errorf("failed to parse token file: %w", err)
+		return fmt.Errorf("parsing token file: %w", err)
 	}
 
 	// Store in secure storage
 	if err := SetToken(&token); err != nil {
-		return fmt.Errorf("failed to store token in secure storage: %w", err)
+		return fmt.Errorf("storing token in secure storage: %w", err)
 	}
 
 	// Securely delete old token file (overwrite with zeros before removal)
@@ -123,7 +124,7 @@ func secureDelete(path string) error {
 	}
 
 	// Overwrite with zeros
-	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	f, err := os.OpenFile(path, os.O_WRONLY, 0) //nolint:gosec // Path from user config directory
 	if err != nil {
 		// If we can't open for writing, try to delete anyway
 		return os.Remove(path)
@@ -145,18 +146,18 @@ func getFromConfigFile() (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // Path from user config directory
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrTokenNotFound
 		}
-		return nil, fmt.Errorf("failed to open token file: %w", err)
+		return nil, fmt.Errorf("opening token file: %w", err)
 	}
 	defer f.Close()
 
 	var token oauth2.Token
 	if err := json.NewDecoder(f).Decode(&token); err != nil {
-		return nil, fmt.Errorf("failed to parse token file: %w", err)
+		return nil, fmt.Errorf("parsing token file: %w", err)
 	}
 
 	return &token, nil
@@ -171,18 +172,18 @@ func setInConfigFile(token *oauth2.Token) error {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, config.DirPerm); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return fmt.Errorf("creating config directory: %w", err)
 	}
 
 	// Write token with restricted permissions
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, config.TokenPerm)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, config.TokenPerm) //nolint:gosec // Path from user config directory
 	if err != nil {
-		return fmt.Errorf("failed to create token file: %w", err)
+		return fmt.Errorf("creating token file: %w", err)
 	}
 	defer f.Close()
 
 	if err := json.NewEncoder(f).Encode(token); err != nil {
-		return fmt.Errorf("failed to write token: %w", err)
+		return fmt.Errorf("writing token: %w", err)
 	}
 
 	return nil
@@ -195,7 +196,7 @@ func deleteFromConfigFile() error {
 	}
 
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to delete token file: %w", err)
+		return fmt.Errorf("deleting token file: %w", err)
 	}
 
 	return nil

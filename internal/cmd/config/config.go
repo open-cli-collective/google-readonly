@@ -1,13 +1,14 @@
+// Package config implements the gro config command and subcommands.
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
@@ -65,11 +66,11 @@ The credentials.json file (OAuth client config) is not removed.`,
 	}
 }
 
-func runShow(cmd *cobra.Command, args []string) error {
+func runShow(cmd *cobra.Command, _ []string) error {
 	// Check credentials file
-	credPath, err := gmail.GetCredentialsPath()
+	credPath, err := auth.GetCredentialsPath()
 	if err != nil {
-		return fmt.Errorf("failed to get credentials path: %w", err)
+		return fmt.Errorf("getting credentials path: %w", err)
 	}
 
 	credStatus := "OK"
@@ -111,8 +112,8 @@ func runShow(cmd *cobra.Command, args []string) error {
 
 	// Show email if we can get it without triggering auth
 	if keychain.HasStoredToken() && credStatus == "OK" {
-		if client, err := gmail.NewClient(context.Background()); err == nil {
-			if profile, err := client.GetProfile(); err == nil {
+		if client, err := gmail.NewClient(cmd.Context()); err == nil {
+			if profile, err := client.GetProfile(cmd.Context()); err == nil {
 				fmt.Printf("Email:       %s\n", profile.EmailAddress)
 			}
 		}
@@ -127,7 +128,7 @@ func runShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runTest(cmd *cobra.Command, args []string) error {
+func runTest(cmd *cobra.Command, _ []string) error {
 	fmt.Println("Testing Gmail API connection...")
 	fmt.Println()
 
@@ -141,21 +142,21 @@ func runTest(cmd *cobra.Command, args []string) error {
 	fmt.Println("  OAuth token: Found")
 
 	// Try to create client (tests token validity)
-	client, err := gmail.NewClient(context.Background())
+	client, err := gmail.NewClient(cmd.Context())
 	if err != nil {
 		fmt.Println("  Token valid: FAILED")
 		fmt.Println()
 		fmt.Println("Token may be expired or revoked.")
 		fmt.Println("Run 'gro config clear' then 'gro init' to re-authenticate.")
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("creating client: %w", err)
 	}
 	fmt.Println("  Token valid: OK")
 
 	// Test API access
-	profile, err := client.GetProfile()
+	profile, err := client.GetProfile(cmd.Context())
 	if err != nil {
 		fmt.Println("  Gmail API:   FAILED")
-		return fmt.Errorf("failed to access Gmail API: %w", err)
+		return fmt.Errorf("accessing Gmail API: %w", err)
 	}
 	fmt.Println("  Gmail API:   OK")
 	fmt.Printf("  Messages:    %d total\n", profile.MessagesTotal)
@@ -166,7 +167,7 @@ func runTest(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runClear(cmd *cobra.Command, args []string) error {
+func runClear(_ *cobra.Command, _ []string) error {
 	if !keychain.HasStoredToken() {
 		fmt.Println("No OAuth token found to clear.")
 		return nil
@@ -175,7 +176,7 @@ func runClear(cmd *cobra.Command, args []string) error {
 	backend := keychain.GetStorageBackend()
 
 	if err := keychain.DeleteToken(); err != nil {
-		return fmt.Errorf("failed to clear token: %w", err)
+		return fmt.Errorf("clearing token: %w", err)
 	}
 
 	fmt.Printf("Cleared OAuth token from %s.\n", backend)

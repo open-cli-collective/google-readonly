@@ -23,15 +23,15 @@ Examples:
   gro drive get <file-id> --json # Output as JSON`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newDriveClient()
+			client, err := newDriveClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			fileID := args[0]
-			file, err := client.GetFile(fileID)
+			file, err := client.GetFile(cmd.Context(), fileID)
 			if err != nil {
-				return fmt.Errorf("failed to get file %s: %w", fileID, err)
+				return fmt.Errorf("getting file %s: %w", fileID, err)
 			}
 
 			if jsonOutput {

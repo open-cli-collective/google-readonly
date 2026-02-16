@@ -34,18 +34,22 @@ Examples:
   gro mail labels
   gro mail labels --json`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newGmailClient()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := newGmailClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Gmail client: %w", err)
+				return fmt.Errorf("creating Gmail client: %w", err)
 			}
 
-			if err := client.FetchLabels(); err != nil {
-				return fmt.Errorf("failed to fetch labels: %w", err)
+			if err := client.FetchLabels(cmd.Context()); err != nil {
+				return fmt.Errorf("fetching labels: %w", err)
 			}
 
 			gmailLabels := client.GetLabels()
 			if len(gmailLabels) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No labels found.")
 				return nil
 			}

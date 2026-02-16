@@ -38,9 +38,9 @@ Examples:
 				calID = args[0]
 			}
 
-			client, err := newCalendarClient()
+			client, err := newCalendarClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
 			// Parse date range
@@ -66,7 +66,7 @@ Examples:
 				timeMax = endOfDay(t).Format(time.RFC3339)
 			}
 
-			return listAndPrintEvents(client, EventListOptions{
+			return listAndPrintEvents(cmd.Context(), client, EventListOptions{
 				CalendarID:   calID,
 				TimeMin:      timeMin,
 				TimeMax:      timeMax,

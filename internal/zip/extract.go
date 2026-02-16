@@ -1,3 +1,4 @@
+// Package zip provides secure zip archive extraction with path traversal protection.
 package zip
 
 import (
@@ -42,7 +43,7 @@ func DefaultOptions() Options {
 func Extract(zipPath, destDir string, opts Options) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("failed to open zip: %w", err)
+		return fmt.Errorf("opening zip: %w", err)
 	}
 	defer r.Close()
 
@@ -54,10 +55,10 @@ func Extract(zipPath, destDir string, opts Options) error {
 	// Create destination directory
 	destDir, err = filepath.Abs(destDir)
 	if err != nil {
-		return fmt.Errorf("failed to resolve destination path: %w", err)
+		return fmt.Errorf("resolving destination path: %w", err)
 	}
 	if err := fs.MkdirAll(destDir, 0755); err != nil {
-		return fmt.Errorf("failed to create destination: %w", err)
+		return fmt.Errorf("creating destination: %w", err)
 	}
 
 	var totalSize int64
@@ -79,14 +80,14 @@ func validateZip(r *zip.Reader, opts Options) error {
 	var totalSize uint64
 	for _, f := range r.File {
 		// Check for zip bomb (compression ratio attack)
-		if f.UncompressedSize64 > uint64(opts.MaxFileSize) {
+		if f.UncompressedSize64 > uint64(opts.MaxFileSize) { //nolint:gosec // MaxFileSize is always positive
 			return fmt.Errorf("file %s exceeds max size: %d bytes",
 				f.Name, f.UncompressedSize64)
 		}
 		totalSize += f.UncompressedSize64
 	}
 
-	if totalSize > uint64(opts.MaxTotalSize) {
+	if totalSize > uint64(opts.MaxTotalSize) { //nolint:gosec // MaxTotalSize is always positive
 		return fmt.Errorf("total extracted size exceeds limit: %d bytes (max %d)",
 			totalSize, opts.MaxTotalSize)
 	}

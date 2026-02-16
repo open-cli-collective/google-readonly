@@ -4,10 +4,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestUserError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      UserError
@@ -27,17 +28,20 @@ func TestUserError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.err.Error())
+			t.Parallel()
+			testutil.Equal(t, tt.err.Error(), tt.expected)
 		})
 	}
 }
 
 func TestNewUserError(t *testing.T) {
+	t.Parallel()
 	err := NewUserError("invalid value: %d", 42)
-	assert.Equal(t, "invalid value: 42", err.Error())
+	testutil.Equal(t, err.Error(), "invalid value: 42")
 }
 
 func TestSystemError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      SystemError
@@ -64,32 +68,36 @@ func TestSystemError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.err.Error())
+			t.Parallel()
+			testutil.Equal(t, tt.err.Error(), tt.expected)
 		})
 	}
 }
 
 func TestSystemErrorUnwrap(t *testing.T) {
+	t.Parallel()
 	cause := errors.New("underlying error")
 	err := SystemError{
 		Message: "wrapper",
 		Cause:   cause,
 	}
 
-	assert.Equal(t, cause, err.Unwrap())
-	assert.True(t, errors.Is(err, cause))
+	testutil.Equal(t, err.Unwrap(), cause)
+	testutil.True(t, errors.Is(err, cause))
 }
 
 func TestNewSystemError(t *testing.T) {
+	t.Parallel()
 	cause := errors.New("network timeout")
 	err := NewSystemError("API call failed", cause, true)
 
-	assert.Equal(t, "API call failed", err.Message)
-	assert.Equal(t, cause, err.Cause)
-	assert.True(t, err.Retryable)
+	testutil.Equal(t, err.Message, "API call failed")
+	testutil.Equal(t, err.Cause, cause)
+	testutil.True(t, err.Retryable)
 }
 
 func TestIsRetryable(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -119,7 +127,8 @@ func TestIsRetryable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, IsRetryable(tt.err))
+			t.Parallel()
+			testutil.Equal(t, IsRetryable(tt.err), tt.expected)
 		})
 	}
 }

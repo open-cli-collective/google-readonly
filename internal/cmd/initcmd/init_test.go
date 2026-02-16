@@ -5,42 +5,50 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
+
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestInitCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "init", cmd.Use)
+		t.Parallel()
+		testutil.Equal(t, cmd.Use, "init")
 	})
 
 	t.Run("requires no arguments", func(t *testing.T) {
+		t.Parallel()
 		err := cmd.Args(cmd, []string{})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 
 		err = cmd.Args(cmd, []string{"extra"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has no-verify flag", func(t *testing.T) {
+		t.Parallel()
 		flag := cmd.Flags().Lookup("no-verify")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "false", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.DefValue, "false")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		t.Parallel()
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has long description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Long)
-		assert.Contains(t, cmd.Long, "OAuth")
+		t.Parallel()
+		testutil.NotEmpty(t, cmd.Long)
+		testutil.Contains(t, cmd.Long, "OAuth")
 	})
 }
 
 func TestExtractAuthCode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -110,13 +118,15 @@ func TestExtractAuthCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := extractAuthCode(tt.input)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
 
 func TestIsAuthError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -176,8 +186,9 @@ func TestIsAuthError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := isAuthError(tt.err)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }

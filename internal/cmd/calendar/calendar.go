@@ -1,3 +1,4 @@
+// Package calendar implements the gro calendar command and subcommands.
 package calendar
 
 import (

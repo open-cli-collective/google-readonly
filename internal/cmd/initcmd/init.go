@@ -1,8 +1,10 @@
+// Package initcmd implements the gro init command for OAuth setup.
 package initcmd
 
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/api/googleapi"
 
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
@@ -45,14 +48,14 @@ Prerequisites:
 	return cmd
 }
 
-func runInit(cmd *cobra.Command, args []string) error {
+func runInit(cmd *cobra.Command, _ []string) error {
 	// Step 1: Check for credentials.json
-	credPath, err := gmail.GetCredentialsPath()
+	credPath, err := auth.GetCredentialsPath()
 	if err != nil {
-		return fmt.Errorf("failed to get credentials path: %w", err)
+		return fmt.Errorf("getting credentials path: %w", err)
 	}
 
-	shortPath := gmail.ShortenPath(credPath)
+	shortPath := auth.ShortenPath(credPath)
 	if _, err := os.Stat(credPath); os.IsNotExist(err) {
 		fmt.Println("Credentials file not found.")
 		fmt.Println()
@@ -62,9 +65,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Credentials: %s\n", shortPath)
 
 	// Step 2: Load OAuth config
-	config, err := gmail.GetOAuthConfig()
+	config, err := auth.GetOAuthConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load OAuth config: %w", err)
+		return fmt.Errorf("loading OAuth config: %w", err)
 	}
 
 	// Step 3: Check if already authenticated
@@ -73,7 +76,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 
 		if !noVerify {
-			err := verifyConnectivity()
+			err := verifyConnectivity(cmd.Context())
 			if err == nil {
 				promptCacheTTL()
 				return nil
@@ -88,7 +91,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 					fmt.Println()
 					fmt.Println("Clearing old token...")
 					if delErr := keychain.DeleteToken(); delErr != nil {
-						return fmt.Errorf("failed to clear token: %w", delErr)
+						return fmt.Errorf("clearing token: %w", delErr)
 					}
 					// Fall through to OAuth flow below
 				} else {
@@ -111,7 +114,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("Token:       Not found - starting OAuth flow")
 	fmt.Println()
 
-	authURL := gmail.GetAuthURL(config)
+	authURL := auth.GetAuthURL(config)
 	fmt.Println("Open this URL in your browser:")
 	fmt.Println()
 	fmt.Println(authURL)
@@ -128,7 +131,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
+		return fmt.Errorf("reading input: %w", err)
 	}
 
 	code := extractAuthCode(input)
@@ -140,22 +143,21 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Exchanging authorization code...")
 
-	ctx := context.Background()
-	token, err := gmail.ExchangeAuthCode(ctx, config, code)
+	token, err := auth.ExchangeAuthCode(cmd.Context(), config, code)
 	if err != nil {
-		return fmt.Errorf("failed to exchange authorization code: %w", err)
+		return fmt.Errorf("exchanging authorization code: %w", err)
 	}
 
 	// Step 6: Save token
 	if err := keychain.SetToken(token); err != nil {
-		return fmt.Errorf("failed to save token: %w", err)
+		return fmt.Errorf("saving token: %w", err)
 	}
 	fmt.Printf("Token saved to: %s\n", keychain.GetStorageBackend())
 
 	// Step 7: Verify connectivity (unless --no-verify)
 	if !noVerify {
 		fmt.Println()
-		if err := verifyConnectivity(); err != nil {
+		if err := verifyConnectivity(cmd.Context()); err != nil {
 			return err
 		}
 		promptCacheTTL()
@@ -189,21 +191,21 @@ func extractAuthCode(input string) string {
 }
 
 // verifyConnectivity tests the Gmail API connection
-func verifyConnectivity() error {
+func verifyConnectivity(ctx context.Context) error {
 	fmt.Println("Verifying Gmail API connection...")
 
-	client, err := gmail.NewClient(context.Background())
+	client, err := gmail.NewClient(ctx)
 	if err != nil {
 		fmt.Println("  OAuth token: FAILED")
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("creating client: %w", err)
 	}
 	fmt.Println("  OAuth token: OK")
 
 	// Get profile to verify connectivity and get email address
-	profile, err := client.GetProfile()
+	profile, err := client.GetProfile(ctx)
 	if err != nil {
 		fmt.Println("  Gmail API:   FAILED")
-		return fmt.Errorf("failed to access Gmail API: %w", err)
+		return fmt.Errorf("accessing Gmail API: %w", err)
 	}
 	fmt.Println("  Gmail API:   OK")
 	fmt.Printf("  Messages:    %d total\n", profile.MessagesTotal)
@@ -259,23 +261,7 @@ func isAuthError(err error) bool {
 }
 
 // errorAs is a wrapper for errors.As to make testing easier
-var errorAs = func(err error, target interface{}) bool {
-	switch t := target.(type) {
-	case **googleapi.Error:
-		for e := err; e != nil; {
-			if apiErr, ok := e.(*googleapi.Error); ok {
-				*t = apiErr
-				return true
-			}
-			if unwrapper, ok := e.(interface{ Unwrap() error }); ok {
-				e = unwrapper.Unwrap()
-			} else {
-				break
-			}
-		}
-	}
-	return false
-}
+var errorAs = errors.As
 
 // promptReauth asks the user if they want to re-authenticate
 func promptReauth() bool {
@@ -334,6 +320,6 @@ func promptCacheTTL() {
 	}
 
 	if err := config.SaveConfig(cfg); err != nil {
-		fmt.Printf("Warning: failed to save config: %v\n", err)
+		fmt.Printf("Warning: saving config: %v\n", err)
 	}
 }

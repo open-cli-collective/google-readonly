@@ -1,19 +1,15 @@
 package gmail
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	gmailapi "google.golang.org/api/gmail/v1"
-
-	"github.com/open-cli-collective/google-readonly/internal/auth"
 )
 
 func TestGetLabelName(t *testing.T) {
+	t.Parallel()
 	t.Run("returns name for cached label", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels: map[string]*gmailapi.Label{
 				"Label_123": {Id: "Label_123", Name: "Work"},
@@ -22,41 +18,56 @@ func TestGetLabelName(t *testing.T) {
 			labelsLoaded: true,
 		}
 
-		assert.Equal(t, "Work", client.GetLabelName("Label_123"))
-		assert.Equal(t, "Personal", client.GetLabelName("Label_456"))
+		if got := client.GetLabelName("Label_123"); got != "Work" {
+			t.Errorf("got %v, want %v", got, "Work")
+		}
+		if got := client.GetLabelName("Label_456"); got != "Personal" {
+			t.Errorf("got %v, want %v", got, "Personal")
+		}
 	})
 
 	t.Run("returns ID for uncached label", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       map[string]*gmailapi.Label{},
 			labelsLoaded: true,
 		}
 
-		assert.Equal(t, "Unknown_Label", client.GetLabelName("Unknown_Label"))
+		if got := client.GetLabelName("Unknown_Label"); got != "Unknown_Label" {
+			t.Errorf("got %v, want %v", got, "Unknown_Label")
+		}
 	})
 
 	t.Run("returns ID when labels not loaded", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       nil,
 			labelsLoaded: false,
 		}
 
-		assert.Equal(t, "Label_123", client.GetLabelName("Label_123"))
+		if got := client.GetLabelName("Label_123"); got != "Label_123" {
+			t.Errorf("got %v, want %v", got, "Label_123")
+		}
 	})
 }
 
 func TestGetLabels(t *testing.T) {
+	t.Parallel()
 	t.Run("returns nil when labels not loaded", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       nil,
 			labelsLoaded: false,
 		}
 
 		result := client.GetLabels()
-		assert.Nil(t, result)
+		if result != nil {
+			t.Errorf("got %v, want nil", result)
+		}
 	})
 
 	t.Run("returns all cached labels", func(t *testing.T) {
+		t.Parallel()
 		label1 := &gmailapi.Label{Id: "Label_1", Name: "Work"}
 		label2 := &gmailapi.Label{Id: "Label_2", Name: "Personal"}
 
@@ -69,60 +80,39 @@ func TestGetLabels(t *testing.T) {
 		}
 
 		result := client.GetLabels()
-		assert.Len(t, result, 2)
-		assert.Contains(t, result, label1)
-		assert.Contains(t, result, label2)
+		if len(result) != 2 {
+			t.Errorf("got length %d, want %d", len(result), 2)
+		}
+		found1, found2 := false, false
+		for _, l := range result {
+			if l == label1 {
+				found1 = true
+			}
+			if l == label2 {
+				found2 = true
+			}
+		}
+		if !found1 {
+			t.Errorf("expected result to contain label1 (Work)")
+		}
+		if !found2 {
+			t.Errorf("expected result to contain label2 (Personal)")
+		}
 	})
 
 	t.Run("returns empty slice for empty cache", func(t *testing.T) {
+		t.Parallel()
 		client := &Client{
 			labels:       map[string]*gmailapi.Label{},
 			labelsLoaded: true,
 		}
 
 		result := client.GetLabels()
-		assert.NotNil(t, result)
-		assert.Empty(t, result)
-	})
-}
-
-// TestDeprecatedWrappers verifies that the deprecated wrappers delegate correctly to the auth package
-func TestDeprecatedWrappers(t *testing.T) {
-	t.Run("GetConfigDir delegates to auth package", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		gmailDir, err := GetConfigDir()
-		require.NoError(t, err)
-
-		authDir, err := auth.GetConfigDir()
-		require.NoError(t, err)
-
-		assert.Equal(t, authDir, gmailDir)
-	})
-
-	t.Run("GetCredentialsPath delegates to auth package", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		gmailPath, err := GetCredentialsPath()
-		require.NoError(t, err)
-
-		authPath, err := auth.GetCredentialsPath()
-		require.NoError(t, err)
-
-		assert.Equal(t, authPath, gmailPath)
-	})
-
-	t.Run("ShortenPath delegates to auth package", func(t *testing.T) {
-		home, err := os.UserHomeDir()
-		require.NoError(t, err)
-
-		testPath := filepath.Join(home, ".config", "test")
-
-		gmailResult := ShortenPath(testPath)
-		authResult := auth.ShortenPath(testPath)
-
-		assert.Equal(t, authResult, gmailResult)
+		if result == nil {
+			t.Fatal("expected non-nil, got nil")
+		}
+		if len(result) != 0 {
+			t.Errorf("got length %d, want 0", len(result))
+		}
 	})
 }

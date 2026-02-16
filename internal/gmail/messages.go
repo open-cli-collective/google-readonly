@@ -1,6 +1,7 @@
 package gmail
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -37,21 +38,21 @@ type Attachment struct {
 
 // SearchMessages searches for messages matching the query.
 // Returns messages, the count of messages that failed to fetch, and any error.
-func (c *Client) SearchMessages(query string, maxResults int64) ([]*Message, int, error) {
+func (c *Client) SearchMessages(ctx context.Context, query string, maxResults int64) ([]*Message, int, error) {
 	call := c.service.Users.Messages.List(c.userID).Q(query)
 	if maxResults > 0 {
 		call = call.MaxResults(maxResults)
 	}
 
-	resp, err := call.Do()
+	resp, err := call.Context(ctx).Do()
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to search messages: %w", err)
+		return nil, 0, fmt.Errorf("searching messages: %w", err)
 	}
 
 	var messages []*Message
 	var skipped int
 	for _, msg := range resp.Messages {
-		m, err := c.GetMessage(msg.Id, false)
+		m, err := c.GetMessage(ctx, msg.Id, false)
 		if err != nil {
 			skipped++
 			log.Debug("skipped message %s: %v", msg.Id, err)
@@ -68,20 +69,20 @@ func (c *Client) SearchMessages(query string, maxResults int64) ([]*Message, int
 }
 
 // GetMessage retrieves a single message by ID
-func (c *Client) GetMessage(messageID string, includeBody bool) (*Message, error) {
+func (c *Client) GetMessage(ctx context.Context, messageID string, includeBody bool) (*Message, error) {
 	format := "metadata"
 	if includeBody {
 		format = "full"
 	}
 
 	// Fetch labels for resolution
-	if err := c.FetchLabels(); err != nil {
+	if err := c.FetchLabels(ctx); err != nil {
 		return nil, err
 	}
 
-	msg, err := c.service.Users.Messages.Get(c.userID, messageID).Format(format).Do()
+	msg, err := c.service.Users.Messages.Get(c.userID, messageID).Format(format).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get message: %w", err)
+		return nil, fmt.Errorf("getting message: %w", err)
 	}
 
 	return parseMessage(msg, includeBody, c.GetLabelName), nil
@@ -90,24 +91,24 @@ func (c *Client) GetMessage(messageID string, includeBody bool) (*Message, error
 // GetThread retrieves all messages in a thread.
 // The id parameter can be either a thread ID or a message ID.
 // If a message ID is provided, the thread ID is resolved automatically.
-func (c *Client) GetThread(id string) ([]*Message, error) {
+func (c *Client) GetThread(ctx context.Context, id string) ([]*Message, error) {
 	// Fetch labels for resolution
-	if err := c.FetchLabels(); err != nil {
+	if err := c.FetchLabels(ctx); err != nil {
 		return nil, err
 	}
 
-	thread, err := c.service.Users.Threads.Get(c.userID, id).Format("full").Do()
+	thread, err := c.service.Users.Threads.Get(c.userID, id).Format("full").Context(ctx).Do()
 	if err != nil {
 		// If the ID wasn't found as a thread ID, try treating it as a message ID
-		msg, msgErr := c.service.Users.Messages.Get(c.userID, id).Format("minimal").Do()
+		msg, msgErr := c.service.Users.Messages.Get(c.userID, id).Format("minimal").Context(ctx).Do()
 		if msgErr != nil {
 			// Return the original thread error if message lookup also fails
-			return nil, fmt.Errorf("failed to get thread: %w", err)
+			return nil, fmt.Errorf("getting thread: %w", err)
 		}
 		// Use the thread ID from the message
-		thread, err = c.service.Users.Threads.Get(c.userID, msg.ThreadId).Format("full").Do()
+		thread, err = c.service.Users.Threads.Get(c.userID, msg.ThreadId).Format("full").Context(ctx).Do()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get thread: %w", err)
+			return nil, fmt.Errorf("getting thread: %w", err)
 		}
 	}
 
@@ -160,7 +161,7 @@ func parseMessage(msg *gmail.Message, includeBody bool, resolver LabelResolver) 
 }
 
 // extractLabelsAndCategories separates label IDs into user labels and Gmail categories
-func extractLabelsAndCategories(labelIds []string, resolver LabelResolver) ([]string, []string) {
+func extractLabelsAndCategories(labelIDs []string, resolver LabelResolver) ([]string, []string) {
 	var labels, categories []string
 
 	// System labels to exclude from display
@@ -170,7 +171,7 @@ func extractLabelsAndCategories(labelIds []string, resolver LabelResolver) ([]st
 		"CHAT": true, "CATEGORY_PERSONAL": true,
 	}
 
-	for _, labelID := range labelIds {
+	for _, labelID := range labelIDs {
 		// Check if it's a category
 		if strings.HasPrefix(labelID, "CATEGORY_") {
 			// Convert CATEGORY_UPDATES -> updates

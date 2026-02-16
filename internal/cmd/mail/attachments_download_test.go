@@ -4,8 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestSafeOutputPath(t *testing.T) {
@@ -84,14 +83,14 @@ func TestSafeOutputPath(t *testing.T) {
 			result, err := safeOutputPath(destDir, tt.filename)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				testutil.Error(t, err)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+					testutil.Contains(t, err.Error(), tt.errorMsg)
 				}
 			} else {
-				require.NoError(t, err)
+				testutil.NoError(t, err)
 				// Verify the result is within destDir
-				assert.True(t, filepath.IsAbs(result) || result == filepath.Join(destDir, filepath.Clean(tt.filename)))
+				testutil.True(t, filepath.IsAbs(result) || result == filepath.Join(destDir, filepath.Clean(tt.filename)))
 			}
 		})
 	}
@@ -110,11 +109,11 @@ func TestSafeOutputPath_StaysWithinDestDir(t *testing.T) {
 	for _, filename := range validCases {
 		t.Run(filename, func(t *testing.T) {
 			result, err := safeOutputPath(destDir, filename)
-			require.NoError(t, err)
+			testutil.NoError(t, err)
 
 			// Result must start with destDir
-			assert.True(t, len(result) >= len(destDir))
-			assert.Equal(t, destDir, result[:len(destDir)])
+			testutil.True(t, len(result) >= len(destDir))
+			testutil.Equal(t, result[:len(destDir)], destDir)
 		})
 	}
 }

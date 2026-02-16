@@ -1,3 +1,4 @@
+// Package gmail provides a client for the Gmail API.
 package gmail
 
 import (
@@ -5,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 
@@ -25,12 +25,12 @@ type Client struct {
 func NewClient(ctx context.Context) (*Client, error) {
 	client, err := auth.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading OAuth client: %w", err)
 	}
 
 	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Gmail service: %w", err)
+		return nil, fmt.Errorf("creating Gmail service: %w", err)
 	}
 
 	return &Client{
@@ -40,7 +40,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 }
 
 // FetchLabels retrieves and caches all labels from the Gmail account
-func (c *Client) FetchLabels() error {
+func (c *Client) FetchLabels(ctx context.Context) error {
 	// Check with read lock first to avoid unnecessary API calls
 	c.labelsMu.RLock()
 	if c.labelsLoaded {
@@ -58,9 +58,9 @@ func (c *Client) FetchLabels() error {
 		return nil
 	}
 
-	resp, err := c.service.Users.Labels.List(c.userID).Do()
+	resp, err := c.service.Users.Labels.List(c.userID).Context(ctx).Do()
 	if err != nil {
-		return fmt.Errorf("failed to fetch labels: %w", err)
+		return fmt.Errorf("fetching labels: %w", err)
 	}
 
 	c.labels = make(map[string]*gmail.Label)
@@ -98,51 +98,22 @@ func (c *Client) GetLabels() []*gmail.Label {
 	return labels
 }
 
+// Profile represents a Gmail user profile.
+type Profile struct {
+	EmailAddress  string
+	MessagesTotal int64
+	ThreadsTotal  int64
+}
+
 // GetProfile retrieves the authenticated user's profile
-func (c *Client) GetProfile() (*Profile, error) {
-	profile, err := c.service.Users.GetProfile(c.userID).Do()
+func (c *Client) GetProfile(ctx context.Context) (*Profile, error) {
+	profile, err := c.service.Users.GetProfile(c.userID).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get profile: %w", err)
+		return nil, fmt.Errorf("getting profile: %w", err)
 	}
 	return &Profile{
 		EmailAddress:  profile.EmailAddress,
 		MessagesTotal: profile.MessagesTotal,
 		ThreadsTotal:  profile.ThreadsTotal,
 	}, nil
-}
-
-// GetConfigDir returns the configuration directory path
-// Deprecated: Use auth.GetConfigDir() instead
-func GetConfigDir() (string, error) {
-	return auth.GetConfigDir()
-}
-
-// GetCredentialsPath returns the path to credentials.json
-// Deprecated: Use auth.GetCredentialsPath() instead
-func GetCredentialsPath() (string, error) {
-	return auth.GetCredentialsPath()
-}
-
-// GetOAuthConfig loads OAuth config from credentials file
-// Deprecated: Use auth.GetOAuthConfig() instead
-func GetOAuthConfig() (*oauth2.Config, error) {
-	return auth.GetOAuthConfig()
-}
-
-// ExchangeAuthCode exchanges an authorization code for a token
-// Deprecated: Use auth.ExchangeAuthCode() instead
-func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (*oauth2.Token, error) {
-	return auth.ExchangeAuthCode(ctx, config, code)
-}
-
-// GetAuthURL returns the OAuth authorization URL
-// Deprecated: Use auth.GetAuthURL() instead
-func GetAuthURL(config *oauth2.Config) string {
-	return auth.GetAuthURL(config)
-}
-
-// ShortenPath replaces the home directory prefix with ~ for display purposes.
-// Deprecated: Use auth.ShortenPath() instead
-func ShortenPath(path string) string {
-	return auth.ShortenPath(path)
 }

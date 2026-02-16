@@ -4,19 +4,28 @@ import (
 	"context"
 	"fmt"
 
+	calendarv3 "google.golang.org/api/calendar/v3"
+
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
 	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
+// CalendarClient defines the interface for Calendar client operations used by calendar commands.
+type CalendarClient interface {
+	ListCalendars(ctx context.Context) ([]*calendarv3.CalendarListEntry, error)
+	ListEvents(ctx context.Context, calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendarv3.Event, error)
+	GetEvent(ctx context.Context, calendarID, eventID string) (*calendarv3.Event, error)
+}
+
 // ClientFactory is the function used to create Calendar clients.
 // Override in tests to inject mocks.
-var ClientFactory = func() (calendar.CalendarClientInterface, error) {
-	return calendar.NewClient(context.Background())
+var ClientFactory = func(ctx context.Context) (CalendarClient, error) {
+	return calendar.NewClient(ctx)
 }
 
 // newCalendarClient creates a new calendar client
-func newCalendarClient() (calendar.CalendarClientInterface, error) {
-	return ClientFactory()
+func newCalendarClient(ctx context.Context) (CalendarClient, error) {
+	return ClientFactory(ctx)
 }
 
 // printJSON outputs data as indented JSON

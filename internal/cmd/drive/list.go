@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -45,9 +46,9 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
 			}
 
-			client, err := newDriveClient()
+			client, err := newDriveClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Drive client: %w", err)
+				return fmt.Errorf("creating Drive client: %w", err)
 			}
 
 			folderID := ""
@@ -56,22 +57,27 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			}
 
 			// Resolve drive scope for listing
-			scope, err := resolveDriveScopeForList(client, myDrive, driveFlag, folderID)
+			ctx := cmd.Context()
+			scope, err := resolveDriveScopeForList(ctx, client, myDrive, driveFlag, folderID)
 			if err != nil {
-				return fmt.Errorf("failed to resolve drive scope: %w", err)
+				return fmt.Errorf("resolving drive scope: %w", err)
 			}
 
 			query, err := buildListQueryWithScope(folderID, fileType, scope)
 			if err != nil {
-				return fmt.Errorf("failed to build query: %w", err)
+				return fmt.Errorf("building query: %w", err)
 			}
 
-			files, err := client.ListFilesWithScope(query, maxResults, scope)
+			files, err := client.ListFilesWithScope(ctx, query, maxResults, scope)
 			if err != nil {
-				return fmt.Errorf("failed to list files: %w", err)
+				return fmt.Errorf("listing files: %w", err)
 			}
 
 			if len(files) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No files found.")
 				return nil
 			}
@@ -141,14 +147,14 @@ func buildListQueryWithScope(folderID, fileType string, scope drive.DriveScope) 
 
 // resolveDriveScopeForList resolves the scope for list operations
 // List has slightly different behavior - defaults to My Drive root if no flags
-func resolveDriveScopeForList(client drive.DriveClientInterface, myDrive bool, driveFlag, folderID string) (drive.DriveScope, error) {
+func resolveDriveScopeForList(ctx context.Context, client DriveClient, myDrive bool, driveFlag, folderID string) (drive.DriveScope, error) {
 	// If a folder ID is provided, we need to support all drives to access it
 	if folderID != "" && !myDrive && driveFlag == "" {
 		return drive.DriveScope{AllDrives: true}, nil
 	}
 
 	// Otherwise use the standard resolution
-	return resolveDriveScope(client, myDrive, driveFlag)
+	return resolveDriveScope(ctx, client, myDrive, driveFlag)
 }
 
 // getMimeTypeFilter returns the Drive API query filter for a file type

@@ -1,9 +1,8 @@
 package drive
 
 import (
+	"context"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
@@ -13,37 +12,37 @@ func TestDrivesCommand(t *testing.T) {
 	cmd := newDrivesCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "drives", cmd.Use)
+		testutil.Equal(t, cmd.Use, "drives")
 	})
 
 	t.Run("requires no arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
-		assert.NoError(t, err)
+		testutil.NoError(t, err)
 
 		err = cmd.Args(cmd, []string{"extra"})
-		assert.Error(t, err)
+		testutil.Error(t, err)
 	})
 
 	t.Run("has json flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "j", flag.Shorthand)
-		assert.Equal(t, "false", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+		testutil.Equal(t, flag.DefValue, "false")
 	})
 
 	t.Run("has refresh flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("refresh")
-		assert.NotNil(t, flag)
-		assert.Equal(t, "false", flag.DefValue)
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.DefValue, "false")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.Contains(t, cmd.Short, "shared drives")
+		testutil.Contains(t, cmd.Short, "shared drives")
 	})
 
 	t.Run("has long description", func(t *testing.T) {
-		assert.Contains(t, cmd.Long, "Shared Drives")
-		assert.Contains(t, cmd.Long, "cache")
+		testutil.Contains(t, cmd.Long, "Shared Drives")
+		testutil.Contains(t, cmd.Long, "cache")
 	})
 }
 
@@ -98,48 +97,48 @@ func TestLooksLikeDriveID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := looksLikeDriveID(tt.input)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, result, tt.expected)
 		})
 	}
 }
 
 func TestResolveDriveScope(t *testing.T) {
 	t.Run("returns MyDriveOnly when myDrive flag is true", func(t *testing.T) {
-		mock := &testutil.MockDriveClient{}
+		mock := &MockDriveClient{}
 
-		scope, err := resolveDriveScope(mock, true, "")
+		scope, err := resolveDriveScope(context.Background(), mock, true, "")
 
-		assert.NoError(t, err)
-		assert.True(t, scope.MyDriveOnly)
-		assert.False(t, scope.AllDrives)
-		assert.Empty(t, scope.DriveID)
+		testutil.NoError(t, err)
+		testutil.True(t, scope.MyDriveOnly)
+		testutil.False(t, scope.AllDrives)
+		testutil.Empty(t, scope.DriveID)
 	})
 
 	t.Run("returns AllDrives when no flags provided", func(t *testing.T) {
-		mock := &testutil.MockDriveClient{}
+		mock := &MockDriveClient{}
 
-		scope, err := resolveDriveScope(mock, false, "")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "")
 
-		assert.NoError(t, err)
-		assert.True(t, scope.AllDrives)
-		assert.False(t, scope.MyDriveOnly)
-		assert.Empty(t, scope.DriveID)
+		testutil.NoError(t, err)
+		testutil.True(t, scope.AllDrives)
+		testutil.False(t, scope.MyDriveOnly)
+		testutil.Empty(t, scope.DriveID)
 	})
 
 	t.Run("returns DriveID directly when input looks like ID", func(t *testing.T) {
-		mock := &testutil.MockDriveClient{}
+		mock := &MockDriveClient{}
 
-		scope, err := resolveDriveScope(mock, false, "0ALengineering123456")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "0ALengineering123456")
 
-		assert.NoError(t, err)
-		assert.Equal(t, "0ALengineering123456", scope.DriveID)
-		assert.False(t, scope.AllDrives)
-		assert.False(t, scope.MyDriveOnly)
+		testutil.NoError(t, err)
+		testutil.Equal(t, scope.DriveID, "0ALengineering123456")
+		testutil.False(t, scope.AllDrives)
+		testutil.False(t, scope.MyDriveOnly)
 	})
 
 	t.Run("resolves drive name to ID via API", func(t *testing.T) {
-		mock := &testutil.MockDriveClient{
-			ListSharedDrivesFunc: func(pageSize int64) ([]*drive.SharedDrive, error) {
+		mock := &MockDriveClient{
+			ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 					{ID: "0ALfin456", Name: "Finance"},
@@ -147,40 +146,40 @@ func TestResolveDriveScope(t *testing.T) {
 			},
 		}
 
-		scope, err := resolveDriveScope(mock, false, "Engineering")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "Engineering")
 
-		assert.NoError(t, err)
-		assert.Equal(t, "0ALeng123", scope.DriveID)
+		testutil.NoError(t, err)
+		testutil.Equal(t, scope.DriveID, "0ALeng123")
 	})
 
 	t.Run("resolves drive name case-insensitively", func(t *testing.T) {
-		mock := &testutil.MockDriveClient{
-			ListSharedDrivesFunc: func(pageSize int64) ([]*drive.SharedDrive, error) {
+		mock := &MockDriveClient{
+			ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 				}, nil
 			},
 		}
 
-		scope, err := resolveDriveScope(mock, false, "ENGINEERING")
+		scope, err := resolveDriveScope(context.Background(), mock, false, "ENGINEERING")
 
-		assert.NoError(t, err)
-		assert.Equal(t, "0ALeng123", scope.DriveID)
+		testutil.NoError(t, err)
+		testutil.Equal(t, scope.DriveID, "0ALeng123")
 	})
 
 	t.Run("returns error when drive name not found", func(t *testing.T) {
-		mock := &testutil.MockDriveClient{
-			ListSharedDrivesFunc: func(pageSize int64) ([]*drive.SharedDrive, error) {
+		mock := &MockDriveClient{
+			ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
 				return []*drive.SharedDrive{
 					{ID: "0ALeng123", Name: "Engineering"},
 				}, nil
 			},
 		}
 
-		_, err := resolveDriveScope(mock, false, "NonExistent")
+		_, err := resolveDriveScope(context.Background(), mock, false, "NonExistent")
 
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "shared drive not found")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "shared drive not found")
 	})
 }
 
@@ -191,8 +190,8 @@ func TestSearchCommand_MutualExclusivity(t *testing.T) {
 
 		err := cmd.Execute()
 
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "mutually exclusive")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "mutually exclusive")
 	})
 }
 
@@ -203,8 +202,8 @@ func TestListCommand_MutualExclusivity(t *testing.T) {
 
 		err := cmd.Execute()
 
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "mutually exclusive")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "mutually exclusive")
 	})
 }
 
@@ -215,7 +214,7 @@ func TestTreeCommand_MutualExclusivity(t *testing.T) {
 
 		err := cmd.Execute()
 
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "mutually exclusive")
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "mutually exclusive")
 	})
 }

@@ -3,32 +3,32 @@ package mail
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestMailCommand(t *testing.T) {
 	cmd := NewCommand()
 
 	t.Run("has correct use", func(t *testing.T) {
-		assert.Equal(t, "mail", cmd.Use)
+		testutil.Equal(t, cmd.Use, "mail")
 	})
 
 	t.Run("has short description", func(t *testing.T) {
-		assert.NotEmpty(t, cmd.Short)
+		testutil.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("has subcommands", func(t *testing.T) {
 		subcommands := cmd.Commands()
-		assert.GreaterOrEqual(t, len(subcommands), 5)
+		testutil.GreaterOrEqual(t, len(subcommands), 5)
 
 		var names []string
 		for _, sub := range subcommands {
 			names = append(names, sub.Name())
 		}
-		assert.Contains(t, names, "search")
-		assert.Contains(t, names, "read")
-		assert.Contains(t, names, "thread")
-		assert.Contains(t, names, "labels")
-		assert.Contains(t, names, "attachments")
+		testutil.SliceContains(t, names, "search")
+		testutil.SliceContains(t, names, "read")
+		testutil.SliceContains(t, names, "thread")
+		testutil.SliceContains(t, names, "labels")
+		testutil.SliceContains(t, names, "attachments")
 	})
 }

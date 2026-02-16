@@ -22,18 +22,22 @@ Examples:
   gro calendar list
   gro cal list --json`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newCalendarClient()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := newCalendarClient(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to create Calendar client: %w", err)
+				return fmt.Errorf("creating Calendar client: %w", err)
 			}
 
-			calendars, err := client.ListCalendars()
+			calendars, err := client.ListCalendars(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to list calendars: %w", err)
+				return fmt.Errorf("listing calendars: %w", err)
 			}
 
 			if len(calendars) == 0 {
+				if jsonOutput {
+					fmt.Println("[]")
+					return nil
+				}
 				fmt.Println("No calendars found.")
 				return nil
 			}

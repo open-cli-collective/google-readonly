@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
@@ -19,13 +20,17 @@ type EventListOptions struct {
 
 // listAndPrintEvents fetches events and prints them according to the options.
 // This is a shared helper used by today, week, and events commands.
-func listAndPrintEvents(client calendar.CalendarClientInterface, opts EventListOptions) error {
-	events, err := client.ListEvents(opts.CalendarID, opts.TimeMin, opts.TimeMax, opts.MaxResults)
+func listAndPrintEvents(ctx context.Context, client CalendarClient, opts EventListOptions) error {
+	events, err := client.ListEvents(ctx, opts.CalendarID, opts.TimeMin, opts.TimeMax, opts.MaxResults)
 	if err != nil {
 		return err
 	}
 
 	if len(events) == 0 {
+		if opts.JSONOutput {
+			fmt.Println("[]")
+			return nil
+		}
 		if opts.EmptyMessage != "" {
 			fmt.Println(opts.EmptyMessage)
 		} else {

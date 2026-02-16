@@ -1,3 +1,4 @@
+// Package auth provides OAuth2 authentication and credential management for Google APIs.
 package auth
 
 import (
@@ -31,7 +32,7 @@ func GetOAuthConfig() (*oauth2.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := os.ReadFile(credPath)
+	b, err := os.ReadFile(credPath) //nolint:gosec // Path from user config directory
 	if err != nil {
 		return nil, fmt.Errorf("unable to read credentials file: %w", err)
 	}
@@ -62,7 +63,7 @@ func GetHTTPClient(ctx context.Context) (*http.Client, error) {
 	}
 
 	// Create persistent token source that saves refreshed tokens
-	tokenSource := keychain.NewPersistentTokenSource(config, tok)
+	tokenSource := keychain.NewPersistentTokenSource(ctx, config, tok)
 	return oauth2.NewClient(ctx, tokenSource), nil
 }
 
@@ -77,7 +78,7 @@ func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (
 }
 
 func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
+	f, err := os.Open(file) //nolint:gosec // Path from user config directory
 	if err != nil {
 		return nil, err
 	}
