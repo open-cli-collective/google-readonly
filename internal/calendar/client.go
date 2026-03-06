@@ -98,11 +98,8 @@ func (c *Client) RSVPEvent(ctx context.Context, calendarID, eventID, response st
 
 	_, err = c.service.Events.Patch(calendarID, eventID, &calendar.Event{
 		Attendees: event.Attendees,
-	}).SendUpdates("none").Context(ctx).Do()
-	if err != nil {
-		return fmt.Errorf("updating RSVP: %w", err)
-	}
-	return nil
+	}).Context(ctx).Do()
+	return err
 }
 
 // SetEventColor sets the color of a calendar event.
@@ -111,8 +108,5 @@ func (c *Client) SetEventColor(ctx context.Context, calendarID, eventID, colorID
 	_, err := c.service.Events.Patch(calendarID, eventID, &calendar.Event{
 		ColorId: colorID,
 	}).Context(ctx).Do()
-	if err != nil {
-		return fmt.Errorf("setting event color: %w", err)
-	}
-	return nil
+	return err
 }
