@@ -113,3 +113,59 @@ func TestUnlabelCommand_Success(t *testing.T) {
 		testutil.SliceContains(t, removedLabels, "Label_1")
 	})
 }
+
+func TestUnlabelCommand_DryRun(t *testing.T) {
+	mock := &MockGmailClient{
+		GetLabelIDFunc: func(_ context.Context, _ string) (string, error) {
+			return "Label_1", nil
+		},
+	}
+
+	cmd := newUnlabelCommand()
+	cmd.SetArgs([]string{"Work", "msg1", "--dry-run"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+		testutil.Contains(t, output, "[dry-run] Would remove label 'Work' from 1 message(s).")
+	})
+}
+
+func TestUnlabelCommand_LabelNotFound(t *testing.T) {
+	mock := &MockGmailClient{
+		GetLabelIDFunc: func(_ context.Context, _ string) (string, error) {
+			return "", errors.New("label \"Nope\" not found")
+		},
+	}
+
+	cmd := newUnlabelCommand()
+	cmd.SetArgs([]string{"Nope", "msg1"})
+
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "resolving label")
+	})
+}
+
+func TestUnlabelCommand_APIError(t *testing.T) {
+	mock := &MockGmailClient{
+		GetLabelIDFunc: func(_ context.Context, _ string) (string, error) {
+			return "Label_1", nil
+		},
+		ModifyMessagesFunc: func(_ context.Context, _ []string, _, _ []string) error {
+			return errors.New("API error")
+		},
+	}
+
+	cmd := newUnlabelCommand()
+	cmd.SetArgs([]string{"Work", "msg1"})
+
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "removing label")
+	})
+}
