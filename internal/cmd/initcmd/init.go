@@ -155,11 +155,12 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Printf("Token saved to: %s\n", keychain.GetStorageBackend())
 
 	cfg, cfgErr := config.LoadConfig()
-	if cfgErr == nil {
-		cfg.GrantedScopes = auth.AllScopes
-		if saveErr := config.SaveConfig(cfg); saveErr != nil {
-			fmt.Printf("Warning: saving granted scopes: %v\n", saveErr)
-		}
+	if cfgErr != nil {
+		cfg = &config.Config{CacheTTLHours: config.DefaultCacheTTLHours}
+	}
+	cfg.GrantedScopes = auth.AllScopes
+	if saveErr := config.SaveConfig(cfg); saveErr != nil {
+		fmt.Printf("Warning: saving granted scopes: %v\n", saveErr)
 	}
 
 	// Step 7: Verify connectivity (unless --no-verify)

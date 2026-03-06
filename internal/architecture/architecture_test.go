@@ -311,7 +311,7 @@ var allowedScopes = map[string]bool{
 	"https://www.googleapis.com/auth/gmail.readonly":    true,
 	"https://www.googleapis.com/auth/gmail.modify":      true, // label, archive, star, read/unread (NOT send/delete)
 	"https://www.googleapis.com/auth/calendar.readonly": true,
-	"https://www.googleapis.com/auth/calendar.events":   true, // RSVP, color (NOT delete) — reserved for future use
+	"https://www.googleapis.com/auth/calendar.events":   true, // full event CRUD — use only for non-destructive ops (RSVP, color). Reserved for future use.
 	"https://www.googleapis.com/auth/contacts.readonly": true,
 	"https://www.googleapis.com/auth/contacts":          true, // group membership — reserved for future use
 	"https://www.googleapis.com/auth/drive.readonly":    true,

@@ -2,6 +2,7 @@ package bulk
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-cli-collective/google-readonly/internal/output"
 )
@@ -32,5 +33,5 @@ func capitalize(s string) string {
 	if s == "" {
 		return s
 	}
-	return string(s[0]-32) + s[1:]
+	return strings.ToUpper(s[:1]) + s[1:]
 }

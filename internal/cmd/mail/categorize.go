@@ -2,6 +2,7 @@ package mail
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ func newCategorizeCommand() *cobra.Command {
 	for name := range categoryLabels {
 		validCategories = append(validCategories, name)
 	}
+	sort.Strings(validCategories)
 
 	cmd := &cobra.Command{
 		Use:   "categorize <category> [message-ids...]",
