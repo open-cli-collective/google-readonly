@@ -73,3 +73,46 @@ func (c *Client) GetEvent(ctx context.Context, calendarID, eventID string) (*cal
 	}
 	return event, nil
 }
+
+// RSVPEvent updates the current user's RSVP status on an event.
+// The response must be "accepted", "declined", or "tentative".
+func (c *Client) RSVPEvent(ctx context.Context, calendarID, eventID, response string) error {
+	event, err := c.service.Events.Get(calendarID, eventID).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("getting event for RSVP: %w", err)
+	}
+
+	// Find the current user's attendee entry
+	found := false
+	for _, a := range event.Attendees {
+		if a.Self {
+			a.ResponseStatus = response
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("you are not listed as an attendee on this event")
+	}
+
+	_, err = c.service.Events.Patch(calendarID, eventID, &calendar.Event{
+		Attendees: event.Attendees,
+	}).SendUpdates("none").Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("updating RSVP: %w", err)
+	}
+	return nil
+}
+
+// SetEventColor sets the color of a calendar event.
+// The colorID must be a valid Google Calendar event color ID (1-11).
+func (c *Client) SetEventColor(ctx context.Context, calendarID, eventID, colorID string) error {
+	_, err := c.service.Events.Patch(calendarID, eventID, &calendar.Event{
+		ColorId: colorID,
+	}).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("setting event color: %w", err)
+	}
+	return nil
+}

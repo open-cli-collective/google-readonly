@@ -15,6 +15,8 @@ type CalendarClient interface {
 	ListCalendars(ctx context.Context) ([]*calendarv3.CalendarListEntry, error)
 	ListEvents(ctx context.Context, calendarID string, timeMin, timeMax string, maxResults int64) ([]*calendarv3.Event, error)
 	GetEvent(ctx context.Context, calendarID, eventID string) (*calendarv3.Event, error)
+	RSVPEvent(ctx context.Context, calendarID, eventID, response string) error
+	SetEventColor(ctx context.Context, calendarID, eventID, colorID string) error
 }
 
 // ClientFactory is the function used to create Calendar clients.
