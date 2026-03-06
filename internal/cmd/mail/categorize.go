@@ -25,6 +25,7 @@ func allCategoryLabelIDs() []string {
 	for _, id := range categoryLabels {
 		ids = append(ids, id)
 	}
+	sort.Strings(ids)
 	return ids
 }
 

@@ -42,7 +42,12 @@ func TestStarCommand_Success(t *testing.T) {
 }
 
 func TestStarCommand_DryRun(t *testing.T) {
-	mock := &MockGmailClient{}
+	mock := &MockGmailClient{
+		ModifyMessagesFunc: func(_ context.Context, _ []string, _, _ []string) error {
+			t.Fatal("ModifyMessages should not be called in dry-run")
+			return nil
+		},
+	}
 	cmd := newStarCommand()
 	cmd.SetArgs([]string{"msg1", "--dry-run"})
 
