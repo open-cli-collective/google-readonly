@@ -22,6 +22,8 @@ import (
 // Gmail uses the modify scope for organizational operations (label, archive, star, mark read/unread).
 // The modify scope is a superset of readonly — it includes all read access.
 // Calendar uses both readonly (for calendar list metadata) and events (for RSVP/color operations).
+// Note: calendar.events also permits event creation, which is an accepted trade-off for RSVP/color support.
+// The architecture test (TestNoDestructiveAPIMethodsInProductionCode) prevents accidental misuse.
 var AllScopes = []string{
 	gmail.GmailModifyScope,
 	calendar.CalendarReadonlyScope,
