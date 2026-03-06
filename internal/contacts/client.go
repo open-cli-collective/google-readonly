@@ -97,3 +97,59 @@ func (c *Client) ListContactGroups(ctx context.Context, pageToken string, pageSi
 
 	return resp, nil
 }
+
+// AddToGroup adds contacts to a contact group
+func (c *Client) AddToGroup(ctx context.Context, groupResourceName string, contactResourceNames []string) error {
+	_, err := c.service.ContactGroups.Members.Modify(groupResourceName, &people.ModifyContactGroupMembersRequest{
+		ResourceNamesToAdd: contactResourceNames,
+	}).Context(ctx).Do()
+	return err
+}
+
+// RemoveFromGroup removes contacts from a contact group
+func (c *Client) RemoveFromGroup(ctx context.Context, groupResourceName string, contactResourceNames []string) error {
+	_, err := c.service.ContactGroups.Members.Modify(groupResourceName, &people.ModifyContactGroupMembersRequest{
+		ResourceNamesToRemove: contactResourceNames,
+	}).Context(ctx).Do()
+	return err
+}
+
+// ResolveGroupName finds a contact group by name and returns its resource name
+func (c *Client) ResolveGroupName(ctx context.Context, name string) (string, error) {
+	resp, err := c.service.ContactGroups.List().
+		PageSize(100).
+		GroupFields("name,groupType").
+		Context(ctx).
+		Do()
+	if err != nil {
+		return "", fmt.Errorf("listing groups: %w", err)
+	}
+
+	for _, g := range resp.ContactGroups {
+		if g.Name == name {
+			return g.ResourceName, nil
+		}
+	}
+	return "", fmt.Errorf("group not found: %s", name)
+}
+
+// SearchContactIDs searches contacts and returns only resource names
+func (c *Client) SearchContactIDs(ctx context.Context, query string, pageSize int64) ([]string, error) {
+	resp, err := c.service.People.SearchContacts().
+		Query(query).
+		ReadMask("names").
+		PageSize(pageSize).
+		Context(ctx).
+		Do()
+	if err != nil {
+		return nil, fmt.Errorf("searching contacts: %w", err)
+	}
+
+	ids := make([]string, 0, len(resp.Results))
+	for _, r := range resp.Results {
+		if r.Person != nil {
+			ids = append(ids, r.Person.ResourceName)
+		}
+	}
+	return ids, nil
+}

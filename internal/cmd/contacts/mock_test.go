@@ -12,6 +12,10 @@ type MockContactsClient struct {
 	SearchContactsFunc    func(ctx context.Context, query string, pageSize int64) (*people.SearchResponse, error)
 	GetContactFunc        func(ctx context.Context, resourceName string) (*people.Person, error)
 	ListContactGroupsFunc func(ctx context.Context, pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error)
+	AddToGroupFunc        func(ctx context.Context, groupResourceName string, contactResourceNames []string) error
+	RemoveFromGroupFunc   func(ctx context.Context, groupResourceName string, contactResourceNames []string) error
+	ResolveGroupNameFunc  func(ctx context.Context, name string) (string, error)
+	SearchContactIDsFunc  func(ctx context.Context, query string, pageSize int64) ([]string, error)
 }
 
 // Verify MockContactsClient implements ContactsClient
@@ -41,6 +45,34 @@ func (m *MockContactsClient) GetContact(ctx context.Context, resourceName string
 func (m *MockContactsClient) ListContactGroups(ctx context.Context, pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error) {
 	if m.ListContactGroupsFunc != nil {
 		return m.ListContactGroupsFunc(ctx, pageToken, pageSize)
+	}
+	return nil, nil
+}
+
+func (m *MockContactsClient) AddToGroup(ctx context.Context, groupResourceName string, contactResourceNames []string) error {
+	if m.AddToGroupFunc != nil {
+		return m.AddToGroupFunc(ctx, groupResourceName, contactResourceNames)
+	}
+	return nil
+}
+
+func (m *MockContactsClient) RemoveFromGroup(ctx context.Context, groupResourceName string, contactResourceNames []string) error {
+	if m.RemoveFromGroupFunc != nil {
+		return m.RemoveFromGroupFunc(ctx, groupResourceName, contactResourceNames)
+	}
+	return nil
+}
+
+func (m *MockContactsClient) ResolveGroupName(ctx context.Context, name string) (string, error) {
+	if m.ResolveGroupNameFunc != nil {
+		return m.ResolveGroupNameFunc(ctx, name)
+	}
+	return "", nil
+}
+
+func (m *MockContactsClient) SearchContactIDs(ctx context.Context, query string, pageSize int64) ([]string, error) {
+	if m.SearchContactIDsFunc != nil {
+		return m.SearchContactIDsFunc(ctx, query, pageSize)
 	}
 	return nil, nil
 }

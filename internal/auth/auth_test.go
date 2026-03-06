@@ -111,8 +111,8 @@ func TestAllScopes(t *testing.T) {
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/calendar.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/calendar.readonly")
 	}
-	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/contacts.readonly") {
-		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/contacts.readonly")
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/contacts") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/contacts")
 	}
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.readonly")
@@ -152,6 +152,9 @@ func TestCheckScopesMigration_MissingScope(t *testing.T) {
 	}
 	if !strings.Contains(msg, "Gmail Modify") {
 		t.Errorf("expected message to mention 'Gmail Modify', got %q", msg)
+	}
+	if !strings.Contains(msg, "Contacts") {
+		t.Errorf("expected message to mention 'Contacts', got %q", msg)
 	}
 }
 

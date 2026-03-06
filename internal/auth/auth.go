@@ -21,10 +21,12 @@ import (
 // AllScopes contains all OAuth scopes used by the application.
 // Gmail uses the modify scope for organizational operations (label, archive, star, mark read/unread).
 // The modify scope is a superset of readonly — it includes all read access.
+// Contacts uses the full contacts scope for group management and starring.
+// The contacts scope is a superset of contacts.readonly — it includes all read access.
 var AllScopes = []string{
 	gmail.GmailModifyScope,
 	calendar.CalendarReadonlyScope,
-	people.ContactsReadonlyScope,
+	people.ContactsScope,
 	drive.DriveReadonlyScope,
 }
 
@@ -33,6 +35,7 @@ var ScopeDescriptions = map[string]string{
 	gmail.GmailModifyScope:         "Gmail Modify — read messages, plus label, archive, star, and mark read/unread. No send or delete access.",
 	gmail.GmailReadonlyScope:       "Gmail Read-Only — read messages and metadata.",
 	calendar.CalendarReadonlyScope: "Calendar Read-Only — read calendars and events.",
+	people.ContactsScope:           "Contacts — read contacts and groups, plus manage group membership and starring.",
 	people.ContactsReadonlyScope:   "Contacts Read-Only — read contacts and groups.",
 	drive.DriveReadonlyScope:       "Drive Read-Only — read files and metadata.",
 }
