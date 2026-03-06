@@ -1,14 +1,15 @@
 # google-readonly
 
-A read-only command-line interface for Google services. Search, read, and view Gmail messages, threads, and attachments without any ability to modify, send, or delete data.
+A non-destructive command-line interface for Google services. Search, read, and organize Gmail messages, calendar events, contacts, and Drive files. Supports labeling, archiving, starring, RSVP, and group management. No send, delete, or trash operations are possible.
 
 ## Features
 
-- **Read-only access** - Uses `gmail.readonly`, `calendar.readonly`, `contacts.readonly`, and `drive.readonly` OAuth scopes
-- **Gmail support** - Search messages, read content, view threads, list labels, download attachments
-- **Calendar support** - List calendars, view events, today/week shortcuts
-- **Contacts support** - List contacts, search, view details, list groups
-- **Drive support** - List files, search, view metadata, download files, folder tree
+- **Non-destructive by design** - Read access plus organizational operations; no send, delete, or trash
+- **Gmail support** - Search messages, read content, view threads, list labels, download attachments, archive, star, label, categorize, mark read/unread
+- **Calendar support** - List calendars, view events, today/week shortcuts, RSVP, color-coding
+- **Contacts support** - List contacts, search, view details, list groups, star, group management
+- **Drive support** - List files, search, view metadata, download files, folder tree, star/unstar
+- **Bulk operations** - Pipe IDs between commands, use search queries inline, or pass IDs as arguments
 - **JSON output** - Machine-readable output for scripting
 - **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
 
@@ -112,14 +113,18 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
    - Choose **External** user type
    - Fill in required fields (app name, support email)
    - Add scopes:
-     - `https://www.googleapis.com/auth/gmail.readonly`
-     - `https://www.googleapis.com/auth/calendar.readonly`
-     - `https://www.googleapis.com/auth/contacts.readonly`
-     - `https://www.googleapis.com/auth/drive.readonly`
+     - `https://www.googleapis.com/auth/gmail.modify` (read + archive/label/star)
+     - `https://www.googleapis.com/auth/calendar.readonly` (read calendar data)
+     - `https://www.googleapis.com/auth/calendar.events` (RSVP, color-coding)
+     - `https://www.googleapis.com/auth/contacts` (read + star/group management)
+     - `https://www.googleapis.com/auth/drive.readonly` (read Drive files)
+     - `https://www.googleapis.com/auth/drive.metadata` (star/unstar files)
    - Add your email as a test user
 4. For Application type, select **Desktop app**
 5. Click **Create**
 6. Download the JSON file
+
+> **Note on scopes:** gro uses the `gmail.modify` scope (a superset of `gmail.readonly`) because organizational operations like archive, label, and star require it. Similarly, `contacts` and `calendar.events` scopes enable starring, group management, and RSVP. No send, delete, or trash operations are possible regardless of scope.
 
 ### 3. Publish Your OAuth App (Recommended)
 
@@ -129,7 +134,7 @@ By default, new OAuth apps are in **"Testing"** mode, which causes **tokens to e
 2. Find the **Publishing status** section
 3. Click **Publish app**
 
-For personal use with read-only scopes, publishing is straightforward and doesn't require Google verification. Once published, tokens will last until revoked or unused for 6 months.
+For personal use with these scopes, publishing is straightforward and doesn't require Google verification. Once published, tokens will last until revoked or unused for 6 months.
 
 > **Note:** If you skip this step, you'll need to run `gro init` every 7 days to re-authenticate.
 
@@ -155,7 +160,7 @@ gro init
 
 1. A URL will be displayed - open it in your browser
 2. Sign in with your Google account
-3. Grant read-only access
+3. Grant the requested access
 4. Your browser will redirect to a localhost URL (the error page is expected)
 5. Copy the entire URL or just the authorization code
 6. Paste it back into the terminal
@@ -201,6 +206,7 @@ All Gmail commands are under `gro mail`:
 gro mail search "is:unread"
 gro mail search "from:someone@example.com" --max 20
 gro mail search "subject:meeting" --json
+gro mail search "is:starred" --ids          # Output IDs only (for piping)
 
 # Read a message
 gro mail read <message-id>
@@ -223,6 +229,26 @@ gro mail attachments download <message-id> --all
 gro mail attachments download <message-id> --filename report.pdf
 gro mail attachments download <message-id> --all --output ~/Downloads
 gro mail attachments download <message-id> --filename archive.zip --extract
+
+# Archive messages (remove from inbox)
+gro mail archive <id1> <id2>
+gro mail archive --query "from:noreply older_than:30d"
+gro mail search "from:noreply" --ids | gro mail archive --stdin
+
+# Star / unstar messages
+gro mail star <id1> <id2>
+gro mail unstar <id>
+
+# Mark read / unread
+gro mail mark-read <id1> <id2>
+gro mail mark-unread <id>
+
+# Add / remove labels
+gro mail label "Work" <id1> <id2>
+gro mail unlabel "Promotions" <id>
+
+# Recategorize messages
+gro mail categorize promotions <id1> <id2>
 ```
 
 ### Calendar Commands
@@ -250,7 +276,133 @@ gro cal today --json
 # This week's events
 gro calendar week
 gro cal week --json
+
+# RSVP to an event
+gro calendar rsvp <event-id> accept
+gro cal rsvp <event-id> decline
+gro cal rsvp <event-id> tentative
+
+# Set event color
+gro calendar color <event-id> tomato
+gro cal color <event-id> lavender
 ```
+
+### Contacts Commands
+
+All Contacts commands are under `gro contacts` (or `gro ppl`):
+
+```bash
+# List all contacts
+gro contacts list
+gro ppl list --max 20
+gro contacts list --json
+gro contacts list --ids                     # Output resource names only
+
+# Search contacts
+gro contacts search "John"
+gro ppl search "example.com" --max 20
+gro contacts search "John" --ids            # Output resource names only
+
+# Get contact details
+gro contacts get people/c123456789
+gro ppl get people/c123456789 --json
+
+# List contact groups
+gro contacts groups
+gro ppl groups --json
+
+# Star / unstar contacts
+gro contacts star people/c123 people/c456
+gro contacts unstar people/c123
+gro contacts search "John" --ids | gro contacts star --stdin
+
+# Add / remove from groups
+gro contacts add-to-group "Friends" people/c123 people/c456
+gro contacts remove-from-group "Friends" people/c123
+gro contacts add-to-group "VIP" --query "John"
+```
+
+### Drive Commands
+
+All Drive commands are under `gro drive` (or `gro files`):
+
+```bash
+# List files in root or folder
+gro drive list
+gro files list --max 20
+gro drive list <folder-id> --type document
+gro drive list --ids                        # Output file IDs only
+
+# Search files
+gro drive search "quarterly report"
+gro files search --name "budget" --type spreadsheet
+gro drive search --modified-after 2024-01-01
+gro drive search "budget" --ids             # Output file IDs only
+
+# Get file metadata
+gro drive get <file-id>
+gro files get <file-id> --json
+
+# Download files
+gro drive download <file-id>
+gro files download <file-id> --output ./report.pdf
+gro drive download <file-id> --format pdf  # Export Google Doc as PDF
+gro drive download <file-id> --stdout       # Write to stdout
+
+# Show folder tree
+gro drive tree
+gro files tree <folder-id> --depth 3
+gro drive tree --files  # Include files, not just folders
+
+# Star / unstar files
+gro drive star <file-id>
+gro drive unstar <file-id>
+gro drive search "budget" --ids | gro drive star --stdin
+```
+
+#### Shared Drives
+
+gro supports Google Shared Drives (formerly Team Drives). By default, search includes files from all drives you have access to.
+
+```bash
+# List available shared drives
+gro drive drives
+gro drive drives --json
+
+# Search all drives (default)
+gro drive search "quarterly report"
+
+# Search only your personal drive
+gro drive search "quarterly report" --my-drive
+
+# Search a specific shared drive by name
+gro drive search "budget" --drive "Finance Team"
+gro drive list --drive "Engineering"
+gro drive tree --drive "Marketing"
+```
+
+The `--my-drive` and `--drive` flags are mutually exclusive. Shared drive names are cached locally for fast lookups. Run `gro drive drives` to refresh the cache.
+
+### Bulk Operations
+
+All organizational commands (archive, star, label, etc.) accept IDs through three input modes:
+
+```bash
+# 1. Positional arguments
+gro mail archive id1 id2 id3
+
+# 2. Stdin (pipe from search/list with --ids)
+gro mail search "from:noreply older_than:30d" --ids | gro mail archive --stdin
+gro contacts search "John" --ids | gro contacts star --stdin
+gro drive search "budget" --ids | gro drive star --stdin
+
+# 3. Inline query (resolved automatically)
+gro mail archive --query "from:noreply older_than:30d"
+gro contacts add-to-group "VIP" --query "John"
+gro drive star --query "budget"
+```
+
+All organizational commands also support `--dry-run` / `-n` to preview changes without applying them.
 
 ## Command Reference
 
@@ -325,8 +477,11 @@ Usage: gro mail search <query> [flags]
 
 Flags:
   -m, --max int    Maximum number of results (default 10)
+      --ids        Output only message IDs (one per line, for piping)
   -j, --json       Output as JSON
 ```
+
+`--ids` and `--json` are mutually exclusive.
 
 ### gro mail read
 
@@ -384,6 +539,118 @@ Flags:
   -o, --output string     Output directory (default ".")
   -a, --all               Download all attachments
   -e, --extract           Extract zip files after download
+```
+
+### gro mail archive
+
+Archive messages (remove from inbox).
+
+```
+Usage: gro mail archive [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail star
+
+Star messages.
+
+```
+Usage: gro mail star [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail unstar
+
+Unstar messages.
+
+```
+Usage: gro mail unstar [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail mark-read
+
+Mark messages as read.
+
+```
+Usage: gro mail mark-read [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail mark-unread
+
+Mark messages as unread.
+
+```
+Usage: gro mail mark-unread [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail label
+
+Add a label to messages.
+
+```
+Usage: gro mail label <label-name> [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail unlabel
+
+Remove a label from messages.
+
+```
+Usage: gro mail unlabel <label-name> [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
+```
+
+### gro mail categorize
+
+Recategorize messages. Valid categories: personal, social, promotions, updates, forums.
+
+```
+Usage: gro mail categorize <category> [message-ids...] [flags]
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read message IDs from stdin
+      --query      Search query to resolve message IDs
+  -j, --json       Output results as JSON
 ```
 
 ### gro calendar list
@@ -458,27 +725,34 @@ Flags:
   -j, --json              Output as JSON
 ```
 
-### Contacts Commands
+### gro calendar rsvp
 
-All Contacts commands are under `gro contacts` (or `gro ppl`):
+Update your RSVP status on an event. Valid responses: accept, decline, tentative.
 
-```bash
-# List all contacts
-gro contacts list
-gro ppl list --max 20
-gro contacts list --json
+```
+Usage: gro calendar rsvp <event-id> <accept|decline|tentative> [flags]
 
-# Search contacts
-gro contacts search "John"
-gro ppl search "example.com" --max 20
+Aliases: gro cal rsvp
 
-# Get contact details
-gro contacts get people/c123456789
-gro ppl get people/c123456789 --json
+Flags:
+  -c, --calendar string   Calendar ID containing the event (default "primary")
+  -n, --dry-run           Preview without making changes
+  -j, --json              Output as JSON
+```
 
-# List contact groups
-gro contacts groups
-gro ppl groups --json
+### gro calendar color
+
+Set event color. Valid colors: lavender, sage, grape, flamingo, banana, tangerine, peacock, graphite, blueberry, basil, tomato (or IDs 1-11).
+
+```
+Usage: gro calendar color <event-id> <color> [flags]
+
+Aliases: gro cal color
+
+Flags:
+  -c, --calendar string   Calendar ID containing the event (default "primary")
+  -n, --dry-run           Preview without making changes
+  -j, --json              Output as JSON
 ```
 
 ### gro contacts list
@@ -492,8 +766,11 @@ Aliases: gro ppl list
 
 Flags:
   -m, --max int    Maximum number of contacts (default 10)
+      --ids        Output only resource names (one per line, for piping)
   -j, --json       Output as JSON
 ```
+
+`--ids` and `--json` are mutually exclusive.
 
 ### gro contacts search
 
@@ -506,8 +783,11 @@ Aliases: gro ppl search
 
 Flags:
   -m, --max int    Maximum number of results (default 10)
+      --ids        Output only resource names (one per line, for piping)
   -j, --json       Output as JSON
 ```
+
+`--ids` and `--json` are mutually exclusive.
 
 ### gro contacts get
 
@@ -536,59 +816,69 @@ Flags:
   -j, --json       Output as JSON
 ```
 
-### Drive Commands
+### gro contacts star
 
-All Drive commands are under `gro drive` (or `gro files`):
+Star contacts.
 
-```bash
-# List files in root or folder
-gro drive list
-gro files list --max 20
-gro drive list <folder-id> --type document
+```
+Usage: gro contacts star [contact-ids...] [flags]
 
-# Search files
-gro drive search "quarterly report"
-gro files search --name "budget" --type spreadsheet
-gro drive search --modified-after 2024-01-01
+Aliases: gro ppl star
 
-# Get file metadata
-gro drive get <file-id>
-gro files get <file-id> --json
-
-# Download files
-gro drive download <file-id>
-gro files download <file-id> --output ./report.pdf
-gro drive download <file-id> --format pdf  # Export Google Doc as PDF
-gro drive download <file-id> --stdout       # Write to stdout
-
-# Show folder tree
-gro drive tree
-gro files tree <folder-id> --depth 3
-gro drive tree --files  # Include files, not just folders
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read contact IDs from stdin
+      --query      Search query to resolve contact IDs
+  -j, --json       Output results as JSON
 ```
 
-#### Shared Drives
+### gro contacts unstar
 
-gro supports Google Shared Drives (formerly Team Drives). By default, search includes files from all drives you have access to.
+Unstar contacts.
 
-```bash
-# List available shared drives
-gro drive drives
-gro drive drives --json
+```
+Usage: gro contacts unstar [contact-ids...] [flags]
 
-# Search all drives (default)
-gro drive search "quarterly report"
+Aliases: gro ppl unstar
 
-# Search only your personal drive
-gro drive search "quarterly report" --my-drive
-
-# Search a specific shared drive by name
-gro drive search "budget" --drive "Finance Team"
-gro drive list --drive "Engineering"
-gro drive tree --drive "Marketing"
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read contact IDs from stdin
+      --query      Search query to resolve contact IDs
+  -j, --json       Output results as JSON
 ```
 
-The `--my-drive` and `--drive` flags are mutually exclusive. Shared drive names are cached locally for fast lookups. Run `gro drive drives` to refresh the cache.
+### gro contacts add-to-group
+
+Add contacts to a group.
+
+```
+Usage: gro contacts add-to-group <group-name> [contact-ids...] [flags]
+
+Aliases: gro ppl add-to-group
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read contact IDs from stdin
+      --query      Search query to resolve contact IDs
+  -j, --json       Output results as JSON
+```
+
+### gro contacts remove-from-group
+
+Remove contacts from a group.
+
+```
+Usage: gro contacts remove-from-group <group-name> [contact-ids...] [flags]
+
+Aliases: gro ppl remove-from-group
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read contact IDs from stdin
+      --query      Search query to resolve contact IDs
+  -j, --json       Output results as JSON
+```
 
 ### gro drive list
 
@@ -602,10 +892,13 @@ Aliases: gro files list
 Flags:
   -m, --max int      Maximum number of files (default 25)
   -t, --type string  Filter by type (document, spreadsheet, presentation, folder, pdf, image, video, audio)
+      --ids          Output only file IDs (one per line, for piping)
       --my-drive     List from My Drive only
       --drive string List from specific shared drive (name or ID)
   -j, --json         Output as JSON
 ```
+
+`--ids` and `--json` are mutually exclusive. `--my-drive` and `--drive` are mutually exclusive.
 
 ### gro drive search
 
@@ -623,11 +916,14 @@ Flags:
       --modified-after string  Modified after date (YYYY-MM-DD)
       --modified-before string Modified before date (YYYY-MM-DD)
       --in-folder string       Search within folder ID
+      --ids                    Output only file IDs (one per line, for piping)
       --my-drive               Search only My Drive
       --drive string           Search specific shared drive (name or ID)
   -m, --max int                Maximum results (default 25)
   -j, --json                   Output as JSON
 ```
+
+`--ids` and `--json` are mutually exclusive. `--my-drive` and `--drive` are mutually exclusive.
 
 ### gro drive get
 
@@ -692,6 +988,38 @@ Aliases: gro files drives
 Flags:
       --refresh    Force refresh from API (ignore cache)
   -j, --json       Output as JSON
+```
+
+### gro drive star
+
+Star files.
+
+```
+Usage: gro drive star [file-ids...] [flags]
+
+Aliases: gro files star
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read file IDs from stdin
+      --query      Search query to resolve file IDs
+  -j, --json       Output results as JSON
+```
+
+### gro drive unstar
+
+Unstar files.
+
+```
+Usage: gro drive unstar [file-ids...] [flags]
+
+Aliases: gro files unstar
+
+Flags:
+  -n, --dry-run    Preview without making changes
+      --stdin      Read file IDs from stdin
+      --query      Search query to resolve file IDs
+  -j, --json       Output results as JSON
 ```
 
 ## Search Query Reference
@@ -798,8 +1126,8 @@ The cache is automatically repopulated when stale or after being cleared.
 
 ## Security
 
-- This tool only requests **read-only** access to Google services
-- No write, send, or delete operations are possible
+- This tool is **non-destructive by design** - no send, delete, or trash operations are possible
+- Organizational operations (archive, label, star, RSVP, color, group management) are the most impactful actions available
 - OAuth tokens are stored in system keychain (macOS Keychain / Linux secret-tool) when available
 - File-based storage uses `0600` permissions
 - Credentials never leave your machine
