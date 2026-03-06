@@ -15,10 +15,13 @@ import (
 type MailClient interface {
 	GetMessage(ctx context.Context, messageID string, includeBody bool) (*gmail.Message, error)
 	SearchMessages(ctx context.Context, query string, maxResults int64) ([]*gmail.Message, int, error)
+	SearchMessageIDs(ctx context.Context, query string, maxResults int64) ([]string, error)
 	GetThread(ctx context.Context, id string) ([]*gmail.Message, error)
 	FetchLabels(ctx context.Context) error
 	GetLabelName(labelID string) string
+	GetLabelID(ctx context.Context, name string) (string, error)
 	GetLabels() []*gmailv1.Label
+	ModifyMessages(ctx context.Context, ids []string, addLabels, removeLabels []string) error
 	GetAttachments(ctx context.Context, messageID string) ([]*gmail.Attachment, error)
 	DownloadAttachment(ctx context.Context, messageID string, attachmentID string) ([]byte, error)
 	DownloadInlineAttachment(ctx context.Context, messageID string, partID string) ([]byte, error)

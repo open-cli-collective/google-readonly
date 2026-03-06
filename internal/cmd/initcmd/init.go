@@ -65,7 +65,7 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Printf("Credentials: %s\n", shortPath)
 
 	// Step 2: Load OAuth config
-	config, err := auth.GetOAuthConfig()
+	oauthConfig, err := auth.GetOAuthConfig()
 	if err != nil {
 		return fmt.Errorf("loading OAuth config: %w", err)
 	}
@@ -114,7 +114,7 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Println("Token:       Not found - starting OAuth flow")
 	fmt.Println()
 
-	authURL := auth.GetAuthURL(config)
+	authURL := auth.GetAuthURL(oauthConfig)
 	fmt.Println("Open this URL in your browser:")
 	fmt.Println()
 	fmt.Println(authURL)
@@ -143,16 +143,24 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Println("Exchanging authorization code...")
 
-	token, err := auth.ExchangeAuthCode(cmd.Context(), config, code)
+	token, err := auth.ExchangeAuthCode(cmd.Context(), oauthConfig, code)
 	if err != nil {
 		return fmt.Errorf("exchanging authorization code: %w", err)
 	}
 
-	// Step 6: Save token
+	// Step 6: Save token and record granted scopes
 	if err := keychain.SetToken(token); err != nil {
 		return fmt.Errorf("saving token: %w", err)
 	}
 	fmt.Printf("Token saved to: %s\n", keychain.GetStorageBackend())
+
+	cfg, cfgErr := config.LoadConfig()
+	if cfgErr == nil {
+		cfg.GrantedScopes = auth.AllScopes
+		if saveErr := config.SaveConfig(cfg); saveErr != nil {
+			fmt.Printf("Warning: saving granted scopes: %v\n", saveErr)
+		}
+	}
 
 	// Step 7: Verify connectivity (unless --no-verify)
 	if !noVerify {

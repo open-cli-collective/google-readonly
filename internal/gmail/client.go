@@ -17,6 +17,7 @@ type Client struct {
 	service      *gmail.Service
 	userID       string
 	labels       map[string]*gmail.Label
+	labelsByName map[string]string // display name -> label ID
 	labelsLoaded bool
 	labelsMu     sync.RWMutex
 }
@@ -64,8 +65,10 @@ func (c *Client) FetchLabels(ctx context.Context) error {
 	}
 
 	c.labels = make(map[string]*gmail.Label)
+	c.labelsByName = make(map[string]string)
 	for _, label := range resp.Labels {
 		c.labels[label.Id] = label
+		c.labelsByName[label.Name] = label.Id
 	}
 	c.labelsLoaded = true
 
@@ -96,6 +99,62 @@ func (c *Client) GetLabels() []*gmail.Label {
 		labels = append(labels, label)
 	}
 	return labels
+}
+
+// GetLabelID resolves a label display name to its ID. Calls FetchLabels if needed.
+func (c *Client) GetLabelID(ctx context.Context, name string) (string, error) {
+	if err := c.FetchLabels(ctx); err != nil {
+		return "", err
+	}
+
+	c.labelsMu.RLock()
+	defer c.labelsMu.RUnlock()
+
+	if id, ok := c.labelsByName[name]; ok {
+		return id, nil
+	}
+	return "", fmt.Errorf("label %q not found", name)
+}
+
+// ModifyMessages modifies labels on one or more messages.
+// Uses Messages.Modify for a single message; Messages.BatchModify for multiple.
+// Gmail limits batch operations to 1000 IDs, so this method chunks automatically.
+func (c *Client) ModifyMessages(ctx context.Context, ids []string, addLabels, removeLabels []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if len(ids) == 1 {
+		req := &gmail.ModifyMessageRequest{
+			AddLabelIds:    addLabels,
+			RemoveLabelIds: removeLabels,
+		}
+		_, err := c.service.Users.Messages.Modify(c.userID, ids[0], req).Context(ctx).Do()
+		if err != nil {
+			return fmt.Errorf("modifying message %s: %w", ids[0], err)
+		}
+		return nil
+	}
+
+	const batchSize = 1000
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[i:end]
+
+		req := &gmail.BatchModifyMessagesRequest{
+			Ids:            chunk,
+			AddLabelIds:    addLabels,
+			RemoveLabelIds: removeLabels,
+		}
+		err := c.service.Users.Messages.BatchModify(c.userID, req).Context(ctx).Do()
+		if err != nil {
+			return fmt.Errorf("batch modifying messages: %w", err)
+		}
+	}
+	return nil
 }
 
 // Profile represents a Gmail user profile.

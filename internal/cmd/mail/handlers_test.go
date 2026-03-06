@@ -147,6 +147,40 @@ func TestSearchCommand_ClientCreationError(t *testing.T) {
 	})
 }
 
+func TestSearchCommand_IDsOutput(t *testing.T) {
+	mock := &MockGmailClient{
+		SearchMessageIDsFunc: func(_ context.Context, query string, _ int64) ([]string, error) {
+			testutil.Equal(t, query, "is:inbox")
+			return []string{"msg1", "msg2", "msg3"}, nil
+		},
+	}
+
+	cmd := newSearchCommand()
+	cmd.SetArgs([]string{"is:inbox", "--ids"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		testutil.Contains(t, output, "msg1")
+		testutil.Contains(t, output, "msg2")
+		testutil.Contains(t, output, "msg3")
+	})
+}
+
+func TestSearchCommand_IDsAndJSONMutuallyExclusive(t *testing.T) {
+	cmd := newSearchCommand()
+	cmd.SetArgs([]string{"is:inbox", "--ids", "--json"})
+
+	withMockClient(&MockGmailClient{}, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "mutually exclusive")
+	})
+}
+
 func TestSearchCommand_SkippedMessages(t *testing.T) {
 	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
