@@ -314,6 +314,7 @@ var allowedScopes = map[string]bool{
 	"https://www.googleapis.com/auth/calendar.events":   true, // RSVP, color (NOT calendar settings)
 	"https://www.googleapis.com/auth/contacts.readonly": true,
 	"https://www.googleapis.com/auth/drive.readonly":    true,
+	"https://www.googleapis.com/auth/drive.metadata":    true, // star/unstar files (NOT file content write)
 }
 
 // TestAllScopesAreNonDestructive verifies that every OAuth scope in auth.AllScopes

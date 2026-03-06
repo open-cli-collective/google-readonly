@@ -250,6 +250,18 @@ func (m *mockDriveClient) ListSharedDrives(_ context.Context, _ int64) ([]*drive
 	return nil, fmt.Errorf("not implemented")
 }
 
+func (m *mockDriveClient) StarFile(_ context.Context, _ string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (m *mockDriveClient) UnstarFile(_ context.Context, _ string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (m *mockDriveClient) SearchFileIDs(_ context.Context, _ string, _ int64) ([]string, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func TestBuildTree(t *testing.T) {
 	t.Run("builds tree for root folder", func(t *testing.T) {
 		mock := newMockDriveClient()

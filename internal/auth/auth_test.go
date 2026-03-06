@@ -120,6 +120,9 @@ func TestAllScopes(t *testing.T) {
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.readonly")
 	}
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.metadata") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.metadata")
+	}
 }
 
 func TestCheckScopesMigration_NoGrantedScopes(t *testing.T) {

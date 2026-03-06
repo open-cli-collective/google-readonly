@@ -11,7 +11,7 @@ func NewCommand() *cobra.Command {
 		Use:     "drive",
 		Aliases: []string{"files"},
 		Short:   "Google Drive commands",
-		Long: `Read-only access to Google Drive files and folders.
+		Long: `Access to Google Drive files and folders.
 
 This command group provides Google Drive functionality:
 - list: List files in Drive or a specific folder
@@ -20,6 +20,8 @@ This command group provides Google Drive functionality:
 - download: Download files or export Google Docs
 - tree: Display folder structure
 - drives: List accessible shared drives
+- star: Star files
+- unstar: Unstar files
 
 Shared Drive Support:
   By default, search includes files from all drives (My Drive + shared drives).
@@ -32,6 +34,7 @@ Examples:
   gro drive search "budget" --drive "Finance Team"
   gro drive get <file-id>
   gro drive download <file-id> --format pdf
+  gro drive star <file-id>
   gro drive drives`,
 	}
 
@@ -41,6 +44,8 @@ Examples:
 	cmd.AddCommand(newDownloadCommand())
 	cmd.AddCommand(newTreeCommand())
 	cmd.AddCommand(newDrivesCommand())
+	cmd.AddCommand(newStarCommand())
+	cmd.AddCommand(newUnstarCommand())
 
 	return cmd
 }

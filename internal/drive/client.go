@@ -148,6 +148,58 @@ func (c *Client) ExportFile(ctx context.Context, fileID string, mimeType string)
 	return data, nil
 }
 
+// StarFile stars a file in Drive
+func (c *Client) StarFile(ctx context.Context, fileID string) error {
+	_, err := c.service.Files.Update(fileID, &drive.File{
+		Starred:         true,
+		ForceSendFields: []string{"Starred"},
+	}).SupportsAllDrives(true).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("starring file: %w", err)
+	}
+	return nil
+}
+
+// UnstarFile removes the star from a file in Drive
+func (c *Client) UnstarFile(ctx context.Context, fileID string) error {
+	_, err := c.service.Files.Update(fileID, &drive.File{
+		Starred:         false,
+		ForceSendFields: []string{"Starred"},
+	}).SupportsAllDrives(true).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("unstarring file: %w", err)
+	}
+	return nil
+}
+
+// SearchFileIDs returns only file IDs matching the query (no metadata fetch).
+// This is more efficient than ListFiles when only IDs are needed.
+func (c *Client) SearchFileIDs(ctx context.Context, query string, pageSize int64) ([]string, error) {
+	call := c.service.Files.List().
+		Fields("files(id)").
+		SupportsAllDrives(true).
+		IncludeItemsFromAllDrives(true).
+		Corpora("allDrives")
+
+	if query != "" {
+		call = call.Q(query)
+	}
+	if pageSize > 0 {
+		call = call.PageSize(pageSize)
+	}
+
+	resp, err := call.Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("searching file IDs: %w", err)
+	}
+
+	ids := make([]string, 0, len(resp.Files))
+	for _, f := range resp.Files {
+		ids = append(ids, f.Id)
+	}
+	return ids, nil
+}
+
 // ListSharedDrives returns all shared drives accessible to the user
 func (c *Client) ListSharedDrives(ctx context.Context, pageSize int64) ([]*SharedDrive, error) {
 	var allDrives []*SharedDrive
