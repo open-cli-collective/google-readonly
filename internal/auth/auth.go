@@ -26,6 +26,7 @@ var AllScopes = []string{
 	calendar.CalendarReadonlyScope,
 	people.ContactsReadonlyScope,
 	drive.DriveReadonlyScope,
+	drive.DriveMetadataScope,
 }
 
 // ScopeDescriptions maps OAuth scope URLs to human-friendly descriptions.
@@ -35,6 +36,7 @@ var ScopeDescriptions = map[string]string{
 	calendar.CalendarReadonlyScope: "Calendar Read-Only — read calendars and events.",
 	people.ContactsReadonlyScope:   "Contacts Read-Only — read contacts and groups.",
 	drive.DriveReadonlyScope:       "Drive Read-Only — read files and metadata.",
+	drive.DriveMetadataScope:       "Drive Metadata — read and update file metadata (star/unstar). No file content write access.",
 }
 
 // CheckScopesMigration compares the currently required scopes against the

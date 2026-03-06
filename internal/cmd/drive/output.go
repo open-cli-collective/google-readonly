@@ -15,6 +15,9 @@ type DriveClient interface {
 	DownloadFile(ctx context.Context, fileID string) ([]byte, error)
 	ExportFile(ctx context.Context, fileID string, mimeType string) ([]byte, error)
 	ListSharedDrives(ctx context.Context, pageSize int64) ([]*drive.SharedDrive, error)
+	StarFile(ctx context.Context, fileID string) error
+	UnstarFile(ctx context.Context, fileID string) error
+	SearchFileIDs(ctx context.Context, query string, pageSize int64) ([]string, error)
 }
 
 // ClientFactory is the function used to create Drive clients.

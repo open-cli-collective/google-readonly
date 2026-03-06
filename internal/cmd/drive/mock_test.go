@@ -14,6 +14,9 @@ type MockDriveClient struct {
 	DownloadFileFunc       func(ctx context.Context, fileID string) ([]byte, error)
 	ExportFileFunc         func(ctx context.Context, fileID, mimeType string) ([]byte, error)
 	ListSharedDrivesFunc   func(ctx context.Context, pageSize int64) ([]*driveapi.SharedDrive, error)
+	StarFileFunc           func(ctx context.Context, fileID string) error
+	UnstarFileFunc         func(ctx context.Context, fileID string) error
+	SearchFileIDsFunc      func(ctx context.Context, query string, pageSize int64) ([]string, error)
 }
 
 // Verify MockDriveClient implements DriveClient
@@ -61,6 +64,27 @@ func (m *MockDriveClient) ExportFile(ctx context.Context, fileID, mimeType strin
 func (m *MockDriveClient) ListSharedDrives(ctx context.Context, pageSize int64) ([]*driveapi.SharedDrive, error) {
 	if m.ListSharedDrivesFunc != nil {
 		return m.ListSharedDrivesFunc(ctx, pageSize)
+	}
+	return nil, nil
+}
+
+func (m *MockDriveClient) StarFile(ctx context.Context, fileID string) error {
+	if m.StarFileFunc != nil {
+		return m.StarFileFunc(ctx, fileID)
+	}
+	return nil
+}
+
+func (m *MockDriveClient) UnstarFile(ctx context.Context, fileID string) error {
+	if m.UnstarFileFunc != nil {
+		return m.UnstarFileFunc(ctx, fileID)
+	}
+	return nil
+}
+
+func (m *MockDriveClient) SearchFileIDs(ctx context.Context, query string, pageSize int64) ([]string, error) {
+	if m.SearchFileIDsFunc != nil {
+		return m.SearchFileIDsFunc(ctx, query, pageSize)
 	}
 	return nil, nil
 }
