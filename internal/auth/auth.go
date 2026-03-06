@@ -21,9 +21,13 @@ import (
 // AllScopes contains all OAuth scopes used by the application.
 // Gmail uses the modify scope for organizational operations (label, archive, star, mark read/unread).
 // The modify scope is a superset of readonly — it includes all read access.
+// Calendar uses both readonly (for calendar list metadata) and events (for RSVP/color operations).
+// Note: calendar.events also permits event creation, which is an accepted trade-off for RSVP/color support.
+// The architecture test (TestNoDestructiveAPIMethodsInProductionCode) prevents accidental misuse.
 var AllScopes = []string{
 	gmail.GmailModifyScope,
 	calendar.CalendarReadonlyScope,
+	calendar.CalendarEventsScope,
 	people.ContactsReadonlyScope,
 	drive.DriveReadonlyScope,
 }
@@ -33,6 +37,7 @@ var ScopeDescriptions = map[string]string{
 	gmail.GmailModifyScope:         "Gmail Modify — read messages, plus label, archive, star, and mark read/unread. No send or delete access.",
 	gmail.GmailReadonlyScope:       "Gmail Read-Only — read messages and metadata.",
 	calendar.CalendarReadonlyScope: "Calendar Read-Only — read calendars and events.",
+	calendar.CalendarEventsScope:   "Calendar Events — read and update events (RSVP, color). No calendar settings access.",
 	people.ContactsReadonlyScope:   "Contacts Read-Only — read contacts and groups.",
 	drive.DriveReadonlyScope:       "Drive Read-Only — read files and metadata.",
 }
