@@ -133,8 +133,12 @@ func (c *Client) ResolveGroupName(ctx context.Context, name string) (string, err
 	return "", fmt.Errorf("group not found: %s", name)
 }
 
-// SearchContactIDs searches contacts and returns only resource names
+// SearchContactIDs searches contacts and returns only resource names.
+// pageSize of 0 defaults to 100 (the People API maximum for search).
 func (c *Client) SearchContactIDs(ctx context.Context, query string, pageSize int64) ([]string, error) {
+	if pageSize <= 0 {
+		pageSize = 100
+	}
 	resp, err := c.service.People.SearchContacts().
 		Query(query).
 		ReadMask("names").
