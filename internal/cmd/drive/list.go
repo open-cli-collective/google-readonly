@@ -18,6 +18,7 @@ func newListCommand() *cobra.Command {
 		maxResults int64
 		fileType   string
 		jsonOutput bool
+		idsOutput  bool
 		myDrive    bool
 		driveFlag  string
 	)
@@ -44,6 +45,9 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			// Validate mutually exclusive flags
 			if myDrive && driveFlag != "" {
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
+			}
+			if idsOutput && jsonOutput {
+				return fmt.Errorf("--ids and --json are mutually exclusive")
 			}
 
 			client, err := newDriveClient(cmd.Context())
@@ -73,6 +77,13 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 				return fmt.Errorf("listing files: %w", err)
 			}
 
+			if idsOutput {
+				for _, f := range files {
+					fmt.Println(f.ID)
+				}
+				return nil
+			}
+
 			if len(files) == 0 {
 				if jsonOutput {
 					fmt.Println("[]")
@@ -94,6 +105,7 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 	cmd.Flags().Int64VarP(&maxResults, "max", "m", 25, "Maximum number of results to return")
 	cmd.Flags().StringVarP(&fileType, "type", "t", "", "Filter by file type")
 	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
+	cmd.Flags().BoolVar(&idsOutput, "ids", false, "Output only file IDs (one per line, for piping)")
 	cmd.Flags().BoolVar(&myDrive, "my-drive", false, "Limit to My Drive only")
 	cmd.Flags().StringVar(&driveFlag, "drive", "", "List files in specific shared drive (name or ID)")
 

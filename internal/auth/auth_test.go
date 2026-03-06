@@ -101,8 +101,8 @@ func TestDeprecatedWrappers(t *testing.T) {
 
 func TestAllScopes(t *testing.T) {
 	t.Parallel()
-	if len(AllScopes) != 4 {
-		t.Errorf("got length %d, want %d", len(AllScopes), 4)
+	if len(AllScopes) != 6 {
+		t.Errorf("got length %d, want %d", len(AllScopes), 6)
 	}
 	scopeSet := strings.Join(AllScopes, " ")
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/gmail.modify") {
@@ -111,11 +111,17 @@ func TestAllScopes(t *testing.T) {
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/calendar.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/calendar.readonly")
 	}
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/calendar.events") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/calendar.events")
+	}
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/contacts") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/contacts")
 	}
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.readonly")
+	}
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.metadata") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.metadata")
 	}
 }
 

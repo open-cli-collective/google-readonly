@@ -311,9 +311,11 @@ var allowedScopes = map[string]bool{
 	"https://www.googleapis.com/auth/gmail.readonly":    true,
 	"https://www.googleapis.com/auth/gmail.modify":      true, // label, archive, star, read/unread (NOT send/delete)
 	"https://www.googleapis.com/auth/calendar.readonly": true,
+	"https://www.googleapis.com/auth/calendar.events":   true, // RSVP, color (NOT calendar settings)
 	"https://www.googleapis.com/auth/contacts.readonly": true,
 	"https://www.googleapis.com/auth/contacts":          true, // group membership, starring (NOT create/delete contacts)
 	"https://www.googleapis.com/auth/drive.readonly":    true,
+	"https://www.googleapis.com/auth/drive.metadata":    true, // star/unstar files (NOT file content write)
 }
 
 // TestAllScopesAreNonDestructive verifies that every OAuth scope in auth.AllScopes

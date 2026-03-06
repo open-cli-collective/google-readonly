@@ -11,7 +11,7 @@ func NewCommand() *cobra.Command {
 		Use:     "calendar",
 		Aliases: []string{"cal"},
 		Short:   "Google Calendar commands",
-		Long: `Read-only access to Google Calendar events and calendars.
+		Long: `Access to Google Calendar events and calendars.
 
 This command group provides Calendar functionality:
 - list: List all calendars
@@ -19,12 +19,16 @@ This command group provides Calendar functionality:
 - get: View a single event's details
 - today: Show today's events
 - week: Show this week's events
+- rsvp: Update your RSVP status on an event
+- color: Set event color
 
 Examples:
   gro calendar list
   gro cal events --max 20
   gro cal today --json
-  gro calendar get <event-id>`,
+  gro calendar get <event-id>
+  gro cal rsvp <event-id> accept
+  gro cal color <event-id> tomato`,
 	}
 
 	cmd.AddCommand(newListCommand())
@@ -32,6 +36,8 @@ Examples:
 	cmd.AddCommand(newGetCommand())
 	cmd.AddCommand(newTodayCommand())
 	cmd.AddCommand(newWeekCommand())
+	cmd.AddCommand(newRSVPCommand())
+	cmd.AddCommand(newColorCommand())
 
 	return cmd
 }
