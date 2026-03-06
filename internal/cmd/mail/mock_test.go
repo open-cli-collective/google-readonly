@@ -13,10 +13,13 @@ import (
 type MockGmailClient struct {
 	GetMessageFunc               func(ctx context.Context, messageID string, includeBody bool) (*gmailapi.Message, error)
 	SearchMessagesFunc           func(ctx context.Context, query string, maxResults int64) ([]*gmailapi.Message, int, error)
+	SearchMessageIDsFunc         func(ctx context.Context, query string, maxResults int64) ([]string, error)
 	GetThreadFunc                func(ctx context.Context, id string) ([]*gmailapi.Message, error)
 	FetchLabelsFunc              func(ctx context.Context) error
 	GetLabelNameFunc             func(labelID string) string
+	GetLabelIDFunc               func(ctx context.Context, name string) (string, error)
 	GetLabelsFunc                func() []*gmail.Label
+	ModifyMessagesFunc           func(ctx context.Context, ids []string, addLabels, removeLabels []string) error
 	GetAttachmentsFunc           func(ctx context.Context, messageID string) ([]*gmailapi.Attachment, error)
 	DownloadAttachmentFunc       func(ctx context.Context, messageID, attachmentID string) ([]byte, error)
 	DownloadInlineAttachmentFunc func(ctx context.Context, messageID, partID string) ([]byte, error)
@@ -40,6 +43,13 @@ func (m *MockGmailClient) SearchMessages(ctx context.Context, query string, maxR
 	return nil, 0, nil
 }
 
+func (m *MockGmailClient) SearchMessageIDs(ctx context.Context, query string, maxResults int64) ([]string, error) {
+	if m.SearchMessageIDsFunc != nil {
+		return m.SearchMessageIDsFunc(ctx, query, maxResults)
+	}
+	return nil, nil
+}
+
 func (m *MockGmailClient) GetThread(ctx context.Context, id string) ([]*gmailapi.Message, error) {
 	if m.GetThreadFunc != nil {
 		return m.GetThreadFunc(ctx, id)
@@ -61,9 +71,23 @@ func (m *MockGmailClient) GetLabelName(labelID string) string {
 	return labelID
 }
 
+func (m *MockGmailClient) GetLabelID(ctx context.Context, name string) (string, error) {
+	if m.GetLabelIDFunc != nil {
+		return m.GetLabelIDFunc(ctx, name)
+	}
+	return "", nil
+}
+
 func (m *MockGmailClient) GetLabels() []*gmail.Label {
 	if m.GetLabelsFunc != nil {
 		return m.GetLabelsFunc()
+	}
+	return nil
+}
+
+func (m *MockGmailClient) ModifyMessages(ctx context.Context, ids []string, addLabels, removeLabels []string) error {
+	if m.ModifyMessagesFunc != nil {
+		return m.ModifyMessagesFunc(ctx, ids, addLabels, removeLabels)
 	}
 	return nil
 }

@@ -22,6 +22,7 @@ All API clients depend on:
   internal/auth/    -> internal/keychain/, internal/config/
 
 Shared utilities (no internal deps):
+  internal/bulk/        Bulk operation ID resolution and result types
   internal/testutil/    Test fixtures and assertion helpers
   internal/output/      JSON output encoding
   internal/format/      Human-readable formatting

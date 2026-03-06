@@ -105,8 +105,8 @@ func TestAllScopes(t *testing.T) {
 		t.Errorf("got length %d, want %d", len(AllScopes), 4)
 	}
 	scopeSet := strings.Join(AllScopes, " ")
-	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/gmail.readonly") {
-		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/gmail.readonly")
+	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/gmail.modify") {
+		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/gmail.modify")
 	}
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/calendar.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/calendar.readonly")
@@ -116,6 +116,42 @@ func TestAllScopes(t *testing.T) {
 	}
 	if !strings.Contains(scopeSet, "https://www.googleapis.com/auth/drive.readonly") {
 		t.Errorf("expected AllScopes to contain %q", "https://www.googleapis.com/auth/drive.readonly")
+	}
+}
+
+func TestCheckScopesMigration_NoGrantedScopes(t *testing.T) {
+	t.Parallel()
+	msg := CheckScopesMigration(nil)
+	if msg != "" {
+		t.Errorf("expected empty message, got %q", msg)
+	}
+}
+
+func TestCheckScopesMigration_AllGranted(t *testing.T) {
+	t.Parallel()
+	msg := CheckScopesMigration(AllScopes)
+	if msg != "" {
+		t.Errorf("expected empty message, got %q", msg)
+	}
+}
+
+func TestCheckScopesMigration_MissingScope(t *testing.T) {
+	t.Parallel()
+	oldScopes := []string{
+		"https://www.googleapis.com/auth/gmail.readonly",
+		"https://www.googleapis.com/auth/calendar.readonly",
+		"https://www.googleapis.com/auth/contacts.readonly",
+		"https://www.googleapis.com/auth/drive.readonly",
+	}
+	msg := CheckScopesMigration(oldScopes)
+	if msg == "" {
+		t.Fatal("expected non-empty message")
+	}
+	if !strings.Contains(msg, "gro init") {
+		t.Errorf("expected message to mention 'gro init', got %q", msg)
+	}
+	if !strings.Contains(msg, "Gmail Modify") {
+		t.Errorf("expected message to mention 'Gmail Modify', got %q", msg)
 	}
 }
 

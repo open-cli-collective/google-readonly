@@ -68,6 +68,29 @@ func (c *Client) SearchMessages(ctx context.Context, query string, maxResults in
 	return messages, skipped, nil
 }
 
+// SearchMessageIDs returns only message IDs matching the query (no metadata fetch).
+// This is more efficient than SearchMessages when only IDs are needed.
+// Note: returns a single page of results (up to ~100 when maxResults is 0).
+// This matches SearchMessages behavior. For very large result sets, use a more
+// specific query to narrow results.
+func (c *Client) SearchMessageIDs(ctx context.Context, query string, maxResults int64) ([]string, error) {
+	call := c.service.Users.Messages.List(c.userID).Q(query)
+	if maxResults > 0 {
+		call = call.MaxResults(maxResults)
+	}
+
+	resp, err := call.Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("searching message IDs: %w", err)
+	}
+
+	ids := make([]string, 0, len(resp.Messages))
+	for _, msg := range resp.Messages {
+		ids = append(ids, msg.Id)
+	}
+	return ids, nil
+}
+
 // GetMessage retrieves a single message by ID
 func (c *Client) GetMessage(ctx context.Context, messageID string, includeBody bool) (*Message, error) {
 	format := "metadata"

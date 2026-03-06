@@ -4,13 +4,13 @@ This file provides guidance for AI agents working with the gro codebase.
 
 ## Project Overview
 
-gro is a **read-only** command-line interface for Google services written in Go. It uses OAuth2 for authentication and only requests read-only scopes - no write, send, or delete operations are possible.
+gro is a **non-destructive** command-line interface for Google services written in Go. It uses OAuth2 for authentication and supports read-only access plus non-destructive organizational operations (labeling, archiving, starring, marking read/unread). No send, delete, or destructive operations are possible.
 
 **Binary name:** `gro`
 **Module:** `github.com/open-cli-collective/google-readonly`
 
 ### Features
-- Gmail: Search, read, thread viewing, labels, attachments
+- Gmail: Search, read, thread viewing, labels, attachments, archive, star, mark read/unread, label, categorize
 - Google Calendar: List calendars, view events, today/week shortcuts
 - Google Contacts: List contacts, search, view details, list groups
 - Google Drive: List files, search, get details, download, tree view, shared drives
@@ -37,7 +37,7 @@ make install        # Install to /usr/local/bin
 
 ## Key Constraints
 
-- **Read-only by design**: Only `*ReadonlyScope` in `auth.AllScopes`. No write API methods.
+- **Non-destructive by design**: Only allowlisted scopes in `auth.AllScopes`. No destructive API methods (send, delete, trash). Non-destructive modify operations (label, archive, star) are permitted.
 - **Interface-at-consumer**: Each `internal/cmd/{domain}/output.go` defines its client interface.
 - **ClientFactory DI**: Swappable factory for test mock injection.
 - **--json on all leaf commands**: Every leaf subcommand supports `--json/-j`.

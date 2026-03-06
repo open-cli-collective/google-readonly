@@ -18,12 +18,57 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
 
-// AllScopes contains all OAuth scopes used by the application
+// AllScopes contains all OAuth scopes used by the application.
+// Gmail uses the modify scope for organizational operations (label, archive, star, mark read/unread).
+// The modify scope is a superset of readonly — it includes all read access.
 var AllScopes = []string{
-	gmail.GmailReadonlyScope,
+	gmail.GmailModifyScope,
 	calendar.CalendarReadonlyScope,
 	people.ContactsReadonlyScope,
 	drive.DriveReadonlyScope,
+}
+
+// ScopeDescriptions maps OAuth scope URLs to human-friendly descriptions.
+var ScopeDescriptions = map[string]string{
+	gmail.GmailModifyScope:         "Gmail Modify — read messages, plus label, archive, star, and mark read/unread. No send or delete access.",
+	gmail.GmailReadonlyScope:       "Gmail Read-Only — read messages and metadata.",
+	calendar.CalendarReadonlyScope: "Calendar Read-Only — read calendars and events.",
+	people.ContactsReadonlyScope:   "Contacts Read-Only — read contacts and groups.",
+	drive.DriveReadonlyScope:       "Drive Read-Only — read files and metadata.",
+}
+
+// CheckScopesMigration compares the currently required scopes against the
+// previously granted scopes. Returns a non-empty message if re-auth is needed.
+func CheckScopesMigration(grantedScopes []string) string {
+	if len(grantedScopes) == 0 {
+		return ""
+	}
+
+	granted := make(map[string]bool, len(grantedScopes))
+	for _, s := range grantedScopes {
+		granted[s] = true
+	}
+
+	var missing []string
+	for _, required := range AllScopes {
+		if !granted[required] {
+			missing = append(missing, required)
+		}
+	}
+
+	if len(missing) == 0 {
+		return ""
+	}
+
+	msg := "This command requires additional permissions.\nYour current token only has read-only access.\n\nRun 'gro init' to re-authenticate with the updated scopes.\n\nNew scopes:\n"
+	for _, s := range missing {
+		desc := ScopeDescriptions[s]
+		if desc == "" {
+			desc = s
+		}
+		msg += "  - " + desc + "\n"
+	}
+	return msg
 }
 
 // GetOAuthConfig loads OAuth configuration from credentials file with all scopes

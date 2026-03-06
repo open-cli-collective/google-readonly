@@ -32,11 +32,11 @@ All leaf subcommands (commands with no children) support `--json/-j` for machine
 
 **Enforced by:** `TestAllLeafCommandsHaveJSONFlag`
 
-## 5. Read-only only
+## 5. Non-destructive only
 
-Only `*ReadonlyScope` constants may appear in `auth.AllScopes`. No write API methods (`.Send()`, `.Trash()`, `.BatchModify()`, etc.) in production code.
+All OAuth scopes in `auth.AllScopes` must appear in the non-destructive allowlist. No destructive API methods (`.Send()`, `.Trash()`, `.BatchDelete()`, etc.) in production code. Non-destructive modify methods like `.BatchModify()` (used for labeling/archiving) are permitted.
 
-**Enforced by:** `TestAllScopesAreReadOnly`, `TestNoWriteAPIMethodsInProductionCode`
+**Enforced by:** `TestAllScopesAreNonDestructive`, `TestNoDestructiveAPIMethodsInProductionCode`
 
 ## 6. Dependency direction
 

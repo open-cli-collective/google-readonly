@@ -38,6 +38,12 @@ func TestSearchCommand(t *testing.T) {
 		testutil.Equal(t, flag.DefValue, "false")
 	})
 
+	t.Run("has ids flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("ids")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.DefValue, "false")
+	})
+
 	t.Run("has examples in long description", func(t *testing.T) {
 		testutil.Contains(t, cmd.Long, "from:")
 		testutil.Contains(t, cmd.Long, "subject:")

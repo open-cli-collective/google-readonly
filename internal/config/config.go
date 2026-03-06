@@ -43,7 +43,7 @@ func GetConfigDir() (string, error) {
 	}
 	configDir := filepath.Join(configHome, DirName)
 
-	if err := os.MkdirAll(configDir, DirPerm); err != nil {
+	if err := os.MkdirAll(configDir, DirPerm); err != nil { //nolint:gosec // Path from user config directory, not user-controlled input
 		return "", err
 	}
 
@@ -90,7 +90,8 @@ const (
 
 // Config represents user-configurable settings
 type Config struct {
-	CacheTTLHours int `json:"cache_ttl_hours"`
+	CacheTTLHours int      `json:"cache_ttl_hours"`
+	GrantedScopes []string `json:"granted_scopes,omitempty"`
 }
 
 // GetConfigPath returns the full path to config.json

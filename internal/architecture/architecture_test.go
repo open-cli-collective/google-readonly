@@ -303,10 +303,21 @@ func TestAuthPackageDoesNotImportAPIClients(t *testing.T) {
 	}
 }
 
-// TestAllScopesAreReadOnly verifies that every OAuth scope in auth.AllScopes
-// is a read-only scope. This is the primary mechanical enforcement of the
-// read-only-by-design principle.
-func TestAllScopesAreReadOnly(t *testing.T) {
+// allowedScopes is the set of OAuth scopes permitted in auth.AllScopes.
+// Read-only scopes are always safe. Non-readonly scopes are allowed only when
+// they enable non-destructive organizational operations (label, archive, star, etc.)
+// without granting send or delete access.
+var allowedScopes = map[string]bool{
+	"https://www.googleapis.com/auth/gmail.readonly":    true,
+	"https://www.googleapis.com/auth/gmail.modify":      true, // label, archive, star, read/unread (NOT send/delete)
+	"https://www.googleapis.com/auth/calendar.readonly": true,
+	"https://www.googleapis.com/auth/contacts.readonly": true,
+	"https://www.googleapis.com/auth/drive.readonly":    true,
+}
+
+// TestAllScopesAreNonDestructive verifies that every OAuth scope in auth.AllScopes
+// is in the allowlist of non-destructive scopes.
+func TestAllScopesAreNonDestructive(t *testing.T) {
 	t.Parallel()
 
 	if len(auth.AllScopes) == 0 {
@@ -314,28 +325,27 @@ func TestAllScopesAreReadOnly(t *testing.T) {
 	}
 
 	for _, scope := range auth.AllScopes {
-		if !strings.Contains(scope, "readonly") {
-			t.Errorf("scope %q is not a readonly scope; all scopes in AllScopes must be read-only", scope)
+		if !allowedScopes[scope] {
+			t.Errorf("scope %q is not in the non-destructive allowlist; update allowedScopes if this scope is safe", scope)
 		}
 	}
 }
 
-// TestNoWriteAPIMethodsInProductionCode scans all non-test Go source files
-// for Google API write method calls. This is defense-in-depth on top of the
-// scope check — even with readonly scopes, we don't want write method calls
-// in the codebase since they indicate incorrect intent.
-func TestNoWriteAPIMethodsInProductionCode(t *testing.T) {
+// TestNoDestructiveAPIMethodsInProductionCode scans all non-test Go source files
+// for Google API destructive method calls. Non-destructive modify methods like
+// BatchModify (used for labeling/archiving) are permitted.
+func TestNoDestructiveAPIMethodsInProductionCode(t *testing.T) {
 	t.Parallel()
 	root := findModuleRoot(t)
 
 	// These patterns are specific to Google API client libraries and unlikely
 	// to appear in other contexts. Generic method names like .Delete() or
 	// .Insert() are intentionally excluded to avoid false positives.
+	// Note: .BatchModify( is intentionally allowed — it's used for bulk label operations.
 	forbiddenPatterns := []string{
 		".Send(",
 		".Trash(",
 		".Untrash(",
-		".BatchModify(",
 		".BatchDelete(",
 	}
 
@@ -364,7 +374,7 @@ func TestNoWriteAPIMethodsInProductionCode(t *testing.T) {
 
 		for _, pattern := range forbiddenPatterns {
 			if strings.Contains(content, pattern) {
-				t.Errorf("file %s contains forbidden write API method %q — this CLI is read-only by design", rel, pattern)
+				t.Errorf("file %s contains forbidden destructive API method %q — this CLI only allows non-destructive operations", rel, pattern)
 			}
 		}
 		return nil
