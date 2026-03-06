@@ -24,11 +24,13 @@ import (
 // Calendar uses both readonly (for calendar list metadata) and events (for RSVP/color operations).
 // Note: calendar.events also permits event creation, which is an accepted trade-off for RSVP/color support.
 // The architecture test (TestNoDestructiveAPIMethodsInProductionCode) prevents accidental misuse.
+// Contacts uses the full contacts scope for group management and starring.
+// The contacts scope is a superset of contacts.readonly — it includes all read access.
 var AllScopes = []string{
 	gmail.GmailModifyScope,
 	calendar.CalendarReadonlyScope,
 	calendar.CalendarEventsScope,
-	people.ContactsReadonlyScope,
+	people.ContactsScope,
 	drive.DriveReadonlyScope,
 	drive.DriveMetadataScope,
 }
@@ -39,6 +41,7 @@ var ScopeDescriptions = map[string]string{
 	gmail.GmailReadonlyScope:       "Gmail Read-Only — read messages and metadata.",
 	calendar.CalendarReadonlyScope: "Calendar Read-Only — read calendars and events.",
 	calendar.CalendarEventsScope:   "Calendar Events — read and update events (RSVP, color). No calendar settings access.",
+	people.ContactsScope:           "Contacts — read contacts and groups, plus manage group membership and starring.",
 	people.ContactsReadonlyScope:   "Contacts Read-Only — read contacts and groups.",
 	drive.DriveReadonlyScope:       "Drive Read-Only — read files and metadata.",
 	drive.DriveMetadataScope:       "Drive Metadata — read and update file metadata (star/unstar). No file content write access.",

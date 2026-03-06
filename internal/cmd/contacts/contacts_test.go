@@ -23,12 +23,12 @@ func TestContactsCommand(t *testing.T) {
 
 	t.Run("has long description", func(t *testing.T) {
 		testutil.NotEmpty(t, cmd.Long)
-		testutil.Contains(t, cmd.Long, "read-only")
+		testutil.Contains(t, cmd.Long, "organizing")
 	})
 
 	t.Run("has subcommands", func(t *testing.T) {
 		subcommands := cmd.Commands()
-		testutil.GreaterOrEqual(t, len(subcommands), 4)
+		testutil.GreaterOrEqual(t, len(subcommands), 8)
 
 		var names []string
 		for _, sub := range subcommands {
@@ -38,6 +38,10 @@ func TestContactsCommand(t *testing.T) {
 		testutil.SliceContains(t, names, "search")
 		testutil.SliceContains(t, names, "get")
 		testutil.SliceContains(t, names, "groups")
+		testutil.SliceContains(t, names, "add-to-group")
+		testutil.SliceContains(t, names, "remove-from-group")
+		testutil.SliceContains(t, names, "star")
+		testutil.SliceContains(t, names, "unstar")
 	})
 }
 
@@ -73,6 +77,12 @@ func TestListCommand(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
 		testutil.NotNil(t, flag)
 		testutil.Equal(t, flag.Shorthand, "j")
+		testutil.Equal(t, flag.DefValue, "false")
+	})
+
+	t.Run("has ids flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("ids")
+		testutil.NotNil(t, flag)
 		testutil.Equal(t, flag.DefValue, "false")
 	})
 }
@@ -114,6 +124,12 @@ func TestSearchCommand(t *testing.T) {
 		testutil.NotNil(t, flag)
 		testutil.Equal(t, flag.Shorthand, "j")
 	})
+
+	t.Run("has ids flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("ids")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.DefValue, "false")
+	})
 }
 
 func TestGetCommand(t *testing.T) {
@@ -141,6 +157,121 @@ func TestGetCommand(t *testing.T) {
 		flag := cmd.Flags().Lookup("json")
 		testutil.NotNil(t, flag)
 		testutil.Equal(t, flag.Shorthand, "j")
+	})
+}
+
+func TestAddToGroupCommand(t *testing.T) {
+	cmd := newAddToGroupCommand()
+
+	t.Run("has correct use", func(t *testing.T) {
+		testutil.Contains(t, cmd.Use, "add-to-group")
+	})
+
+	t.Run("requires at least one argument", func(t *testing.T) {
+		err := cmd.Args(cmd, []string{"Friends"})
+		testutil.NoError(t, err)
+
+		err = cmd.Args(cmd, []string{"Friends", "people/c123"})
+		testutil.NoError(t, err)
+	})
+
+	t.Run("rejects no arguments", func(t *testing.T) {
+		err := cmd.Args(cmd, []string{})
+		testutil.Error(t, err)
+	})
+
+	t.Run("has json flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("json")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+	})
+
+	t.Run("has dry-run flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("dry-run")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "n")
+	})
+
+	t.Run("has stdin flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("stdin")
+		testutil.NotNil(t, flag)
+	})
+
+	t.Run("has query flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("query")
+		testutil.NotNil(t, flag)
+	})
+}
+
+func TestRemoveFromGroupCommand(t *testing.T) {
+	cmd := newRemoveFromGroupCommand()
+
+	t.Run("has correct use", func(t *testing.T) {
+		testutil.Contains(t, cmd.Use, "remove-from-group")
+	})
+
+	t.Run("requires at least one argument", func(t *testing.T) {
+		err := cmd.Args(cmd, []string{"Friends"})
+		testutil.NoError(t, err)
+	})
+
+	t.Run("has json flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("json")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+	})
+
+	t.Run("has dry-run flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("dry-run")
+		testutil.NotNil(t, flag)
+	})
+}
+
+func TestStarCommand(t *testing.T) {
+	cmd := newStarCommand()
+
+	t.Run("has correct use", func(t *testing.T) {
+		testutil.Contains(t, cmd.Use, "star")
+	})
+
+	t.Run("has json flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("json")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+	})
+
+	t.Run("has dry-run flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("dry-run")
+		testutil.NotNil(t, flag)
+	})
+
+	t.Run("has stdin flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("stdin")
+		testutil.NotNil(t, flag)
+	})
+
+	t.Run("has query flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("query")
+		testutil.NotNil(t, flag)
+	})
+}
+
+func TestUnstarCommand(t *testing.T) {
+	cmd := newUnstarCommand()
+
+	t.Run("has correct use", func(t *testing.T) {
+		testutil.Contains(t, cmd.Use, "unstar")
+	})
+
+	t.Run("has json flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("json")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+	})
+
+	t.Run("has dry-run flag", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("dry-run")
+		testutil.NotNil(t, flag)
 	})
 }
 

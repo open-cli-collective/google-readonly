@@ -12,6 +12,7 @@ func newListCommand() *cobra.Command {
 	var (
 		maxResults int64
 		jsonOutput bool
+		idsOutput  bool
 	)
 
 	cmd := &cobra.Command{
@@ -24,9 +25,14 @@ Contacts are sorted by last name.
 Examples:
   gro contacts list
   gro contacts list --max 50
-  gro ppl list --json`,
+  gro ppl list --json
+  gro ppl list --ids | gro contacts star --stdin`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if idsOutput && jsonOutput {
+				return fmt.Errorf("--ids and --json are mutually exclusive")
+			}
+
 			client, err := newContactsClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Contacts client: %w", err)
@@ -42,7 +48,16 @@ Examples:
 					fmt.Println("[]")
 					return nil
 				}
-				fmt.Println("No contacts found.")
+				if !idsOutput {
+					fmt.Println("No contacts found.")
+				}
+				return nil
+			}
+
+			if idsOutput {
+				for _, p := range resp.Connections {
+					fmt.Println(p.ResourceName)
+				}
 				return nil
 			}
 
@@ -67,6 +82,7 @@ Examples:
 
 	cmd.Flags().Int64VarP(&maxResults, "max", "m", 10, "Maximum number of contacts to return")
 	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
+	cmd.Flags().BoolVar(&idsOutput, "ids", false, "Output only resource names, one per line")
 
 	return cmd
 }

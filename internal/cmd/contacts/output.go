@@ -16,6 +16,10 @@ type ContactsClient interface {
 	SearchContacts(ctx context.Context, query string, pageSize int64) (*people.SearchResponse, error)
 	GetContact(ctx context.Context, resourceName string) (*people.Person, error)
 	ListContactGroups(ctx context.Context, pageToken string, pageSize int64) (*people.ListContactGroupsResponse, error)
+	AddToGroup(ctx context.Context, groupResourceName string, contactResourceNames []string) error
+	RemoveFromGroup(ctx context.Context, groupResourceName string, contactResourceNames []string) error
+	ResolveGroupName(ctx context.Context, name string) (string, error)
+	SearchContactIDs(ctx context.Context, query string, pageSize int64) ([]string, error)
 }
 
 // ClientFactory is the function used to create Contacts clients.

@@ -461,3 +461,79 @@ func TestGroupsCommand_APIError(t *testing.T) {
 		testutil.Contains(t, err.Error(), "listing contact groups")
 	})
 }
+
+func TestListCommand_IDsOutput(t *testing.T) {
+	mock := &MockContactsClient{
+		ListContactsFunc: func(_ context.Context, _ string, _ int64) (*people.ListConnectionsResponse, error) {
+			return &people.ListConnectionsResponse{
+				Connections: []*people.Person{
+					testutil.SamplePerson("people/c123"),
+					testutil.SamplePerson("people/c456"),
+				},
+			}, nil
+		},
+	}
+
+	cmd := newListCommand()
+	cmd.SetArgs([]string{"--ids"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		testutil.Contains(t, output, "people/c123")
+		testutil.Contains(t, output, "people/c456")
+		testutil.NotContains(t, output, "John Doe")
+	})
+}
+
+func TestListCommand_IDsAndJSONMutuallyExclusive(t *testing.T) {
+	cmd := newListCommand()
+	cmd.SetArgs([]string{"--ids", "--json"})
+
+	withMockClient(&MockContactsClient{}, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "mutually exclusive")
+	})
+}
+
+func TestSearchCommand_IDsOutput(t *testing.T) {
+	mock := &MockContactsClient{
+		SearchContactsFunc: func(_ context.Context, _ string, _ int64) (*people.SearchResponse, error) {
+			return &people.SearchResponse{
+				Results: []*people.SearchResult{
+					{Person: testutil.SamplePerson("people/c123")},
+					{Person: testutil.SamplePerson("people/c456")},
+				},
+			}, nil
+		},
+	}
+
+	cmd := newSearchCommand()
+	cmd.SetArgs([]string{"John", "--ids"})
+
+	withMockClient(mock, func() {
+		output := testutil.CaptureStdout(t, func() {
+			err := cmd.Execute()
+			testutil.NoError(t, err)
+		})
+
+		testutil.Contains(t, output, "people/c123")
+		testutil.Contains(t, output, "people/c456")
+		testutil.NotContains(t, output, "John Doe")
+	})
+}
+
+func TestSearchCommand_IDsAndJSONMutuallyExclusive(t *testing.T) {
+	cmd := newSearchCommand()
+	cmd.SetArgs([]string{"John", "--ids", "--json"})
+
+	withMockClient(&MockContactsClient{}, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "mutually exclusive")
+	})
+}
