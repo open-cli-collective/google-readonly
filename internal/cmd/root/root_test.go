@@ -17,7 +17,7 @@ func TestRootCommand(t *testing.T) {
 
 	t.Run("has long description", func(t *testing.T) {
 		testutil.NotEmpty(t, rootCmd.Long)
-		testutil.Contains(t, rootCmd.Long, "read-only")
+		testutil.Contains(t, rootCmd.Long, "non-destructive")
 	})
 
 	t.Run("has version set", func(t *testing.T) {

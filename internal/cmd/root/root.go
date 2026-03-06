@@ -22,11 +22,13 @@ var verbose bool
 
 var rootCmd = &cobra.Command{
 	Use:   "gro",
-	Short: "A read-only CLI for Google services",
-	Long: `gro is a command-line interface for read-only access to Google services.
+	Short: "A non-destructive CLI for Google services",
+	Long: `gro is a non-destructive command-line interface for Google services.
 
-It provides commands for reading Gmail messages, Google Calendar events,
-and Google Drive files without modifying any data.
+It provides commands for reading and organizing Gmail messages, Google Calendar
+events, Google Contacts, and Google Drive files. Organizational operations
+include labeling, archiving, starring, RSVP, and group management. No send,
+delete, or trash operations are possible.
 
 To get started, run:
   gro init
