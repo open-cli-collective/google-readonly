@@ -63,7 +63,7 @@ Examples:
 
 			for _, id := range ids {
 				if err := client.StarFile(ctx, id); err != nil {
-					return fmt.Errorf("starring files: %w", err)
+					return fmt.Errorf("starring file %s: %w", id, err)
 				}
 			}
 
@@ -133,7 +133,7 @@ Examples:
 
 			for _, id := range ids {
 				if err := client.UnstarFile(ctx, id); err != nil {
-					return fmt.Errorf("unstarring files: %w", err)
+					return fmt.Errorf("unstarring file %s: %w", id, err)
 				}
 			}
 

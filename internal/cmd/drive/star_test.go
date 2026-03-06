@@ -139,7 +139,7 @@ func TestStarCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "starring files")
+		testutil.Contains(t, err.Error(), "starring file file1")
 	})
 }
 
@@ -211,6 +211,6 @@ func TestUnstarCommand_APIError(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "unstarring files")
+		testutil.Contains(t, err.Error(), "unstarring file file1")
 	})
 }
