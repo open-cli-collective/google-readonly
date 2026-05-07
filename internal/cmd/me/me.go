@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/api/googleapi"
@@ -50,7 +49,7 @@ Data comes from the People API people/me endpoint.`,
   gro me --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return run(cmd.Context(), os.Stdout, idOnly, extended, jsonOutput)
+			return run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), idOnly, extended, jsonOutput)
 		},
 	}
 
@@ -62,11 +61,11 @@ Data comes from the People API people/me endpoint.`,
 	return cmd
 }
 
-func run(ctx context.Context, w io.Writer, idOnly, extended, jsonOutput bool) error {
+func run(ctx context.Context, out, errOut io.Writer, idOnly, extended, jsonOutput bool) error {
 	// Loud-and-early stale-scope check (only fires when scopes were recorded).
 	if cfg, err := config.LoadConfig(); err == nil {
 		if msg := auth.CheckScopesMigration(cfg.GrantedScopes); msg != "" {
-			fmt.Fprintln(os.Stderr, msg)
+			_, _ = fmt.Fprintln(errOut, msg)
 			return errReauth
 		}
 	}
@@ -81,7 +80,7 @@ func run(ctx context.Context, w io.Writer, idOnly, extended, jsonOutput bool) er
 		// Insufficient-scope 403s mean the token is too narrow for the People
 		// API even if granted_scopes claims otherwise. Other 403s pass through.
 		if people.IsInsufficientScopeError(err) {
-			fmt.Fprintln(os.Stderr, "Insufficient OAuth scopes for People API.\nRun 'gro init' to re-authenticate with the updated scopes.")
+			_, _ = fmt.Fprintln(errOut, "Insufficient OAuth scopes for People API.\nRun 'gro init' to re-authenticate with the updated scopes.")
 			return errReauth
 		}
 		// Detect API-not-enabled separately to give a clearer hint.
@@ -101,16 +100,16 @@ func run(ctx context.Context, w io.Writer, idOnly, extended, jsonOutput bool) er
 	}
 
 	if jsonOutput {
-		return RenderJSON(w, profile, extras, idOnly, extended)
+		return RenderJSON(out, profile, extras, idOnly, extended)
 	}
 
 	switch {
 	case idOnly:
-		RenderID(w, profile)
+		RenderID(out, profile)
 	case extended:
-		RenderExtended(w, profile, extras)
+		RenderExtended(out, profile, extras)
 	default:
-		RenderOneLiner(w, profile)
+		RenderOneLiner(out, profile)
 	}
 	return nil
 }

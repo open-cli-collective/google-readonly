@@ -257,7 +257,6 @@ func baseDeps(t *testing.T, fs *fakeFS) initDeps {
 		ClipboardReadAll:   func() (string, error) { return "", errors.New("disabled") },
 		OpenBrowser:        func(_ string) error { return nil },
 		HasStoredToken:     func() bool { return false },
-		GetToken:           func() (*oauth2.Token, error) { return nil, errors.New("none") },
 		SetToken:           func(_ *oauth2.Token) error { return nil },
 		DeleteToken:        func() error { return nil },
 		GetStorageBackend:  func() keychain.StorageBackend { return "test" },
@@ -468,6 +467,108 @@ func TestRunWithBadRedirectURLReturnsError(t *testing.T) {
 	err := runWith(context.Background(), d, &initOptions{credentialsFile: src})
 	if err == nil || !strings.Contains(err.Error(), "no authorization code") {
 		t.Fatalf("expected 'no authorization code' error, got %v", err)
+	}
+}
+
+// TestRunWithExistingTokenStaleScopeReauths covers the #107 stale-scope
+// remediation loop: a token that's Gmail-valid but People-insufficient
+// must NOT be accepted as-is by `gro init`, otherwise users are stuck in
+// "gro me says run gro init / gro init says you're fine" forever.
+func TestRunWithExistingTokenStaleScopeReauths(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+
+	// Pre-populate credentials.json so we don't enter the wizard.
+	credPath, _ := d.GetCredentialsPath()
+	if err := os.WriteFile(credPath, []byte(validOAuthJSON), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(credPath)
+
+	d.HasStoredToken = func() bool { return true }
+	d.GmailVerify = func(_ context.Context) (string, error) { return "ada@example.com", nil }
+	peopleCalls := 0
+	d.PeopleGetMe = func(_ context.Context) (*people.Profile, error) {
+		peopleCalls++
+		if peopleCalls == 1 {
+			return nil, &googleapi.Error{
+				Code:   403,
+				Errors: []googleapi.ErrorItem{{Reason: "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}},
+			}
+		}
+		return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada", PrimaryEmail: "ada@example.com"}, nil
+	}
+	deleteCalled := false
+	d.DeleteToken = func() error { deleteCalled = true; return nil }
+
+	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true}
+	d.Prompter = stub
+
+	if err := runWith(context.Background(), d, &initOptions{}); err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+	if !deleteCalled {
+		t.Errorf("expected DeleteToken to be called when token is People-insufficient")
+	}
+	if !contains(stub.calls, "redirect") {
+		t.Errorf("expected fresh OAuth flow after re-auth, calls=%v", stub.calls)
+	}
+}
+
+// TestRunWithExistingTokenNoVerifySkipsAPI covers the --no-verify regression:
+// an existing token must be accepted without any API calls.
+func TestRunWithExistingTokenNoVerifySkipsAPI(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+
+	credPath, _ := d.GetCredentialsPath()
+	if err := os.WriteFile(credPath, []byte(validOAuthJSON), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(credPath)
+
+	d.HasStoredToken = func() bool { return true }
+	d.GmailVerify = func(_ context.Context) (string, error) {
+		t.Fatal("GmailVerify should not be called with --no-verify")
+		return "", nil
+	}
+	d.PeopleGetMe = func(_ context.Context) (*people.Profile, error) {
+		t.Fatal("PeopleGetMe should not be called with --no-verify")
+		return nil, nil
+	}
+	d.Prompter = &stubPrompter{}
+
+	if err := runWith(context.Background(), d, &initOptions{noVerify: true}); err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+}
+
+// TestRunWithFreshSetupPeopleFailureIsFatal covers the "setup complete is a
+// lie" regression: if People verify fails post-OAuth, init must surface the
+// error rather than printing "Setup complete" + suggesting `gro me`.
+func TestRunWithFreshSetupPeopleFailureIsFatal(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	srcDir := t.TempDir()
+	src := filepath.Join(srcDir, "downloaded.json")
+	if err := os.WriteFile(src, []byte(validOAuthJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+	d.PeopleGetMe = func(_ context.Context) (*people.Profile, error) {
+		return nil, &googleapi.Error{Code: 403, Message: "People API has not been used in project before"}
+	}
+	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC", ttl: 12}
+	d.Prompter = stub
+
+	err := runWith(context.Background(), d, &initOptions{credentialsFile: src})
+	if err == nil {
+		t.Fatal("expected People failure to be fatal")
+	}
+	if !strings.Contains(err.Error(), "People") && !strings.Contains(err.Error(), "people") {
+		t.Errorf("expected 'people' in error, got %v", err)
 	}
 }
 

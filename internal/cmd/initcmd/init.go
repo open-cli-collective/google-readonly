@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -96,7 +95,6 @@ type initDeps struct {
 
 	// Token storage.
 	HasStoredToken    func() bool
-	GetToken          func() (*oauth2.Token, error)
 	SetToken          func(t *oauth2.Token) error
 	DeleteToken       func() error
 	GetStorageBackend func() keychain.StorageBackend
@@ -143,7 +141,6 @@ func defaultDeps() initDeps {
 		ClipboardReadAll:   clipboard.ReadAll,
 		OpenBrowser:        browser.OpenURL,
 		HasStoredToken:     keychain.HasStoredToken,
-		GetToken:           keychain.GetToken,
 		SetToken:           keychain.SetToken,
 		DeleteToken:        keychain.DeleteToken,
 		GetStorageBackend:  keychain.GetStorageBackend,
@@ -200,26 +197,12 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	}
 
 	// Step 3: token resolution.
-	if d.HasStoredToken() && !opts.noVerify {
-		if email, err := d.GmailVerify(ctx); err == nil {
-			d.View.Success("Already authenticated as %s", email)
-			return finishExisting(ctx, d, configExistedBefore)
-		} else if isAuthError(err) {
-			d.View.Error("Stored token is expired or revoked.")
-			confirm, perr := d.Prompter.ConfirmReauth()
-			if perr != nil {
-				return perr
-			}
-			if !confirm {
-				d.View.Info("Run 'gro config clear' if you want to remove the bad token.")
-				return err
-			}
-			if delErr := d.DeleteToken(); delErr != nil {
-				return fmt.Errorf("clearing token: %w", delErr)
-			}
-		} else {
-			return err
-		}
+	handled, err := tryExistingToken(ctx, d, opts, configExistedBefore)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
 	}
 
 	// Step 4: OAuth flow.
@@ -285,7 +268,8 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 		}
 	}
 
-	// Step 7: verify + render `gro me` one-liner.
+	// Step 7: verify + render `gro me` one-liner. People failure is fatal —
+	// init's success contract is that you can immediately run `gro me`.
 	if !opts.noVerify {
 		email, err := d.GmailVerify(ctx)
 		if err != nil {
@@ -295,15 +279,10 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 
 		profile, err := d.PeopleGetMe(ctx)
 		if err != nil {
-			// The token works for Gmail; failing People here usually means
-			// the People API isn't enabled yet. Warn loudly but don't abort
-			// the whole setup since the user has working creds.
-			d.View.Info("Could not fetch profile via People API: %v", err)
-			d.View.Info("If People API is disabled, enable it at https://console.cloud.google.com")
-		} else {
-			d.View.Println("")
-			mecmd.RenderOneLiner(os.Stdout, profile)
+			return fmt.Errorf("verifying People API (enable it at https://console.cloud.google.com if not already): %w", err)
 		}
+		d.View.Println("")
+		mecmd.RenderOneLiner(d.View.Out, profile)
 	}
 
 	d.View.Println("")
@@ -313,12 +292,91 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	return nil
 }
 
+// tryExistingToken handles the case where a token is already stored.
+// Returns (handled=true, nil) if init is done; (handled=false, nil) if the
+// caller should fall through to the OAuth flow; (_, err) on errors.
+//
+// This is the load-bearing piece for #107's stale-scope fix: a Gmail-valid
+// but People-insufficient token (typical of users who upgraded gro) must
+// trigger re-auth here, otherwise `gro me`'s "run gro init" message
+// produces an infinite remediation loop.
+func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, configExistedBefore bool) (bool, error) {
+	if !d.HasStoredToken() {
+		return false, nil
+	}
+
+	// --no-verify keeps the historical "accept token, skip API calls" semantic.
+	if opts.noVerify {
+		return true, finishExisting(ctx, d, configExistedBefore, true /* skipPeople */)
+	}
+
+	// Loud-and-early stale-scope check from the recorded scopes.
+	if cfg, err := d.LoadConfig(); err == nil {
+		if msg := auth.CheckScopesMigration(cfg.GrantedScopes); msg != "" {
+			d.View.Error("Recorded scopes are stale.")
+			d.View.Println(msg)
+			if err := promptAndDeleteForReauth(d); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+	}
+
+	email, err := d.GmailVerify(ctx)
+	if err != nil {
+		if isAuthError(err) {
+			d.View.Error("Stored token is expired or revoked.")
+			if err := promptAndDeleteForReauth(d); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		return false, err
+	}
+	d.View.Success("Already authenticated as %s", email)
+
+	// People verify catches scope-stale tokens that Gmail accepts.
+	if _, err := d.PeopleGetMe(ctx); err != nil {
+		if people.IsInsufficientScopeError(err) {
+			d.View.Error("Token is missing People API scope.")
+			if err := promptAndDeleteForReauth(d); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		return false, fmt.Errorf("verifying People API: %w", err)
+	}
+
+	return true, finishExisting(ctx, d, configExistedBefore, false /* skipPeople */)
+}
+
+// promptAndDeleteForReauth asks the user whether to re-auth and clears the
+// stored token if they confirm. Returns nil (caller should fall through to
+// the OAuth flow) on confirm; returns an error on decline.
+func promptAndDeleteForReauth(d initDeps) error {
+	confirm, err := d.Prompter.ConfirmReauth()
+	if err != nil {
+		return err
+	}
+	if !confirm {
+		d.View.Info("Run 'gro config clear' to remove the stored token.")
+		return errors.New("re-authentication declined")
+	}
+	if err := d.DeleteToken(); err != nil {
+		return fmt.Errorf("clearing token: %w", err)
+	}
+	return nil
+}
+
 // finishExisting handles the post-success path when a token was already
-// present and verified.
-func finishExisting(ctx context.Context, d initDeps, configExistedBefore bool) error {
-	if profile, err := d.PeopleGetMe(ctx); err == nil {
-		d.View.Println("")
-		mecmd.RenderOneLiner(os.Stdout, profile)
+// present and verified. skipPeople=true is used when noVerify is set so we
+// don't attempt any API calls.
+func finishExisting(ctx context.Context, d initDeps, configExistedBefore bool, skipPeople bool) error {
+	if !skipPeople {
+		if profile, err := d.PeopleGetMe(ctx); err == nil {
+			d.View.Println("")
+			mecmd.RenderOneLiner(d.View.Out, profile)
+		}
 	}
 
 	if !configExistedBefore {
@@ -621,6 +679,3 @@ func validateOAuthJSON(s string) error {
 	}
 	return nil
 }
-
-// Discard is kept so tests can route View output without rebuilding the struct.
-var _ = io.Discard

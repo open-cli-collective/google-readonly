@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/api/googleapi"
 
+	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/people"
 )
 
@@ -186,7 +187,7 @@ func TestRunInsufficientScopeRemap(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	err := run(context.Background(), &out, false, false, false)
+	err := run(context.Background(), &out, &bytes.Buffer{}, false, false, false)
 	if !errors.Is(err, errReauth) {
 		t.Fatalf("expected errReauth, got %v", err)
 	}
@@ -204,7 +205,7 @@ func TestRunServiceDisabledNotRemapped(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	err := run(context.Background(), &out, false, false, false)
+	err := run(context.Background(), &out, &bytes.Buffer{}, false, false, false)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -228,7 +229,7 @@ func TestRunDefaultPipeOneLiner(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	if err := run(context.Background(), &out, false, false, false); err != nil {
+	if err := run(context.Background(), &out, &bytes.Buffer{}, false, false, false); err != nil {
 		t.Fatal(err)
 	}
 	want := "people/c1 | Ada | ada@example.com\n"
@@ -249,7 +250,7 @@ func TestRunIDOnlyEmitsEmail(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	if err := run(context.Background(), &out, true, false, false); err != nil {
+	if err := run(context.Background(), &out, &bytes.Buffer{}, true, false, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != "ada@example.com\n" {
@@ -283,5 +284,83 @@ func TestNewCommandIDExtendedMutuallyExclusive(t *testing.T) {
 	// none of the others can be" — assert the field names rather than the wording.
 	if !strings.Contains(err.Error(), "id") || !strings.Contains(err.Error(), "extended") {
 		t.Fatalf("expected error to mention both flags, got %v", err)
+	}
+}
+
+// withConfigDir points config.LoadConfig at a clean tempdir so stale-scope
+// state can be injected per-test via real config.json.
+func withConfigDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	return dir
+}
+
+func TestRunStaleRecordedScopesTriggersReauthMessage(t *testing.T) {
+	// Not Parallel: mutates env + ClientFactory.
+	withConfigDir(t)
+	// Write a config.json with a deliberately incomplete scopes list — only
+	// gmail.modify, missing People/Drive/etc. CheckScopesMigration should fire.
+	cfg := &config.Config{
+		CacheTTLHours: 24,
+		GrantedScopes: []string{"https://www.googleapis.com/auth/gmail.modify"},
+	}
+	if err := config.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			t.Fatal("client should not have been called when scopes are stale")
+			return nil, nil
+		},
+	})
+	var out, errOut bytes.Buffer
+	err := run(context.Background(), &out, &errOut, false, false, false)
+	if !errors.Is(err, errReauth) {
+		t.Fatalf("expected errReauth, got %v", err)
+	}
+	if !strings.Contains(errOut.String(), "gro init") {
+		t.Errorf("expected 'gro init' guidance in stderr, got %q", errOut.String())
+	}
+}
+
+func TestRunMissingConfigDoesNotShortCircuit(t *testing.T) {
+	// Not Parallel: mutates env + ClientFactory.
+	withConfigDir(t)
+	// No config.json on disk: CheckScopesMigration receives nil scopes and
+	// short-circuits to empty. The test asserts we do NOT spuriously fire
+	// errReauth in that case (it's a regression for the "missing config"
+	// edge Codex flagged).
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada", PrimaryEmail: "ada@example.com"}, nil
+		},
+	})
+	var out, errOut bytes.Buffer
+	if err := run(context.Background(), &out, &errOut, false, false, false); err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if !strings.Contains(out.String(), "ada@example.com") {
+		t.Errorf("expected one-liner output, got %q", out.String())
+	}
+}
+
+func TestRunEmptyGrantedScopesDoesNotShortCircuit(t *testing.T) {
+	// Not Parallel: mutates env + ClientFactory.
+	withConfigDir(t)
+	// Config exists but granted_scopes is explicitly empty — same semantics
+	// as missing-config per CheckScopesMigration's len-0 early return.
+	cfg := &config.Config{CacheTTLHours: 24, GrantedScopes: []string{}}
+	if err := config.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada", PrimaryEmail: "ada@example.com"}, nil
+		},
+	})
+	var out, errOut bytes.Buffer
+	if err := run(context.Background(), &out, &errOut, false, false, false); err != nil {
+		t.Fatalf("expected nil error, got %v", err)
 	}
 }
