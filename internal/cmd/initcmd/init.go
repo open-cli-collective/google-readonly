@@ -436,7 +436,9 @@ func ensureCredentials(d initDeps, opts *initOptions, credPath string) error {
 	d.View.Println("Optional: publish your OAuth app to avoid 7-day token expiry.")
 	d.View.Println("")
 
-	// Up to 3 attempts to handle invalid pastes / clipboard.
+	// Up to 3 attempts to recover from *content* errors (unreadable
+	// clipboard, garbage JSON, missing file). User-aborts from the prompter
+	// (huh.ErrUserAborted via Ctrl-C) propagate immediately, as they should.
 	for attempt := 0; attempt < 3; attempt++ {
 		choice, err := d.Prompter.SelectCredSource(d.ClipboardSupported())
 		if err != nil {
