@@ -189,9 +189,9 @@ gro me --id
 # Adds granted scopes, token expiry, and storage backend
 gro me --extended
 
-# JSON output (combines with --id and --extended)
+# JSON output (combines with --id and --extended; -j is the short form)
 gro me --json
-gro me --extended --json
+gro me --extended -j
 
 # Check configuration status
 gro config show
