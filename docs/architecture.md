@@ -9,6 +9,7 @@ cmd/gro/main.go
        -> internal/cmd/calendar/   (CalendarClient interface + ClientFactory)
        -> internal/cmd/contacts/   (ContactsClient interface + ClientFactory)
        -> internal/cmd/drive/      (DriveClient interface + ClientFactory)
+       -> internal/cmd/me/         (PeopleClient interface + ClientFactory)
        -> internal/cmd/initcmd/    (OAuth setup wizard)
        -> internal/cmd/config/     (Credential management)
 
@@ -17,6 +18,7 @@ Each cmd/ package depends on its API client:
   internal/cmd/calendar/ -> internal/calendar/
   internal/cmd/contacts/ -> internal/contacts/
   internal/cmd/drive/    -> internal/drive/
+  internal/cmd/me/       -> internal/people/
 
 All API clients depend on:
   internal/auth/    -> internal/keychain/, internal/config/
@@ -29,6 +31,7 @@ Shared utilities (no internal deps):
   internal/errors/      Error types
   internal/log/         Logging
   internal/cache/       Response caching
+  internal/view/        Small Success/Error/Info/Printf/Println helper used by initcmd
   internal/zip/         Secure zip extraction
   internal/version/     Build-time version injection
 ```
@@ -38,7 +41,7 @@ Shared utilities (no internal deps):
 ```
 User -> cobra command -> ClientFactory(ctx) -> API Client -> auth.GetHTTPClient -> Google API
                                                    |
-                                            internal/{gmail,calendar,contacts,drive}/
+                                            internal/{gmail,calendar,contacts,drive,people}/
 ```
 
 ## Package Responsibilities
@@ -48,7 +51,7 @@ User -> cobra command -> ClientFactory(ctx) -> API Client -> auth.GetHTTPClient 
 | `cmd/gro/` | Entry point, calls `root.NewCommand()` |
 | `internal/cmd/root/` | Root cobra command, registers all domain commands |
 | `internal/cmd/{domain}/` | Command handlers, client interface, output formatting |
-| `internal/{gmail,calendar,contacts,drive}/` | API client, data models, response parsing |
+| `internal/{gmail,calendar,contacts,drive,people}/` | API client, data models, response parsing |
 | `internal/auth/` | OAuth2 config loading, HTTP client creation |
 | `internal/keychain/` | Platform-specific secure token storage |
 | `internal/testutil/` | Test assertions, fixtures, helpers |

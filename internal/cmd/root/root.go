@@ -14,6 +14,7 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/cmd/drive"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/initcmd"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/mail"
+	"github.com/open-cli-collective/google-readonly/internal/cmd/me"
 	"github.com/open-cli-collective/google-readonly/internal/log"
 	"github.com/open-cli-collective/google-readonly/internal/version"
 )
@@ -63,6 +64,7 @@ func init() {
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())
 	rootCmd.AddCommand(config.NewCommand())
+	rootCmd.AddCommand(me.NewCommand())
 	rootCmd.AddCommand(mail.NewCommand())
 	rootCmd.AddCommand(calendar.NewCommand())
 	rootCmd.AddCommand(contacts.NewCommand())

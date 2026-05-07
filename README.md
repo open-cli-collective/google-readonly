@@ -12,6 +12,7 @@ A non-destructive command-line interface for Google services. Search, read, and 
 - **Bulk operations** - Pipe IDs between commands, use search queries inline, or pass IDs as arguments
 - **JSON output** - Machine-readable output for scripting
 - **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
+- **Single-run guided setup** - `gro init` reads credentials.json from clipboard / paste / file path and walks you through OAuth in one shot; `gro me` confirms identity afterwards
 
 ## Installation
 
@@ -138,34 +139,38 @@ For personal use with these scopes, publishing is straightforward and doesn't re
 
 > **Note:** If you skip this step, you'll need to run `gro init` every 7 days to re-authenticate.
 
-### 4. Configure gro
+### 4. Run the wizard
 
-1. Create the config directory:
-   ```bash
-   mkdir -p ~/.config/google-readonly
-   ```
-
-2. Move the downloaded credentials file:
-   ```bash
-   mv ~/Downloads/client_secret_*.json ~/.config/google-readonly/credentials.json
-   ```
-
-### 5. Authenticate
-
-Run the init command to complete OAuth setup:
+After creating the OAuth credentials in step 2 (or 3), run:
 
 ```bash
 gro init
 ```
 
-1. A URL will be displayed - open it in your browser
-2. Sign in with your Google account
-3. Grant the requested access
-4. Your browser will redirect to a localhost URL (the error page is expected)
-5. Copy the entire URL or just the authorization code
-6. Paste it back into the terminal
+The wizard will:
 
-Your token will be saved securely (system keychain on macOS/Linux, or `~/.config/google-readonly/token.json` as fallback).
+1. **Ingest credentials.json.** Pick one of three options when prompted:
+   - **Read from clipboard** — copy the JSON in the Cloud Console and choose this; gro reads, validates, and saves it.
+   - **Paste in terminal** — paste the JSON directly into the terminal.
+   - **Point to a file path** — type the path to the downloaded JSON.
+
+2. **Open the consent URL.** Confirm to auto-open your browser, or copy the URL manually.
+
+3. **Sign in and paste the redirect URL back.** After clicking "Allow", your browser redirects to a localhost URL that shows an error — that's expected. Copy the entire URL (or just the `code=` value) and paste it into the wizard.
+
+The token is saved securely (system keychain on macOS, libsecret on Linux, or `~/.config/google-readonly/token.json` as fallback).
+
+After init succeeds, run `gro me` to see who you're authenticated as.
+
+**Linux clipboard prerequisites.** The clipboard option requires `xclip` or `xsel` to be installed. If neither is available, the menu falls back to manual paste / file path automatically.
+
+**Useful flags:**
+
+```bash
+gro init --credentials-file ~/Downloads/client_secret.json   # bypass the wizard
+gro init --no-browser                                        # don't auto-open
+gro init --no-verify                                         # skip post-setup API check
+```
 
 ## Commands
 
@@ -174,6 +179,19 @@ Your token will be saved securely (system keychain on macOS/Linux, or `~/.config
 ```bash
 # Guided OAuth setup
 gro init
+
+# Show currently authenticated user (resourceName | displayName | primaryEmail)
+gro me
+
+# Just the primary email (scriptable)
+gro me --id
+
+# Adds granted scopes, token expiry, and storage backend
+gro me --extended
+
+# JSON output (combines with --id and --extended)
+gro me --json
+gro me --extended --json
 
 # Check configuration status
 gro config show
