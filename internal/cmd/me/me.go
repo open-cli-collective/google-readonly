@@ -48,6 +48,11 @@ Data comes from the People API people/me endpoint.`,
   # JSON output
   gro me --json`,
 		Args: cobra.NoArgs,
+		// SilenceErrors so errReauth's actionable message (already written to
+		// stderr by run()) isn't shadowed by cobra's "Error: re-authentication
+		// required" prefix line.
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), idOnly, extended, jsonOutput)
 		},
@@ -114,12 +119,13 @@ func run(ctx context.Context, out, errOut io.Writer, idOnly, extended, jsonOutpu
 	return nil
 }
 
-// grantedScopes returns the recorded granted scopes from config, or
-// auth.AllScopes if no record exists yet.
+// grantedScopes returns the scopes recorded in config. If no record exists
+// (no config file, or empty list) we return nil — claiming auth.AllScopes
+// would overstate what an older token actually consented to.
 func grantedScopes() []string {
 	cfg, err := config.LoadConfig()
-	if err == nil && len(cfg.GrantedScopes) > 0 {
-		return cfg.GrantedScopes
+	if err != nil {
+		return nil
 	}
-	return auth.AllScopes
+	return cfg.GrantedScopes
 }

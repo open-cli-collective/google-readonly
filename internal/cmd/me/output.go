@@ -88,7 +88,9 @@ func RenderJSON(w io.Writer, p *people.Profile, e Extras, idOnly, extended bool)
 	enc.SetIndent("", "  ")
 	switch {
 	case idOnly:
-		return enc.Encode(jsonIDOnly{PrimaryEmail: p.PrimaryEmail})
+		// Match the text path's normalization so `gro me --id` and `gro me --id --json`
+		// don't disagree on what an empty primary email looks like.
+		return enc.Encode(jsonIDOnly{PrimaryEmail: normalizeField(p.PrimaryEmail)})
 	case extended:
 		return enc.Encode(jsonExtended{
 			jsonOneLiner: jsonOneLiner{

@@ -160,7 +160,7 @@ The wizard will:
 
 The token is saved securely (system keychain on macOS, libsecret on Linux, or `~/.config/google-readonly/token.json` as fallback).
 
-After init succeeds, run `gro me` to see who you're authenticated as.
+When init succeeds, it prints the same `gro me` one-liner as its proof-of-life. You can re-run `gro me` any time after.
 
 **Linux clipboard prerequisites.** The clipboard option requires `xclip` or `xsel` to be installed. If neither is available, the menu falls back to manual paste / file path automatically.
 

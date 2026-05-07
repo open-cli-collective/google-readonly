@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/api/googleapi"
 
+	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/people"
 )
@@ -245,6 +246,16 @@ func TestRunDefaultPipeOneLiner(t *testing.T) {
 func TestRunExtendedJSONEndToEnd(t *testing.T) {
 	// Not Parallel: mutates package-global ClientFactory + env.
 	withConfigDir(t)
+	// Seed config with a known scope record so we can assert the JSON
+	// surface reflects the recorded scopes, not auth.AllScopes (which
+	// would overstate consent).
+	if err := config.SaveConfig(&config.Config{
+		CacheTTLHours: 24,
+		GrantedScopes: auth.AllScopes,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
 	withMockClient(t, &mockPeopleClient{
 		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
 			return &people.Profile{
@@ -265,12 +276,11 @@ func TestRunExtendedJSONEndToEnd(t *testing.T) {
 	if got.PrimaryEmail != "ada@example.com" {
 		t.Errorf("expected ada@example.com, got %+v", got)
 	}
-	// gatherExtras populates GrantedScopes from auth.AllScopes when none
-	// recorded. Without that population, --extended --json would emit a
-	// json object with no grantedScopes — that's the regression we're
-	// guarding against.
-	if len(got.GrantedScopes) == 0 {
-		t.Errorf("expected GrantedScopes populated under --extended --json; got %+v", got)
+	// Recorded scopes should propagate through to extended output. This
+	// guards against a regression where gatherExtras is skipped under
+	// jsonOutput.
+	if len(got.GrantedScopes) != len(auth.AllScopes) {
+		t.Errorf("expected %d scopes, got %d: %+v", len(auth.AllScopes), len(got.GrantedScopes), got.GrantedScopes)
 	}
 }
 

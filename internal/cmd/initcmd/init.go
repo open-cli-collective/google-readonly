@@ -305,12 +305,9 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 		return false, nil
 	}
 
-	// --no-verify keeps the historical "accept token, skip API calls" semantic.
-	if opts.noVerify {
-		return true, finishExisting(d, configExistedBefore, nil /* no profile */)
-	}
-
-	// Loud-and-early stale-scope check from the recorded scopes.
+	// Loud-and-early stale-scope check from the recorded scopes. This runs
+	// regardless of --no-verify because letting --no-verify skip it would
+	// re-open the same remediation loop #107 is trying to close.
 	if cfg, err := d.LoadConfig(); err == nil {
 		if msg := auth.CheckScopesMigration(cfg.GrantedScopes); msg != "" {
 			d.View.Error("Recorded scopes are stale.")
@@ -320,6 +317,13 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 			}
 			return false, nil
 		}
+	}
+
+	// --no-verify keeps the historical "accept token, skip API calls" semantic
+	// for everything past the recorded-scope check above.
+	if opts.noVerify {
+		d.View.Success("Existing token accepted (--no-verify; API not called)")
+		return true, finishExisting(d, configExistedBefore, nil /* no profile */)
 	}
 
 	email, err := d.GmailVerify(ctx)
