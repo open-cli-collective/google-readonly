@@ -470,6 +470,64 @@ func TestRunWithBadRedirectURLReturnsError(t *testing.T) {
 	}
 }
 
+// TestRunWithRecordedStaleScopesReauths covers the loud-and-early branch in
+// tryExistingToken that fires before any API call: when config.json records
+// scopes missing from auth.AllScopes (typical of users who upgraded gro
+// before adding new scopes), we prompt for re-auth without ever calling
+// Gmail/People.
+func TestRunWithRecordedStaleScopesReauths(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+
+	credPath, _ := d.GetCredentialsPath()
+	if err := os.WriteFile(credPath, []byte(validOAuthJSON), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(credPath)
+
+	d.HasStoredToken = func() bool { return true }
+	// Recorded scopes are deliberately incomplete — only gmail.modify.
+	d.LoadConfig = func() (*config.Config, error) {
+		return &config.Config{
+			CacheTTLHours: 24,
+			GrantedScopes: []string{"https://www.googleapis.com/auth/gmail.modify"},
+		}, nil
+	}
+	// Track call order: the recorded-stale-scope branch must call DeleteToken
+	// BEFORE any GmailVerify / PeopleGetMe (which only happen in the post-
+	// OAuth verify path).
+	var order []string
+	d.DeleteToken = func() error { order = append(order, "delete"); return nil }
+	d.GmailVerify = func(_ context.Context) (string, error) {
+		order = append(order, "gmail")
+		return "ada@example.com", nil
+	}
+	d.PeopleGetMe = func(_ context.Context) (*people.Profile, error) {
+		order = append(order, "people")
+		return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada", PrimaryEmail: "ada@example.com"}, nil
+	}
+	d.ExchangeAuthCode = func(_ context.Context, _ *oauth2.Config, _ string) (*oauth2.Token, error) {
+		order = append(order, "exchange")
+		return &oauth2.Token{AccessToken: "tok"}, nil
+	}
+
+	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true, ttl: 24}
+	d.Prompter = stub
+
+	if err := runWith(context.Background(), d, &initOptions{}); err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+	// First op must be delete (proves the loud-and-early stale-scope branch
+	// fired BEFORE Gmail or People were ever called on the stale token).
+	if len(order) == 0 || order[0] != "delete" {
+		t.Errorf("expected first op to be delete, got order=%v", order)
+	}
+	if !contains(stub.calls, "redirect") {
+		t.Errorf("expected fresh OAuth flow after re-auth, calls=%v", stub.calls)
+	}
+}
+
 // TestRunWithExistingTokenStaleScopeReauths covers the #107 stale-scope
 // remediation loop: a token that's Gmail-valid but People-insufficient
 // must NOT be accepted as-is by `gro init`, otherwise users are stuck in

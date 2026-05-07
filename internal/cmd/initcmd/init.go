@@ -307,7 +307,7 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 
 	// --no-verify keeps the historical "accept token, skip API calls" semantic.
 	if opts.noVerify {
-		return true, finishExisting(ctx, d, configExistedBefore, true /* skipPeople */)
+		return true, finishExisting(d, configExistedBefore, nil /* no profile */)
 	}
 
 	// Loud-and-early stale-scope check from the recorded scopes.
@@ -335,8 +335,11 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 	}
 	d.View.Success("Already authenticated as %s", email)
 
-	// People verify catches scope-stale tokens that Gmail accepts.
-	if _, err := d.PeopleGetMe(ctx); err != nil {
+	// People verify catches scope-stale tokens that Gmail accepts. Reuse the
+	// returned profile for the success-line render so we don't make a second
+	// API call.
+	profile, err := d.PeopleGetMe(ctx)
+	if err != nil {
 		if people.IsInsufficientScopeError(err) {
 			d.View.Error("Token is missing People API scope.")
 			if err := promptAndDeleteForReauth(d); err != nil {
@@ -347,7 +350,7 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 		return false, fmt.Errorf("verifying People API: %w", err)
 	}
 
-	return true, finishExisting(ctx, d, configExistedBefore, false /* skipPeople */)
+	return true, finishExisting(d, configExistedBefore, profile)
 }
 
 // promptAndDeleteForReauth asks the user whether to re-auth and clears the
@@ -369,18 +372,22 @@ func promptAndDeleteForReauth(d initDeps) error {
 }
 
 // finishExisting handles the post-success path when a token was already
-// present and verified. skipPeople=true is used when noVerify is set so we
-// don't attempt any API calls.
-func finishExisting(ctx context.Context, d initDeps, configExistedBefore bool, skipPeople bool) error {
-	if !skipPeople {
-		if profile, err := d.PeopleGetMe(ctx); err == nil {
-			d.View.Println("")
-			mecmd.RenderOneLiner(d.View.Out, profile)
-		}
+// present and verified. profile is the People profile fetched during verify
+// (may be nil for the --no-verify path); when present we render the gro me
+// one-liner without a second API call.
+//
+// We deliberately do NOT touch GrantedScopes here: the existing token's
+// granted scopes are an unknown to this run, and writing auth.AllScopes
+// would falsely claim the token is current. Only a fresh OAuth flow knows
+// what was just granted.
+func finishExisting(d initDeps, configExistedBefore bool, profile *people.Profile) error {
+	if profile != nil {
+		d.View.Println("")
+		mecmd.RenderOneLiner(d.View.Out, profile)
 	}
 
 	if !configExistedBefore {
-		// Edge case: token in keychain but no config file. Ask for TTL.
+		// Edge case: token in keychain but no config file. Ask for TTL only.
 		ttl, err := d.Prompter.AskCacheTTL(config.DefaultCacheTTLHours)
 		if err != nil {
 			return err
@@ -390,7 +397,6 @@ func finishExisting(ctx context.Context, d initDeps, configExistedBefore bool, s
 			cfg = &config.Config{}
 		}
 		cfg.CacheTTLHours = ttl
-		cfg.GrantedScopes = auth.AllScopes
 		if saveErr := d.SaveConfig(cfg); saveErr != nil {
 			d.View.Info("Warning: saving config: %v", saveErr)
 		}
