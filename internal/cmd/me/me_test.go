@@ -238,6 +238,42 @@ func TestRunDefaultPipeOneLiner(t *testing.T) {
 	}
 }
 
+// TestRunExtendedJSONEndToEnd ensures that --extended + --json flow through
+// run() correctly: the renderer is tested in isolation by TestRenderJSONShapes,
+// but only this test catches a regression where gatherExtras is skipped when
+// jsonOutput is true.
+func TestRunExtendedJSONEndToEnd(t *testing.T) {
+	// Not Parallel: mutates package-global ClientFactory + env.
+	withConfigDir(t)
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{
+				ResourceName: "people/c1",
+				DisplayName:  "Ada",
+				PrimaryEmail: "ada@example.com",
+			}, nil
+		},
+	})
+	var out, errOut bytes.Buffer
+	if err := run(context.Background(), &out, &errOut, false /*idOnly*/, true /*extended*/, true /*json*/); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var got jsonExtended
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal: %v\noutput: %s", err, out.String())
+	}
+	if got.PrimaryEmail != "ada@example.com" {
+		t.Errorf("expected ada@example.com, got %+v", got)
+	}
+	// gatherExtras populates GrantedScopes from auth.AllScopes when none
+	// recorded. Without that population, --extended --json would emit a
+	// json object with no grantedScopes — that's the regression we're
+	// guarding against.
+	if len(got.GrantedScopes) == 0 {
+		t.Errorf("expected GrantedScopes populated under --extended --json; got %+v", got)
+	}
+}
+
 func TestRunIDOnlyEmitsEmail(t *testing.T) {
 	// Not Parallel: mutates package-global ClientFactory.
 	withMockClient(t, &mockPeopleClient{

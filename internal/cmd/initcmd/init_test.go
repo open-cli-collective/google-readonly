@@ -348,6 +348,57 @@ func TestEnsureCredentialsPasteWizard(t *testing.T) {
 	}
 }
 
+func TestEnsureCredentialsFileWizard(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+
+	srcDir := t.TempDir()
+	src := filepath.Join(srcDir, "user-supplied.json")
+	if err := os.WriteFile(src, []byte(validOAuthJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dst, _ := d.GetCredentialsPath()
+	d.Prompter = &stubPrompter{credChoice: "file", filePath: src}
+
+	if err := ensureCredentials(d, &initOptions{}, dst); err != nil {
+		t.Fatalf("ensureCredentials: %v", err)
+	}
+	got, err := fs.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("dst not written: %v", err)
+	}
+	if string(got) != validOAuthJSON {
+		t.Errorf("dst content mismatch")
+	}
+	if perm := fs.perms[dst]; perm != 0600 {
+		t.Errorf("expected perms 0600, got %o", perm)
+	}
+}
+
+func TestEnsureCredentialsShortCircuitsWhenAlreadyPresent(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	dst, _ := d.GetCredentialsPath()
+
+	// Pre-populate credentials.json on real disk so Stat finds it.
+	if err := os.WriteFile(dst, []byte(validOAuthJSON), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(dst)
+
+	stub := &stubPrompter{}
+	d.Prompter = stub
+	if err := ensureCredentials(d, &initOptions{}, dst); err != nil {
+		t.Fatalf("ensureCredentials: %v", err)
+	}
+	// SelectCredSource (the wizard's first prompt) must NOT have fired.
+	if contains(stub.calls, "select") {
+		t.Errorf("expected wizard short-circuit, but SelectCredSource was called: calls=%v", stub.calls)
+	}
+}
+
 func TestEnsureCredentialsTightensPermsOnOverwrite(t *testing.T) {
 	t.Parallel()
 	fs := newFakeFS()
@@ -454,6 +505,36 @@ func TestRunWithExpiredTokenPromptsReauth(t *testing.T) {
 	}
 }
 
+// TestRunWithConfirmOpenBrowserTrueInvokesOpener exercises the noBrowser=false
+// branch: when the user confirms, OpenBrowser must be called with the auth URL.
+func TestRunWithConfirmOpenBrowserTrueInvokesOpener(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	srcDir := t.TempDir()
+	src := filepath.Join(srcDir, "downloaded.json")
+	if err := os.WriteFile(src, []byte(validOAuthJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+	browserCalled := false
+	d.OpenBrowser = func(_ string) error { browserCalled = true; return nil }
+	stub := &stubPrompter{
+		credChoice:  "paste",
+		pasteJSON:   validOAuthJSON,
+		openBrowser: true,
+		redirectURL: "http://localhost/?code=ABC",
+		ttl:         24,
+	}
+	d.Prompter = stub
+
+	if err := runWith(context.Background(), d, &initOptions{credentialsFile: src}); err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+	if !browserCalled {
+		t.Errorf("expected OpenBrowser to be called when ConfirmOpenBrowser returned true")
+	}
+}
+
 func TestRunWithBadRedirectURLReturnsError(t *testing.T) {
 	t.Parallel()
 	fs := newFakeFS()
@@ -525,6 +606,11 @@ func TestRunWithRecordedStaleScopesReauths(t *testing.T) {
 	}
 	if !contains(stub.calls, "redirect") {
 		t.Errorf("expected fresh OAuth flow after re-auth, calls=%v", stub.calls)
+	}
+	// Fresh OAuth should also re-ask for TTL on first-run (config didn't
+	// exist before — we used the override which doesn't actually write).
+	if !contains(stub.calls, "ttl") {
+		t.Errorf("expected TTL prompt after fresh OAuth, calls=%v", stub.calls)
 	}
 }
 
