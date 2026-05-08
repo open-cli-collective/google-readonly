@@ -16,13 +16,14 @@ import (
 	contactscmd "github.com/open-cli-collective/google-readonly/internal/cmd/contacts"
 	drivecmd "github.com/open-cli-collective/google-readonly/internal/cmd/drive"
 	mailcmd "github.com/open-cli-collective/google-readonly/internal/cmd/mail"
+	mecmd "github.com/open-cli-collective/google-readonly/internal/cmd/me"
 )
 
 // domainPackages lists the command packages that must follow structural conventions.
-var domainPackages = []string{"mail", "calendar", "contacts", "drive"}
+var domainPackages = []string{"mail", "calendar", "contacts", "drive", "me"}
 
 // apiClientPackages lists the internal API client package directory names.
-var apiClientPackages = []string{"gmail", "calendar", "contacts", "drive"}
+var apiClientPackages = []string{"gmail", "calendar", "contacts", "drive", "people"}
 
 // jsonExemptCommands lists leaf commands exempt from the --json flag requirement.
 // Key format: "parent subcommand" (e.g., "mail attachments download").
@@ -39,6 +40,7 @@ func domainCommands() map[string]*cobra.Command {
 		"calendar": calcmd.NewCommand(),
 		"contacts": contactscmd.NewCommand(),
 		"drive":    drivecmd.NewCommand(),
+		"me":       mecmd.NewCommand(),
 	}
 }
 
