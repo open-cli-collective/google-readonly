@@ -253,7 +253,7 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	}
 	cfg.GrantedScopes = auth.AllScopes
 	if saveErr := d.SaveConfig(cfg); saveErr != nil {
-		d.View.Info("Warning: saving granted scopes: %v", saveErr)
+		d.View.Error("Warning: saving granted scopes: %v", saveErr)
 	}
 
 	// Step 6: cache TTL prompt (only on first-run, per the snapshot).
@@ -264,7 +264,7 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 		}
 		cfg.CacheTTLHours = ttl
 		if saveErr := d.SaveConfig(cfg); saveErr != nil {
-			d.View.Info("Warning: saving cache TTL: %v", saveErr)
+			d.View.Error("Warning: saving cache TTL: %v", saveErr)
 		}
 	}
 
@@ -402,7 +402,7 @@ func finishExisting(d initDeps, configExistedBefore bool, profile *people.Profil
 		}
 		cfg.CacheTTLHours = ttl
 		if saveErr := d.SaveConfig(cfg); saveErr != nil {
-			d.View.Info("Warning: saving config: %v", saveErr)
+			d.View.Error("Warning: saving config: %v", saveErr)
 		}
 	}
 	return nil
