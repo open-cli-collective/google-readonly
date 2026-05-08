@@ -158,6 +158,8 @@ The wizard will:
 
 3. **Sign in and paste the redirect URL back.** After clicking "Allow", your browser redirects to a localhost URL that shows an error — that's expected. Copy the entire URL (or just the `code=` value) and paste it into the wizard.
 
+4. **Set the cache TTL** (first-run only). The wizard asks how many hours to cache Drive metadata. Press Enter to accept the default (24h).
+
 The token is saved securely (system keychain on macOS, libsecret on Linux, or `~/.config/google-readonly/token.json` as fallback).
 
 When init succeeds, it prints the same `gro me` one-liner as its proof-of-life. You can re-run `gro me` any time after.

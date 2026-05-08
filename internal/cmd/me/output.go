@@ -88,9 +88,10 @@ func RenderJSON(w io.Writer, p *people.Profile, e Extras, idOnly, extended bool)
 	enc.SetIndent("", "  ")
 	switch {
 	case idOnly:
-		// Match the text path's normalization so `gro me --id` and `gro me --id --json`
-		// don't disagree on what an empty primary email looks like.
-		return enc.Encode(jsonIDOnly{PrimaryEmail: normalizeField(p.PrimaryEmail)})
+		// JSON paths consistently emit raw values (empty strings remain
+		// empty), unlike text rendering which uses "-". This keeps
+		// `gro me --json` shapes machine-friendly across all flag combos.
+		return enc.Encode(jsonIDOnly{PrimaryEmail: p.PrimaryEmail})
 	case extended:
 		return enc.Encode(jsonExtended{
 			jsonOneLiner: jsonOneLiner{
@@ -125,7 +126,7 @@ func normalizeField(s string) string {
 // gatherExtras collects the non-People data shown by --extended.
 func gatherExtras() Extras {
 	var e Extras
-	if tok, err := keychain.GetToken(); err == nil && !tok.Expiry.IsZero() {
+	if tok, err := keychain.GetToken(); err == nil && tok != nil && !tok.Expiry.IsZero() {
 		e.TokenExpiry = tok.Expiry.Format("2006-01-02T15:04:05Z07:00")
 	}
 	if keychain.HasStoredToken() {

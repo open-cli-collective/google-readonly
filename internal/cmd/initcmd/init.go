@@ -590,7 +590,7 @@ func (huhPrompter) PasteJSON() (string, error) {
 	var s string
 	err := huh.NewText().
 		Title("Paste credentials.json contents").
-		Description("Press Esc when done; Ctrl+C to cancel.").
+		Description("Press Tab when done; Ctrl+C to cancel.").
 		Value(&s).
 		Validate(validateOAuthJSON).
 		Run()

@@ -304,6 +304,40 @@ func TestRunIDOnlyEmitsEmail(t *testing.T) {
 	}
 }
 
+// TestNewCommandSilencesCobraErrorOnReauth verifies that running the cobra
+// command end-to-end with a reauth-required scenario doesn't produce the
+// double "Error: re-authentication required" line cobra would normally add.
+func TestNewCommandSilencesCobraErrorOnReauth(t *testing.T) {
+	// Not Parallel: mutates package-global ClientFactory + env.
+	withConfigDir(t)
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return nil, &googleapi.Error{
+				Code:   403,
+				Errors: []googleapi.ErrorItem{{Reason: "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}},
+			}
+		},
+	})
+	cmd := NewCommand()
+	var out, errOut bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SetArgs([]string{})
+	err := cmd.Execute()
+	if !errors.Is(err, errReauth) {
+		t.Fatalf("expected errReauth from Execute, got %v", err)
+	}
+	// Cobra would normally write "Error: re-authentication required" when
+	// returning a non-nil error. SilenceErrors should suppress that.
+	if strings.Contains(errOut.String(), "Error: re-authentication required") {
+		t.Errorf("expected SilenceErrors to suppress cobra's error prefix, but stderr was:\n%s", errOut.String())
+	}
+	// We should still see the actionable guidance.
+	if !strings.Contains(errOut.String(), "gro init") {
+		t.Errorf("expected actionable 'gro init' guidance, got:\n%s", errOut.String())
+	}
+}
+
 func TestNewCommandHasJSONFlagWithShorthand(t *testing.T) {
 	t.Parallel()
 	cmd := NewCommand()

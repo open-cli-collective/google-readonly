@@ -660,6 +660,42 @@ func TestRunWithExistingTokenStaleScopeReauths(t *testing.T) {
 	}
 }
 
+// TestRunWithExistingTokenNoVerifyStillCatchesStaleScopes verifies that
+// --no-verify does NOT bypass the loud-and-early CheckScopesMigration
+// branch: that bypass would re-open the same remediation loop the wizard
+// exists to close.
+func TestRunWithExistingTokenNoVerifyStillCatchesStaleScopes(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+
+	credPath, _ := d.GetCredentialsPath()
+	if err := os.WriteFile(credPath, []byte(validOAuthJSON), 0600); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(credPath)
+
+	d.HasStoredToken = func() bool { return true }
+	d.LoadConfig = func() (*config.Config, error) {
+		return &config.Config{
+			CacheTTLHours: 24,
+			GrantedScopes: []string{"https://www.googleapis.com/auth/gmail.modify"},
+		}, nil
+	}
+	deleteCalled := false
+	d.DeleteToken = func() error { deleteCalled = true; return nil }
+
+	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true, ttl: 24}
+	d.Prompter = stub
+
+	if err := runWith(context.Background(), d, &initOptions{noVerify: true}); err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+	if !deleteCalled {
+		t.Errorf("expected DeleteToken to fire even under --no-verify when scopes are stale")
+	}
+}
+
 // TestRunWithExistingTokenNoVerifySkipsAPI covers the --no-verify regression:
 // an existing token must be accepted without any API calls.
 func TestRunWithExistingTokenNoVerifySkipsAPI(t *testing.T) {
