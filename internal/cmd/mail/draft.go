@@ -194,6 +194,12 @@ Examples:
 			}
 			fmt.Printf("Draft created: %s\n", result.ID)
 			fmt.Printf("To: %s\n", SanitizeOutput(strings.Join(toAddrs, ", ")))
+			if len(ccAddrs) > 0 {
+				fmt.Printf("Cc: %s\n", SanitizeOutput(strings.Join(ccAddrs, ", ")))
+			}
+			if len(bccAddrs) > 0 {
+				fmt.Printf("Bcc: %s\n", SanitizeOutput(strings.Join(bccAddrs, ", ")))
+			}
 			fmt.Printf("Subject: %s\n", SanitizeOutput(subject))
 			if len(attachments) > 0 {
 				fmt.Printf("Attachments: %d\n", len(attachments))
@@ -205,16 +211,16 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&to, "to", "", "Recipient(s), comma-separated")
-	cmd.Flags().StringVar(&cc, "cc", "", "Cc recipient(s), comma-separated")
-	cmd.Flags().StringVar(&bcc, "bcc", "", "Bcc recipient(s), comma-separated")
+	cmd.Flags().StringVar(&to, "to", "", "Recipient(s), comma-separated (display names are stripped; edit the draft in Gmail to set them)")
+	cmd.Flags().StringVar(&cc, "cc", "", "Cc recipient(s), comma-separated (display names stripped)")
+	cmd.Flags().StringVar(&bcc, "bcc", "", "Bcc recipient(s), comma-separated (display names stripped)")
 	cmd.Flags().StringVar(&fromAddr, "from", "", "From address (Gmail send-as alias)")
 	cmd.Flags().StringVarP(&subject, "subject", "s", "", "Subject line")
 	cmd.Flags().StringVar(&body, "body", "", "Body content (markdown by default)")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "Read body from file")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read body from stdin")
-	cmd.Flags().BoolVar(&plain, "plain", false, "Send body as plain text (no markdown rendering)")
-	cmd.Flags().BoolVar(&htmlMode, "html", false, "Send body as raw HTML (no markdown rendering)")
+	cmd.Flags().BoolVar(&plain, "plain", false, "Treat body as plain text (no markdown rendering)")
+	cmd.Flags().BoolVar(&htmlMode, "html", false, "Treat body as raw HTML (no markdown rendering)")
 	cmd.Flags().StringArrayVarP(&attach, "attach", "a", nil, "File path to attach (repeat for multiple)")
 	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "Output result as JSON")
 

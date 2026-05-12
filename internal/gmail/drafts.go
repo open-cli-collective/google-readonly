@@ -19,10 +19,13 @@ import (
 type DraftBodyKind int
 
 const (
-	// DraftBodyHTML sends the body as text/html; charset=UTF-8.
-	DraftBodyHTML DraftBodyKind = iota
 	// DraftBodyPlainText sends the body as text/plain; charset=UTF-8.
-	DraftBodyPlainText
+	// This is the zero value: a DraftMessage{} with an unset BodyKind
+	// defaults to plain text, which is the safer interpretation when
+	// callers construct DraftMessage directly without going through the CLI.
+	DraftBodyPlainText DraftBodyKind = iota
+	// DraftBodyHTML sends the body as text/html; charset=UTF-8.
+	DraftBodyHTML
 )
 
 // DraftMessage describes a draft to be created. The command layer constructs
@@ -115,8 +118,14 @@ func buildMIME(msg DraftMessage) ([]byte, error) {
 	}
 
 	// Multipart/mixed.
+	// Order matters: NewWriter is created first to obtain a boundary, but
+	// the top-level Content-Type header and blank line MUST be written to
+	// buf BEFORE any CreatePart call — CreatePart writes the first boundary
+	// delimiter, which must come after the blank line that terminates the
+	// message headers. Do not reorder.
 	mw := multipart.NewWriter(&buf)
-	fmt.Fprintf(&buf, "Content-Type: multipart/mixed; boundary=%q\r\n\r\n", mw.Boundary())
+	ct := mime.FormatMediaType("multipart/mixed", map[string]string{"boundary": mw.Boundary()})
+	buf.WriteString("Content-Type: " + ct + "\r\n\r\n")
 
 	// Body part.
 	bodyHdr := textproto.MIMEHeader{}

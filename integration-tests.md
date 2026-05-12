@@ -473,7 +473,7 @@ echo "user under test: $ME"
 | # | Test Case | Command | Expected Result |
 |---|-----------|---------|-----------------|
 | T1 | Plain text body | `./bin/gro mail draft --to "$ME" --subject "T1 plain" --body "hello from gro" --plain` | Exit 0. Stdout: `Draft created: r-...`. Gmail Drafts shows plain-text body, no HTML conversion. |
-| T2 | Markdown rendered to HTML (default) | `./bin/gro mail draft --to "$ME" --subject "T2 markdown" --body $'# Heading\n\n**bold** and _italic_\n\n- one\n- two\n\n\| col1 \| col2 \|\n\|------\|------\|\n\| a \| b \|'` | Gmail Drafts shows real H1 heading, bold/italic text, bullet list, and 2-column table — rendered, not raw markdown. |
+| T2 | Markdown rendered to HTML (default) | See setup block below for T2 (the markdown table in the body needs a real heredoc, not inline bash quoting). | Gmail Drafts shows real H1 heading, bold/italic text, bullet list, and 2-column table — rendered, not raw markdown. |
 | T3 | Raw HTML body | `./bin/gro mail draft --to "$ME" --subject "T3 html" --body '<h1 style="color:tomato">Tomato</h1><p>Inline <span style="background:yellow">highlight</span>.</p>' --html` | Gmail Drafts shows tomato-colored heading and yellow highlight. Confirms raw HTML is not double-processed. |
 | T4 | Body from stdin (agentic flow) | `echo $'## Status\n\n- [x] done\n- [ ] todo' \| ./bin/gro mail draft --to "$ME" --subject "T4 stdin" --stdin` | Gmail Drafts shows H2 + task list with checkboxes (TaskList extension). |
 | T5 | Body from file | (see T5 setup below) | Gmail Drafts renders headings + strikethrough + numbered list. |
@@ -485,6 +485,25 @@ echo "user under test: $ME"
 | T11 | JSON output | `./bin/gro mail draft --to "$ME" --subject "T11 json" --body "x" --plain --json \| jq .` | Stdout is valid JSON with `id`, `messageId`, `threadId`. `jq` exits 0. |
 
 ### Setup blocks
+
+**T2:**
+```bash
+cat > /tmp/gro-t2.md <<'EOF'
+# Heading
+
+**bold** and _italic_
+
+- one
+- two
+- three
+
+| col1 | col2 |
+|------|------|
+| a    | b    |
+| c    | d    |
+EOF
+./bin/gro mail draft --to "$ME" --subject "T2 markdown" --file /tmp/gro-t2.md
+```
 
 **T5:**
 ```bash
@@ -549,7 +568,7 @@ Skip if no Gmail send-as alias is configured for the test user.
 ### Cleanup
 
 ```bash
-rm -f /tmp/gro-t5.md /tmp/gro-t7.txt /tmp/gro-t8.csv /tmp/gro-t8.json
+rm -f /tmp/gro-t2.md /tmp/gro-t5.md /tmp/gro-t7.txt /tmp/gro-t8.csv /tmp/gro-t8.json
 rm -rf /tmp/gro-secret-dir
 # Gmail UI: Drafts → select T* drafts → Discard
 ```

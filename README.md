@@ -737,6 +737,8 @@ Flags:
 
 `--body`, `--stdin`, and `--file` are mutually exclusive (exactly one required). `--plain` and `--html` are mutually exclusive.
 
+Display names in `--to`/`--cc`/`--bcc` (e.g., `Alice <alice@example.com>`) are stripped; only the email address is sent. Edit the draft in Gmail to set display names.
+
 ### gro calendar list
 
 List all calendars the user has access to.

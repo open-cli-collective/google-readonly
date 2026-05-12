@@ -92,7 +92,12 @@ func TestDraftCommand_RejectsPlainAndHTMLTogether(t *testing.T) {
 	withMockClient(&MockGmailClient{}, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
+		// Pin the full message so the test catches a regression where only
+		// "--plain" appears (e.g. if the error wording for an unrelated flag
+		// happened to mention --plain).
 		testutil.Contains(t, err.Error(), "--plain")
+		testutil.Contains(t, err.Error(), "--html")
+		testutil.Contains(t, err.Error(), "mutually exclusive")
 	})
 }
 
@@ -122,6 +127,7 @@ func TestDraftCommand_RejectsHeaderInjectionInTo(t *testing.T) {
 	withMockClient(&MockGmailClient{}, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "CR or LF")
 	})
 }
 
@@ -131,6 +137,34 @@ func TestDraftCommand_RejectsHeaderInjectionInSubject(t *testing.T) {
 	withMockClient(&MockGmailClient{}, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "CR or LF")
+	})
+}
+
+func TestDraftCommand_RejectsEmptyTo(t *testing.T) {
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--to", "", "--subject", "hi", "--body", "x"})
+	withMockClient(&MockGmailClient{}, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		// Distinct code path from "missing --to": flag is Changed but parses
+		// to zero addresses, so the len() == 0 guard fires.
+		testutil.Contains(t, err.Error(), "--to")
+	})
+}
+
+func TestDraftCommand_RejectsMissingFileBody(t *testing.T) {
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--to", "a@x.com", "--subject", "hi", "--file", "/nope/missing-body.md"})
+	withMockClient(&MockGmailClient{
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called when --file is unreadable")
+			return nil, nil
+		},
+	}, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "reading body file")
 	})
 }
 
@@ -259,7 +293,13 @@ func TestDraftCommand_Attachments_BasenameOnly(t *testing.T) {
 		}
 		testutil.Equal(t, seen.Attachments[0].Filename, "secret-report.pdf") // basename only
 		testutil.Equal(t, string(seen.Attachments[0].Data), "PDFBYTES")
-		testutil.Equal(t, seen.Attachments[0].MimeType, "application/pdf")
+		// mime.TypeByExtension can return either "application/pdf" or
+		// "application/pdf; charset=binary" depending on OS MIME database.
+		// Prefix-match to stay portable across macOS/Linux CI runners.
+		got := seen.Attachments[0].MimeType
+		if got != "application/pdf" && !strings.HasPrefix(got, "application/pdf;") {
+			t.Errorf("MimeType = %q, want application/pdf (with optional params)", got)
+		}
 	})
 }
 
@@ -299,6 +339,10 @@ func TestDraftCommand_AttachmentMissingFile(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
+		// Pin both the failing operation and the path so this confirms
+		// attachment loading is the actual failure point.
+		testutil.Contains(t, err.Error(), "reading attachment")
+		testutil.Contains(t, err.Error(), "/nope/does/not/exist.pdf")
 	})
 }
 
