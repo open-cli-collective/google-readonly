@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/spf13/cobra v1.8.0
+	github.com/yuin/goldmark v1.8.2
 	golang.org/x/oauth2 v0.34.0
 	google.golang.org/api v0.262.0
 )

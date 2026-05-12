@@ -24,6 +24,7 @@ type MockGmailClient struct {
 	DownloadAttachmentFunc       func(ctx context.Context, messageID, attachmentID string) ([]byte, error)
 	DownloadInlineAttachmentFunc func(ctx context.Context, messageID, partID string) ([]byte, error)
 	GetProfileFunc               func(ctx context.Context) (*gmailapi.Profile, error)
+	CreateDraftFunc              func(ctx context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error)
 }
 
 // Verify MockGmailClient implements MailClient
@@ -116,6 +117,13 @@ func (m *MockGmailClient) DownloadInlineAttachment(ctx context.Context, messageI
 func (m *MockGmailClient) GetProfile(ctx context.Context) (*gmailapi.Profile, error) {
 	if m.GetProfileFunc != nil {
 		return m.GetProfileFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *MockGmailClient) CreateDraft(ctx context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+	if m.CreateDraftFunc != nil {
+		return m.CreateDraftFunc(ctx, msg)
 	}
 	return nil, nil
 }

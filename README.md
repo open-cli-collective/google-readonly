@@ -5,7 +5,7 @@ A non-destructive command-line interface for Google services. Search, read, and 
 ## Features
 
 - **Non-destructive by design** - Read access plus organizational operations; no send, delete, or trash
-- **Gmail support** - Search messages, read content, view threads, list labels, download attachments, archive, star, label, categorize, mark read/unread
+- **Gmail support** - Search messages, read content, view threads, list labels, download attachments, archive, star, label, categorize, mark read/unread, compose drafts (never sent automatically)
 - **Calendar support** - List calendars, view events, today/week shortcuts, RSVP, color-coding
 - **Contacts support** - List contacts, search, view details, list groups, star, group management
 - **Drive support** - List files, search, view metadata, download files, folder tree, star/unstar
@@ -273,7 +273,24 @@ gro mail unlabel "Promotions" <id>
 
 # Recategorize messages
 gro mail categorize promotions <id1> <id2>
+
+# Compose a draft (markdown body by default, rendered to HTML)
+gro mail draft --to alice@example.com --subject "Hi" --body "**hello**"
+gro mail draft --to "a@x.com, b@x.com" --subject "Sync" --file notes.md
+echo "# Hello" | gro mail draft --to a@x.com --subject "Hi" --stdin
+
+# Plain text or raw HTML body
+gro mail draft --to a@x.com --subject "Plain" --body "no formatting" --plain
+gro mail draft --to a@x.com --subject "Raw" --body "<h1>Hi</h1>" --html
+
+# With attachments
+gro mail draft --to a@x.com --subject "See attached" --body "..." --attach report.pdf
+
+# From a send-as alias
+gro mail draft --from work@me.com --to a@x.com --subject "Hi" --body "..."
 ```
+
+Drafts always land in your Gmail Drafts folder for human review. The CLI never calls `drafts.send` — sending requires explicit action in Gmail.
 
 ### Calendar Commands
 
@@ -693,6 +710,32 @@ Flags:
       --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
+
+### gro mail draft
+
+Compose a Gmail draft and save it to the Drafts folder. The CLI never calls `drafts.send`; the draft sits in Gmail for human review and explicit send.
+
+Body input is markdown by default and rendered to HTML. Use `--plain` for plain text or `--html` for raw HTML (no rendering). Body source is one of `--body`, `--stdin`, or `--file`.
+
+```
+Usage: gro mail draft [flags]
+
+Flags:
+      --to string         Recipient(s), comma-separated (required)
+      --cc string         Cc recipient(s), comma-separated
+      --bcc string        Bcc recipient(s), comma-separated
+      --from string       From address (Gmail send-as alias)
+  -s, --subject string    Subject line (required; empty string allowed)
+      --body string       Body content (markdown by default)
+  -f, --file string       Read body from file
+      --stdin             Read body from stdin
+      --plain             Send body as plain text (no markdown rendering)
+      --html              Send body as raw HTML (no markdown rendering)
+  -a, --attach strings    File path to attach (repeat for multiple)
+  -j, --json              Output result as JSON
+```
+
+`--body`, `--stdin`, and `--file` are mutually exclusive (exactly one required). `--plain` and `--html` are mutually exclusive.
 
 ### gro calendar list
 
