@@ -569,6 +569,106 @@ func TestCreateDraft_APIWiring_Multipart_Structural(t *testing.T) {
 	}
 }
 
+func TestBuildMIME_RejectsEmptyTo(t *testing.T) {
+	t.Parallel()
+	msg := DraftMessage{
+		Subject:  "Hi",
+		Body:     []byte("body"),
+		BodyKind: DraftBodyPlainText,
+	}
+	if _, err := buildMIME(msg); err == nil {
+		t.Errorf("expected error for empty To, got nil")
+	}
+}
+
+func TestBuildMIME_EmptyBody(t *testing.T) {
+	t.Parallel()
+	msg := DraftMessage{
+		To:       []string{"a@x.com"},
+		Subject:  "Hi",
+		Body:     []byte{},
+		BodyKind: DraftBodyPlainText,
+	}
+	raw, err := buildMIME(msg)
+	if err != nil {
+		t.Fatalf("buildMIME: %v", err)
+	}
+	_, _, body, _ := parseMIME(t, raw)
+	if len(body) != 0 {
+		t.Errorf("decoded body = %q, want empty", body)
+	}
+}
+
+func TestBuildMIME_MultipartBase64LineLength(t *testing.T) {
+	t.Parallel()
+	big := make([]byte, 4096)
+	for i := range big {
+		big[i] = 'x'
+	}
+	msg := DraftMessage{
+		To:       []string{"a@x.com"},
+		Subject:  "Big",
+		Body:     big,
+		BodyKind: DraftBodyPlainText,
+		Attachments: []DraftAttachment{{
+			Filename: "blob.bin",
+			MimeType: "application/octet-stream",
+			Data:     big,
+		}},
+	}
+	raw, err := buildMIME(msg)
+	if err != nil {
+		t.Fatalf("buildMIME: %v", err)
+	}
+	_, _, _, parts := parseMIME(t, raw)
+	if len(parts) != 2 {
+		t.Fatalf("parts = %d, want 2", len(parts))
+	}
+	for i, p := range parts {
+		for _, line := range strings.Split(string(p.Body), "\r\n") {
+			if len(line) > 76 {
+				t.Errorf("part %d base64 line exceeds 76 chars: len=%d", i, len(line))
+			}
+		}
+	}
+}
+
+func TestBuildMIME_MultipartHTMLBody(t *testing.T) {
+	t.Parallel()
+	msg := DraftMessage{
+		To:       []string{"a@x.com"},
+		Subject:  "Hi",
+		Body:     []byte("<p>hello</p>"),
+		BodyKind: DraftBodyHTML,
+		Attachments: []DraftAttachment{{
+			Filename: "note.txt",
+			MimeType: "text/plain",
+			Data:     []byte("attached"),
+		}},
+	}
+	raw, err := buildMIME(msg)
+	if err != nil {
+		t.Fatalf("buildMIME: %v", err)
+	}
+	_, mt, _, parts := parseMIME(t, raw)
+	if mt != "multipart/mixed" {
+		t.Errorf("media = %q, want multipart/mixed", mt)
+	}
+	if len(parts) != 2 {
+		t.Fatalf("parts = %d, want 2", len(parts))
+	}
+	bodyCT, _, err := mime.ParseMediaType(parts[0].Header.Get("Content-Type"))
+	if err != nil {
+		t.Fatalf("parse body part Content-Type: %v", err)
+	}
+	if bodyCT != "text/html" {
+		t.Errorf("body part media = %q, want text/html", bodyCT)
+	}
+	if got := string(decodePart(t, parts[0])); got != "<p>hello</p>" {
+		t.Errorf("body decoded = %q", got)
+	}
+}
+
 func hasBareLF(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' && (i == 0 || s[i-1] != '\r') {

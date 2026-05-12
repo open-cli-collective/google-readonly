@@ -103,7 +103,7 @@ Examples:
 			if cmd.Flags().Changed("body") {
 				bodySources++
 			}
-			if stdin {
+			if cmd.Flags().Changed("stdin") {
 				bodySources++
 			}
 			if cmd.Flags().Changed("file") {
@@ -187,6 +187,9 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("creating draft: %w", err)
 			}
+			if result == nil {
+				return fmt.Errorf("creating draft: empty response")
+			}
 
 			// 10. Print result.
 			if jsonOut {
@@ -247,7 +250,7 @@ func parseAddressList(flag, raw string) ([]string, error) {
 // detectMimeType resolves the MIME type for a file path via mime.TypeByExtension.
 // Falls back to application/octet-stream.
 func detectMimeType(path string) string {
-	ext := filepath.Ext(path)
+	ext := strings.ToLower(filepath.Ext(path))
 	if ext == "" {
 		return "application/octet-stream"
 	}

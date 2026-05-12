@@ -316,7 +316,7 @@ func TestDraftCommand_MultipleRecipients(t *testing.T) {
 		"--to", "a@x.com, b@x.com",
 		"--cc", "c@x.com",
 		"--bcc", "d@x.com, e@x.com",
-		"--subject", "Hi", "--body", "text",
+		"--subject", "Hi", "--body", "text", "--plain",
 	})
 	withMockClient(mock, func() {
 		err := cmd.Execute()
@@ -324,6 +324,7 @@ func TestDraftCommand_MultipleRecipients(t *testing.T) {
 		testutil.Equal(t, len(seen.To), 2)
 		testutil.Equal(t, len(seen.Cc), 1)
 		testutil.Equal(t, len(seen.Bcc), 2)
+		testutil.Equal(t, seen.BodyKind, gmailapi.DraftBodyPlainText)
 	})
 }
 
@@ -444,8 +445,15 @@ func TestDraftCommand_RejectsHeaderInjection_AllFields(t *testing.T) {
 			withMockClient(&MockGmailClient{}, func() {
 				err := cmd.Execute()
 				testutil.Error(t, err)
+				testutil.Contains(t, err.Error(), "CR or LF")
 			})
 		})
+	}
+}
+
+func TestDetectMimeType_UppercaseExtension(t *testing.T) {
+	if got := detectMimeType("Report.PDF"); got != "application/pdf" && !strings.HasPrefix(got, "application/pdf;") {
+		t.Errorf("detectMimeType(Report.PDF) = %q, want application/pdf", got)
 	}
 }
 

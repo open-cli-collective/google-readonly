@@ -87,6 +87,9 @@ func (c *Client) CreateDraft(ctx context.Context, msg DraftMessage) (*DraftResul
 // MIME-Version: 1.0, suitable for base64url-encoding into Gmail's
 // Message.Raw field.
 func buildMIME(msg DraftMessage) ([]byte, error) {
+	if len(msg.To) == 0 {
+		return nil, fmt.Errorf("draft has no To recipients")
+	}
 	if err := guardHeaderInjection(msg); err != nil {
 		return nil, err
 	}

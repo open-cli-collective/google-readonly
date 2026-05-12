@@ -462,7 +462,7 @@ These scenarios exercise the full path: flag parsing → MIME assembly → Gmail
 **Setup:**
 ```bash
 make build
-ME=$(./bin/gro me --id)   # current user's primary email
+ME="you@example.com"   # set to the authenticated Google account
 echo "user under test: $ME"
 ```
 

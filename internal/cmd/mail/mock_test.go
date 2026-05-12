@@ -125,5 +125,5 @@ func (m *MockGmailClient) CreateDraft(ctx context.Context, msg gmailapi.DraftMes
 	if m.CreateDraftFunc != nil {
 		return m.CreateDraftFunc(ctx, msg)
 	}
-	return nil, nil
+	return &gmailapi.DraftResult{ID: "mock-draft-id"}, nil
 }
