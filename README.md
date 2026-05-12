@@ -215,6 +215,10 @@ gro config cache ttl 12
 
 # Show version
 gro --version
+
+# Enable verbose output for debugging (available on all commands)
+gro --verbose <command>
+gro -v <command>
 ```
 
 ### Gmail Commands
@@ -355,7 +359,7 @@ gro drive list --ids                        # Output file IDs only
 
 # Search files
 gro drive search "quarterly report"
-gro files search --name "budget" --type spreadsheet
+gro files search "budget" --name --type spreadsheet
 gro drive search --modified-after 2024-01-01
 gro drive search "budget" --ids             # Output file IDs only
 
@@ -434,8 +438,25 @@ Guided setup for Google API OAuth authentication.
 Usage: gro init [flags]
 
 Flags:
-      --no-verify   Skip connectivity verification after setup
+      --credentials-file string   Path to credentials.json (bypasses the wizard)
+      --no-browser                Don't try to open the browser automatically
+      --no-verify                 Skip connectivity verification after setup
 ```
+
+### gro me
+
+Show the currently authenticated Google account.
+
+```
+Usage: gro me [flags]
+
+Flags:
+      --id         Print only the primary email (scriptable)
+      --extended   Add granted scopes, token expiry, and storage backend
+  -j, --json       Output as JSON
+```
+
+`--id` and `--extended` can be combined with `--json`.
 
 ### gro config show
 
@@ -571,7 +592,7 @@ Usage: gro mail archive [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -585,7 +606,7 @@ Usage: gro mail star [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -599,7 +620,7 @@ Usage: gro mail unstar [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -613,7 +634,7 @@ Usage: gro mail mark-read [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -627,7 +648,7 @@ Usage: gro mail mark-unread [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -641,7 +662,7 @@ Usage: gro mail label <label-name> [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -655,7 +676,7 @@ Usage: gro mail unlabel <label-name> [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -669,7 +690,7 @@ Usage: gro mail categorize <category> [message-ids...] [flags]
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
-      --query      Search query to resolve message IDs
+      --query string   Search query to resolve message IDs
   -j, --json       Output results as JSON
 ```
 
@@ -848,7 +869,7 @@ Aliases: gro ppl star
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
-      --query      Search query to resolve contact IDs
+      --query string   Search query to resolve contact IDs
   -j, --json       Output results as JSON
 ```
 
@@ -864,7 +885,7 @@ Aliases: gro ppl unstar
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
-      --query      Search query to resolve contact IDs
+      --query string   Search query to resolve contact IDs
   -j, --json       Output results as JSON
 ```
 
@@ -880,7 +901,7 @@ Aliases: gro ppl add-to-group
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
-      --query      Search query to resolve contact IDs
+      --query string   Search query to resolve contact IDs
   -j, --json       Output results as JSON
 ```
 
@@ -896,7 +917,7 @@ Aliases: gro ppl remove-from-group
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
-      --query      Search query to resolve contact IDs
+      --query string   Search query to resolve contact IDs
   -j, --json       Output results as JSON
 ```
 
@@ -930,7 +951,7 @@ Usage: gro drive search [query] [flags]
 Aliases: gro files search
 
 Flags:
-  -n, --name string            Search by filename only
+  -n, --name                   Search filename only (not full-text content)
   -t, --type string            Filter by file type
       --owner string           Filter by owner (me, or email)
       --modified-after string  Modified after date (YYYY-MM-DD)
@@ -1022,7 +1043,7 @@ Aliases: gro files star
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read file IDs from stdin
-      --query      Search query to resolve file IDs
+      --query string   Search query to resolve file IDs
   -j, --json       Output results as JSON
 ```
 
@@ -1038,7 +1059,7 @@ Aliases: gro files unstar
 Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read file IDs from stdin
-      --query      Search query to resolve file IDs
+      --query string   Search query to resolve file IDs
   -j, --json       Output results as JSON
 ```
 
