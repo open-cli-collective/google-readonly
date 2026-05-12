@@ -35,6 +35,7 @@ func newDraftCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "draft",
+		Args:  cobra.NoArgs,
 		Short: "Compose a Gmail draft (never sent automatically)",
 		Long: `Compose a Gmail draft and save it to the Drafts folder for human review.
 
@@ -86,9 +87,15 @@ Examples:
 				return err
 			}
 			if fromAddr != "" {
-				if _, err := mail.ParseAddress(fromAddr); err != nil {
+				parsed, err := mail.ParseAddress(fromAddr)
+				if err != nil {
 					return fmt.Errorf("--from is not a valid email address: %w", err)
 				}
+				// Normalise to the bare address so display-name input like
+				// "Work <work@me.com>" is reduced to "work@me.com" before
+				// reaching the MIME builder, matching how --to/--cc/--bcc
+				// are handled.
+				fromAddr = parsed.Address
 			}
 
 			// 4. Body source: exactly one of --body, --stdin, --file.
@@ -99,7 +106,7 @@ Examples:
 			if stdin {
 				bodySources++
 			}
-			if file != "" {
+			if cmd.Flags().Changed("file") {
 				bodySources++
 			}
 			if bodySources != 1 {
@@ -120,7 +127,7 @@ Examples:
 					return fmt.Errorf("reading body from stdin: %w", err)
 				}
 				bodyBytes = b
-			case file != "":
+			case cmd.Flags().Changed("file"):
 				b, err := os.ReadFile(file) // #nosec G304 -- file path is intentionally user-supplied via --file
 				if err != nil {
 					return fmt.Errorf("reading body file: %w", err)
