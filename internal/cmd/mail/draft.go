@@ -103,7 +103,7 @@ Examples:
 			if cmd.Flags().Changed("body") {
 				bodySources++
 			}
-			if cmd.Flags().Changed("stdin") {
+			if stdin {
 				bodySources++
 			}
 			if cmd.Flags().Changed("file") {
