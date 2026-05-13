@@ -182,7 +182,7 @@ func setInConfigFile(token *oauth2.Token) error {
 	}
 	defer f.Close()
 
-	if err := json.NewEncoder(f).Encode(token); err != nil {
+	if err := json.NewEncoder(f).Encode(token); err != nil { //nolint:gosec // G117: token persistence is the intended purpose; file written with 0600
 		return fmt.Errorf("writing token: %w", err)
 	}
 

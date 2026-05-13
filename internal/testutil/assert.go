@@ -74,7 +74,7 @@ func Nil(t testing.TB, val any) {
 	}
 	v := reflect.ValueOf(val)
 	switch v.Kind() { //nolint:exhaustive // only nillable kinds are relevant
-	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func, reflect.Interface:
+	case reflect.Pointer, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func, reflect.Interface:
 		if v.IsNil() {
 			return
 		}
