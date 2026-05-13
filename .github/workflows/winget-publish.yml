@@ -18,9 +18,13 @@ jobs:
 
       - name: Resolve version
         shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if ("${{ github.event_name }}" -eq "release") {
-            $tag = "${{ github.event.release.tag_name }}"
+          if ($env:EVENT_NAME -eq "release") {
+            $tag = $env:RELEASE_TAG
             if ($tag -notmatch '^v\d') {
               Write-Host "Skipping: release tag '$tag' does not match v<digit>... pattern"
               echo "SKIP=true" >> $env:GITHUB_ENV
@@ -28,7 +32,7 @@ jobs:
             }
             $version = $tag -replace '^v',''
           } else {
-            $version = "${{ inputs.version }}"
+            $version = $env:INPUT_VERSION
           }
           if (-not $version) {
             Write-Error "version not provided"
