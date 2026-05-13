@@ -92,19 +92,19 @@ You will see a banner mentioning that some of these are "sensitive" or "restrict
 2. **Create Client** → **Application type: Desktop app**. Desktop app is what lets `gro` use a `http://localhost` loopback redirect.
 3. Name: anything (e.g. `gro-desktop`). Only visible in the console.
 4. Click **Create**. A dialog will show the **Client ID** and **Client Secret** plus a **Download JSON** button.
-5. Click **Download JSON** and save the file. This is the `credentials.json` you'll distribute. Treat it as credential-like (you'll store it where only your users can reach it), but note that Google explicitly documents that desktop-app client secrets are **not** truly secret — the OAuth flow's PKCE protection is what defends installed apps, not the client secret itself. See the [Google OAuth installed-app documentation](https://developers.google.com/identity/protocols/oauth2/native-app).
+5. Click **Download JSON** and save the file. This is the `credentials.json` you'll distribute. Treat it as access-controlled (you'll store it where only your users can reach it), but note that Google explicitly documents that desktop-app client secrets are **not** confidential — installed-app OAuth clients are designed to be embedded in software users can inspect. What bounds access for your `gro` deployment is the combination of (a) Internal audience (only your Workspace domain can complete consent) and (b) each user's own OAuth consent step. See the [Google OAuth installed-app documentation](https://developers.google.com/identity/protocols/oauth2/native-app).
 
 ### 6. Verify by running `gro init` yourself
 
 Before handing the JSON out, prove it works on your own account.
 
 1. Install `gro` if you haven't (`brew install open-cli-collective/tap/google-readonly` or see the [README](./README.md)).
-2. Move the downloaded JSON into place:
+2. Point `gro init` at the downloaded file directly:
    ```bash
-   mv ~/Downloads/client_secret_*.json ~/.config/google-readonly/credentials.json
+   gro init --credentials-file ~/Downloads/client_secret_<your-client-id>.apps.googleusercontent.com.json
    ```
-   (Create the directory first if needed: `mkdir -p ~/.config/google-readonly`.)
-3. Run `gro init` and complete the OAuth flow in your browser.
+   (Substitute the actual filename from your `~/Downloads` — Google names it after the client ID.)
+3. Complete the OAuth flow in your browser when prompted.
 4. Expected: a normal Workspace consent screen with your org name, no "Google hasn't verified this app" warning, all seven scope descriptions visible. Click **Allow**.
 5. After the redirect (which will hit a `localhost` URL that may look like a connection error — that's expected), the terminal should print `Token saved to Keychain` and `Verified Gmail API for <you>@<your-domain>`.
 6. Try `gro me` and `gro mail list --max 3` to confirm it actually works.
@@ -119,8 +119,8 @@ The consent screen wording comes from Google's static scope descriptions, which 
 |---|---|---|
 | `gmail.modify` | "Read, compose, **and send** emails from your Gmail account" | Read, search, archive, star, label, mark read/unread, draft (compose-only — drafts are never sent automatically). **No send, no delete, no trash.** |
 | `calendar.readonly` | "See and download any calendar you can access using your Google Calendar" | List calendars and read events |
-| `calendar.events` | "View and edit events on all your calendars" | RSVP and color-code events; no calendar settings changes |
-| `contacts` | "See, edit, download, **and permanently delete** your contacts" | Read contacts and groups; manage group membership and starring. **No delete.** |
+| `calendar.events` | "View and edit events on all your calendars" | RSVP and color-code existing events. **No event creation, deletion, or editing of event content** (title, attendees, time, etc.); no calendar settings changes. |
+| `contacts` | "See, edit, download, **and permanently delete** your contacts" | Read contacts and groups; manage group membership and starring. **No contact creation, deletion, or editing of contact fields** (name, email, phone, etc.) beyond group membership and starred status. |
 | `userinfo.profile` | "See your personal info, including any personal info you've made publicly available" | Read the authenticated user's name and email (powers `gro me` and `gro init` verification) |
 | `drive.readonly` | "See and download all your Google Drive files" | List, search, get metadata, download file content |
 | `drive.metadata` | "View and manage metadata of files in your Google Drive" | Star/unstar files. No file content changes. |
@@ -202,10 +202,10 @@ You can't, with Internal audience — Internal locks to a single Workspace domai
 No. `gro` is a local CLI. It talks directly from the user's machine to Google's APIs using their OAuth token. No data is sent to any third-party server. Tokens are stored locally (macOS Keychain, Linux libsecret, or a `0600` file as fallback).
 
 **What happens if Google changes their restricted-scope policy?**
-Internal-audience apps have historically been exempt from app verification (this is a long-standing Google policy, not a per-app concession). If that changes, you'd see a notice in the Cloud Console and have a transition window. Worst case, you can fall back to having users do their own DIY setup (the path described in the main README).
+Internal-audience apps have historically been exempt from app verification (a long-standing Google policy, not a per-app concession). If that changes, additional requirements may apply — check Google's current OAuth verification policy and the Cloud Console for any new requirements at that time. Worst case, you can fall back to having users do their own DIY setup (the path described in the main README).
 
 **Is the client secret in `credentials.json` actually secret?**
-For desktop-app OAuth clients, no — Google's documentation explicitly says the client secret is not truly secret, and the OAuth flow's PKCE mechanism is what defends installed apps. That said, treat the file as access-controlled: it identifies your org's OAuth client and shouldn't be shared outside your user population.
+For desktop-app OAuth clients, no — Google's documentation explicitly says the client secret embedded in installed apps is not confidential. Access to your `gro` deployment is bounded by (a) the Internal audience restricting consent to your Workspace domain and (b) each user completing their own OAuth consent. That said, treat the file as access-controlled: it identifies your org's OAuth client and shouldn't be shared outside your user population.
 
 ## Related docs
 
