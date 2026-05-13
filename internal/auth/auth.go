@@ -26,11 +26,13 @@ import (
 // The architecture test (TestNoDestructiveAPIMethodsInProductionCode) prevents accidental misuse.
 // Contacts uses the full contacts scope for group management and starring.
 // The contacts scope is a superset of contacts.readonly — it includes all read access.
+// Profile is required for people/me (names, emailAddresses fields) used by `gro me` and init verification.
 var AllScopes = []string{
 	gmail.GmailModifyScope,
 	calendar.CalendarReadonlyScope,
 	calendar.CalendarEventsScope,
 	people.ContactsScope,
+	people.UserinfoProfileScope,
 	drive.DriveReadonlyScope,
 	drive.DriveMetadataScope,
 }
@@ -43,6 +45,7 @@ var ScopeDescriptions = map[string]string{
 	calendar.CalendarEventsScope:   "Calendar Events — read and update events (RSVP, color). No calendar settings access.",
 	people.ContactsScope:           "Contacts — read contacts and groups, plus manage group membership and starring.",
 	people.ContactsReadonlyScope:   "Contacts Read-Only — read contacts and groups.",
+	people.UserinfoProfileScope:    "Profile — read the authenticated user's name and email address (required for 'gro me').",
 	drive.DriveReadonlyScope:       "Drive Read-Only — read files and metadata.",
 	drive.DriveMetadataScope:       "Drive Metadata — read and update file metadata (star/unstar). No file content write access.",
 }
