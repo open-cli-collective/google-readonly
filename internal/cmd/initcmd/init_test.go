@@ -137,6 +137,7 @@ func TestValidateOAuthJSONRejectsGarbage(t *testing.T) {
 
 // stubPrompter records calls and returns canned values.
 type stubPrompter struct {
+	audience    string
 	credChoice  string
 	pasteJSON   string
 	filePath    string
@@ -149,6 +150,14 @@ type stubPrompter struct {
 	filePathErr  error
 
 	calls []string
+}
+
+func (s *stubPrompter) SelectAudience() (string, error) {
+	s.calls = append(s.calls, "audience")
+	if s.audience == "" {
+		return "diy", nil
+	}
+	return s.audience, nil
 }
 
 func (s *stubPrompter) SelectCredSource(_ bool) (string, error) {
@@ -286,7 +295,8 @@ func TestEnsureCredentialsFlagFile(t *testing.T) {
 	}
 	dst, _ := d.GetCredentialsPath()
 
-	d.Prompter = &stubPrompter{}
+	stub := &stubPrompter{}
+	d.Prompter = stub
 	if err := ensureCredentials(d, &initOptions{credentialsFile: src}, dst); err != nil {
 		t.Fatalf("ensureCredentials: %v", err)
 	}
@@ -299,6 +309,10 @@ func TestEnsureCredentialsFlagFile(t *testing.T) {
 	}
 	if perm := fs.perms[dst]; perm != 0600 {
 		t.Errorf("expected perms 0600, got %o", perm)
+	}
+	// --credentials-file bypasses the wizard entirely; audience must not be asked.
+	if contains(stub.calls, "audience") {
+		t.Errorf("expected --credentials-file bypass; SelectAudience was called: calls=%v", stub.calls)
 	}
 }
 
@@ -396,6 +410,95 @@ func TestEnsureCredentialsShortCircuitsWhenAlreadyPresent(t *testing.T) {
 	// SelectCredSource (the wizard's first prompt) must NOT have fired.
 	if contains(stub.calls, "select") {
 		t.Errorf("expected wizard short-circuit, but SelectCredSource was called: calls=%v", stub.calls)
+	}
+	// Audience prompt must not be reached before the credentials.json short-circuit.
+	if contains(stub.calls, "audience") {
+		t.Errorf("expected short-circuit before audience prompt; calls=%v", stub.calls)
+	}
+}
+
+func TestEnsureCredentialsAudienceAdminSkipsDIYSteps(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	out := &bytes.Buffer{}
+	d.View = view.NewWithWriters(out, &bytes.Buffer{})
+	dst, _ := d.GetCredentialsPath()
+	d.Prompter = &stubPrompter{audience: "admin", credChoice: "paste", pasteJSON: validOAuthJSON}
+
+	if err := ensureCredentials(d, &initOptions{}, dst); err != nil {
+		t.Fatalf("ensureCredentials: %v", err)
+	}
+	got := out.String()
+	if strings.Contains(got, "Enable APIs: Gmail") {
+		t.Errorf("admin audience should not show DIY steps; output:\n%s", got)
+	}
+	if !strings.Contains(got, "Your admin should have shared credentials.json") {
+		t.Errorf("admin audience should show the admin-provisioned one-liner; output:\n%s", got)
+	}
+}
+
+func TestEnsureCredentialsAudienceDIYShowsDIYStepsAndAdminPointer(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	out := &bytes.Buffer{}
+	d.View = view.NewWithWriters(out, &bytes.Buffer{})
+	dst, _ := d.GetCredentialsPath()
+	d.Prompter = &stubPrompter{audience: "diy", credChoice: "paste", pasteJSON: validOAuthJSON}
+
+	if err := ensureCredentials(d, &initOptions{}, dst); err != nil {
+		t.Fatalf("ensureCredentials: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "Enable APIs: Gmail") {
+		t.Errorf("diy audience should show DIY steps; output:\n%s", got)
+	}
+	if !strings.Contains(got, "https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md") {
+		t.Errorf("diy audience should show the fully-qualified Workspace admin doc URL (so Homebrew/Choco users can reach it); output:\n%s", got)
+	}
+}
+
+func TestEnsureCredentialsAudienceIsAskedOncePerWizard(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	d.ClipboardSupported = func() bool { return true }
+	// First clipboard read returns invalid JSON, second returns valid. This
+	// forces the wizard's retry loop to run twice while audience must remain
+	// sticky. Bounds-check: if the wizard reads more than twice (e.g. a future
+	// retry-cap change), fail cleanly instead of panicking.
+	reads := []string{"not valid json", validOAuthJSON}
+	idx := 0
+	d.ClipboardReadAll = func() (string, error) {
+		if idx >= len(reads) {
+			t.Fatalf("unexpected extra ClipboardReadAll call #%d; wizard should have succeeded after 2 reads", idx+1)
+		}
+		s := reads[idx]
+		idx++
+		return s, nil
+	}
+	dst, _ := d.GetCredentialsPath()
+	stub := &stubPrompter{audience: "admin", credChoice: "clipboard"}
+	d.Prompter = stub
+
+	if err := ensureCredentials(d, &initOptions{}, dst); err != nil {
+		t.Fatalf("ensureCredentials: %v", err)
+	}
+	gotAudience, gotSelect := 0, 0
+	for _, c := range stub.calls {
+		switch c {
+		case "audience":
+			gotAudience++
+		case "select":
+			gotSelect++
+		}
+	}
+	if gotAudience != 1 {
+		t.Errorf("expected SelectAudience called exactly once, got %d; calls=%v", gotAudience, stub.calls)
+	}
+	if gotSelect != 2 {
+		t.Errorf("expected SelectCredSource called exactly twice (retry), got %d; calls=%v", gotSelect, stub.calls)
 	}
 }
 

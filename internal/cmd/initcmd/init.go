@@ -44,7 +44,7 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up Google API authentication",
-		Long: `Guided OAuth setup. Walks you through:
+		Long: fmt.Sprintf(`Guided OAuth setup. Walks you through:
 
   1. Reading your downloaded OAuth client JSON (clipboard, paste, or file path).
   2. Opening the consent URL in your browser.
@@ -52,15 +52,18 @@ func NewCommand() *cobra.Command {
 
 After setup, run 'gro me' to see who you're authenticated as.
 
-Prerequisites — at https://console.cloud.google.com:
-  - Create a project and enable: Gmail API, Google Calendar API,
-    Google Drive API, and People API (used for both 'gro contacts'
-    and 'gro me').
-  - Create OAuth 2.0 Desktop-app credentials and download the JSON.
+The wizard first asks how you're getting your credentials.json:
+  - Admin-provided (e.g. via 1Password): paste or point to the file.
+  - DIY: walks you through creating a Google Cloud project yourself,
+    enabling the Gmail API, Google Calendar API, Google Drive API, and
+    People API, and downloading OAuth 2.0 Desktop-app credentials.
 
-You can copy that JSON to your clipboard and run 'gro init' — it will read,
-validate, and write it to the config directory for you. No need to download
-the file separately.`,
+If you're a Google Workspace admin and want to set up one Internal OAuth app
+for your whole org, see:
+  %s
+
+You can also copy your credentials.json to the clipboard and run 'gro init' —
+it will read, validate, and write it to the config directory for you.`, workspaceAdminsURL),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runWith(cmd.Context(), defaultDeps(), opts)
@@ -119,6 +122,7 @@ type initDeps struct {
 // prompter abstracts huh's interactive prompts so tests can drive the
 // wizard with deterministic inputs.
 type prompter interface {
+	SelectAudience() (string, error)                          // returns "admin" | "diy"
 	SelectCredSource(clipboardSupported bool) (string, error) // returns "clipboard" | "paste" | "file"
 	PasteJSON() (string, error)
 	FilePath() (string, error)
@@ -424,16 +428,33 @@ func ensureCredentials(d initDeps, opts *initOptions, credPath string) error {
 		return nil
 	}
 
-	// Otherwise drive the wizard.
+	// Otherwise drive the wizard. Ask once whether the user is admin-provisioned
+	// or doing their own Google Cloud setup, so we only show the steps they need.
+	audience, err := d.Prompter.SelectAudience()
+	if err != nil {
+		return err
+	}
+
 	d.View.Println("")
-	d.View.Println("Set up Google OAuth credentials at https://console.cloud.google.com:")
-	d.View.Println("  1. Create or select a project.")
-	d.View.Println("  2. Enable APIs: Gmail, Google Calendar, Google Drive, and People")
-	d.View.Println("     (the People API powers both 'gro contacts' and 'gro me').")
-	d.View.Println("  3. Create OAuth 2.0 Desktop-app credentials.")
-	d.View.Println("  4. Copy the JSON to your clipboard, OR download the JSON file.")
-	d.View.Println("")
-	d.View.Println("Optional: publish your OAuth app to avoid 7-day token expiry.")
+	switch audience {
+	case "admin":
+		d.View.Println("Your admin should have shared credentials.json (e.g. via 1Password).")
+		d.View.Println("Paste the JSON, or point to the file when prompted.")
+	case "diy":
+		d.View.Println("Set up Google OAuth credentials at https://console.cloud.google.com:")
+		d.View.Println("  1. Create or select a project.")
+		d.View.Println("  2. Enable APIs: Gmail, Google Calendar, Google Drive, and People")
+		d.View.Println("     (the People API powers both 'gro contacts' and 'gro me').")
+		d.View.Println("  3. Create OAuth 2.0 Desktop-app credentials.")
+		d.View.Println("  4. Copy the JSON to your clipboard, OR download the JSON file.")
+		d.View.Println("")
+		d.View.Println("Optional: publish your OAuth app to avoid 7-day token expiry.")
+		d.View.Println("")
+		d.View.Println("Workspace admin? Set up an Internal OAuth app once for your whole org:")
+		d.View.Println("  " + workspaceAdminsURL)
+	default:
+		return fmt.Errorf("unknown audience: %s", audience)
+	}
 	d.View.Println("")
 
 	// Up to 3 attempts to recover from *content* errors (unreadable
@@ -565,8 +586,26 @@ func isAuthError(err error) bool {
 
 var errorAs = errors.As
 
+// workspaceAdminsURL points to the repo's Workspace-admin walkthrough.
+// Referenced from both cmd.Long and the runtime wizard, so installed-CLI
+// users (Homebrew/Chocolatey/Winget) reach it without a local checkout.
+const workspaceAdminsURL = "https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md"
+
 // huhPrompter is the production prompter — wraps huh.
 type huhPrompter struct{}
+
+func (huhPrompter) SelectAudience() (string, error) {
+	var choice string
+	err := huh.NewSelect[string]().
+		Title("How are you getting your OAuth credentials?").
+		Options(
+			huh.NewOption("My admin gave me a credentials.json (e.g. via 1Password)", "admin"),
+			huh.NewOption("I'll set up my own Google Cloud project", "diy"),
+		).
+		Value(&choice).
+		Run()
+	return choice, err
+}
 
 func (huhPrompter) SelectCredSource(clipboardSupported bool) (string, error) {
 	options := []huh.Option[string]{}
