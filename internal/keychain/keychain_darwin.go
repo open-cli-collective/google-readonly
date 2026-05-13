@@ -87,7 +87,7 @@ func getFromKeychain() (*oauth2.Token, error) {
 }
 
 func setInKeychain(token *oauth2.Token) error {
-	data, err := json.Marshal(token)
+	data, err := json.Marshal(token) //nolint:gosec // G117: token serialization is the intended purpose; stored in macOS Keychain
 	if err != nil {
 		return fmt.Errorf("serializing token: %w", err)
 	}
