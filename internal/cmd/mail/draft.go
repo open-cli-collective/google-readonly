@@ -56,10 +56,13 @@ Examples:
   gro mail draft --reply-to <message-id> --body "thanks, will review"
   gro mail draft --reply-to <message-id> --reply-all --body "..."`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			// Reply mode is opt-in via a non-empty --reply-to. Empty string
-			// (e.g. --reply-to "") is treated the same as omitting the flag,
-			// since an empty message ID can't be fetched.
-			isReply := strings.TrimSpace(replyTo) != ""
+			// --reply-to with an empty value is a user error (often a shell
+			// variable that didn't expand). Reject it explicitly so we don't
+			// silently produce an unthreaded draft.
+			if cmd.Flags().Changed("reply-to") && strings.TrimSpace(replyTo) == "" {
+				return fmt.Errorf("--reply-to requires a non-empty message ID")
+			}
+			isReply := cmd.Flags().Changed("reply-to")
 
 			// 1. Required-flag checks. In reply mode, --to and --subject are
 			//    derived from the source message and only required if not derivable.
@@ -111,9 +114,14 @@ Examples:
 				fromAddr = parsed.Address
 			}
 
-			// 3b. Non-reply mode: require at least one --to address now (no I/O yet).
-			//     Reply mode defers this check until after source derivation.
+			// 3b. Local recipient validation (no I/O yet).
+			//     - Non-reply mode: --to is required and must parse to ≥1 address.
+			//     - Reply mode: an explicit --to override must still parse to ≥1
+			//       address; otherwise we defer the check until after derivation.
 			if !isReply && len(toAddrs) == 0 {
+				return fmt.Errorf("--to must contain at least one address")
+			}
+			if isReply && cmd.Flags().Changed("to") && len(toAddrs) == 0 {
 				return fmt.Errorf("--to must contain at least one address")
 			}
 

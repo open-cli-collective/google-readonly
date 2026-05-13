@@ -661,32 +661,43 @@ func TestDraftCommand_ReplyAll_OverrideCcWithMalformedSourceToCc(t *testing.T) {
 	})
 }
 
-func TestDraftCommand_EmptyReplyToTreatedAsNonReply(t *testing.T) {
+func TestDraftCommand_EmptyReplyToIsAnError(t *testing.T) {
+	// --reply-to with an empty value (often an unexpanded shell variable)
+	// must fail explicitly rather than silently producing an unthreaded draft.
 	mock := &MockGmailClient{
 		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
 			t.Fatal("GetMessage must not be called with empty --reply-to")
 			return nil, nil
 		},
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called with empty --reply-to")
+			return nil, nil
+		},
 	}
 	cmd := newDraftCommand()
-	cmd.SetArgs([]string{"--reply-to", "", "--body", "x", "--plain"})
+	cmd.SetArgs([]string{"--reply-to", "", "--to", "a@x.com", "--subject", "hi", "--body", "x", "--plain"})
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		// Empty --reply-to falls back to non-reply mode, so --to is required.
-		testutil.Contains(t, err.Error(), "--to")
+		testutil.Contains(t, err.Error(), "--reply-to requires a non-empty message ID")
 	})
 }
 
-func TestDraftCommand_EmptyReplyToWithReplyAll(t *testing.T) {
-	mock := &MockGmailClient{}
+func TestDraftCommand_ReplyTo_EmptyToOverrideRejectedLocally(t *testing.T) {
+	// In reply mode, an explicit --to "" override must fail before any
+	// GetMessage call — it's a local user error.
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
+			t.Fatal("GetMessage must not be called when --to override is empty")
+			return nil, nil
+		},
+	}
 	cmd := newDraftCommand()
-	cmd.SetArgs([]string{"--reply-to", "", "--reply-all", "--body", "x", "--plain"})
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--to", "", "--body", "x", "--plain"})
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "--reply-all")
-		testutil.Contains(t, err.Error(), "--reply-to")
+		testutil.Contains(t, err.Error(), "--to must contain at least one address")
 	})
 }
 
