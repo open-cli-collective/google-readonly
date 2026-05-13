@@ -705,9 +705,14 @@ func TestDraftCommand_ReplyAll_ExplicitToOverride(t *testing.T) {
 	// --reply-all with explicit --to: To is user's value (needs.To=false), Cc is derived from source.
 	var seen gmailapi.DraftMessage
 	mock := &MockGmailClient{
-		GetMessageFunc:  func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
-		GetProfileFunc:  func(_ context.Context) (*gmailapi.Profile, error) { return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil },
-		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) { seen = msg; return &gmailapi.DraftResult{ID: "d1"}, nil },
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) {
+			return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil
+		},
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
 	}
 	cmd := newDraftCommand()
 	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--to", "different@x.com", "--body", "x", "--plain"})
@@ -917,9 +922,12 @@ func TestDraftCommand_ReplyAll_EmptyProfileFallsBackToFrom(t *testing.T) {
 	src := srcReply()
 	src.To = "alias@example.com, bob@example.com"
 	mock := &MockGmailClient{
-		GetMessageFunc:  func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
-		GetProfileFunc:  func(_ context.Context) (*gmailapi.Profile, error) { return &gmailapi.Profile{}, nil },
-		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) { seen = msg; return &gmailapi.DraftResult{ID: "d1"}, nil },
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) { return &gmailapi.Profile{}, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
 	}
 	cmd := newDraftCommand()
 	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--from", "alias@example.com", "--body", "x", "--plain"})
@@ -939,8 +947,11 @@ func TestDraftCommand_ReplyTo_FirstReplyEmptyReferences(t *testing.T) {
 	src := srcReply()
 	src.References = ""
 	mock := &MockGmailClient{
-		GetMessageFunc:  func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
-		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) { seen = msg; return &gmailapi.DraftResult{ID: "d1"}, nil },
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
 	}
 	cmd := newDraftCommand()
 	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
@@ -961,8 +972,11 @@ func TestDraftCommand_ReplyTo_WithAttachment(t *testing.T) {
 	}
 	var seen gmailapi.DraftMessage
 	mock := &MockGmailClient{
-		GetMessageFunc:  func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
-		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) { seen = msg; return &gmailapi.DraftResult{ID: "d1"}, nil },
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
 	}
 	cmd := newDraftCommand()
 	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain", "--attach", att})

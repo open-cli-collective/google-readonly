@@ -759,11 +759,11 @@ func TestCreateDraft_APIWiring_PropagatesThreadID(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Message struct {
-				ThreadId string `json:"threadId"`
+				ThreadID string `json:"threadId"`
 			} `json:"message"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		gotThreadID = body.Message.ThreadId
+		gotThreadID = body.Message.ThreadID
 		resp := &gmailapi.Draft{Id: "d-1", Message: &gmailapi.Message{Id: "m-1", ThreadId: "thread-abc"}}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
