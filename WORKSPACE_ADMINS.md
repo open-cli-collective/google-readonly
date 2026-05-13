@@ -158,7 +158,7 @@ If you suspect the JSON has leaked outside your org (it ended up in a public Sla
 1. Google Cloud Console → APIs & Services → **Credentials** → click your OAuth client.
 2. **Reset secret**. This invalidates the old secret immediately.
 3. **Download JSON** to get the new one and re-distribute via your channel of choice.
-4. Active user tokens issued before the rotation continue to work until they're revoked or expire — see below to force revocation.
+4. Plan for some user re-authorization: short-lived access tokens continue working until they expire, but refresh tokens may be invalidated by the rotation depending on Google's current behavior for installed-app clients. Test with one user before rotating broadly so you know what to expect, and have the new `credentials.json` already distributed before rotating.
 
 ### Revoking a specific user's access
 
