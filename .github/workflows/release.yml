@@ -35,16 +35,18 @@ jobs:
           version: latest
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAP_GITHUB_TOKEN (PAT) is required here instead of the default
+          # GITHUB_TOKEN because releases created with GITHUB_TOKEN do not fire
+          # downstream workflow triggers (release: published). Using the PAT
+          # lets chocolatey-publish.yml and winget-publish.yml auto-trigger.
+          GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
 
   # Chocolatey and winget publishing live in chocolatey-publish.yml and
-  # winget-publish.yml respectively (workflow_dispatch only). Keeping them out
-  # of this workflow avoids gating the release on Microsoft-hosted services
-  # (wingetcreate's fork-sync, choco push) that fail intermittently and don't
-  # block the actual binary/Homebrew artifacts. Run them manually after a
-  # release: `gh workflow run chocolatey-publish.yml -f version=<X.Y.Z>` and
-  # `gh workflow run winget-publish.yml -f version=<X.Y.Z>`.
+  # winget-publish.yml respectively. They auto-trigger on `release: published`
+  # (and still expose `workflow_dispatch` as a manual fallback). They are kept
+  # out of this workflow so Microsoft-hosted service flakiness (wingetcreate
+  # fork-sync, choco push) does not gate the binary/Homebrew artifacts.
 
   snap:
     if: false  # Temporarily disabled - waiting for personal-files interface approval

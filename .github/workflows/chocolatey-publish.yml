@@ -1,11 +1,13 @@
 name: Publish to Chocolatey
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to publish (e.g., 1.0.25)'
-        required: true
+        required: false
         type: string
 
 jobs:
@@ -14,24 +16,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate release exists
+      - name: Resolve version
         shell: pwsh
         env:
-          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          $release = gh release view "v${{ inputs.version }}" --json tagName 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Release v${{ inputs.version }} not found"
+          if ($env:EVENT_NAME -eq "release") {
+            $tag = $env:RELEASE_TAG
+            if ($tag -notmatch '^v\d') {
+              Write-Host "Skipping: release tag '$tag' does not match v<digit>... pattern"
+              echo "SKIP=true" >> $env:GITHUB_ENV
+              exit 0
+            }
+            $version = $tag -replace '^v',''
+          } else {
+            $version = $env:INPUT_VERSION
+          }
+          if (-not $version) {
+            Write-Error "version not provided"
             exit 1
           }
-          Write-Host "Found release v${{ inputs.version }}"
+          Write-Host "Resolved version: $version"
+          echo "VERSION=$version" >> $env:GITHUB_ENV
 
-      - name: Get checksums from release
+      - name: Validate release exists
+        if: env.SKIP != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download "v${{ inputs.version }}" --pattern "checksums.txt" --dir .
+          $release = gh release view "v$env:VERSION" --json tagName 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Release v$env:VERSION not found"
+            exit 1
+          }
+          Write-Host "Found release v$env:VERSION"
+
+      - name: Get checksums from release
+        if: env.SKIP != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "v$env:VERSION" --pattern "checksums.txt" --dir .
 
           $checksums = Get-Content checksums.txt
           $x64Hash = ($checksums | Select-String "windows_amd64.zip").Line.Split()[0]
@@ -44,9 +73,10 @@ jobs:
           echo "ARM64_HASH=$arm64Hash" >> $env:GITHUB_ENV
 
       - name: Update version and checksums
+        if: env.SKIP != 'true'
         shell: pwsh
         run: |
-          $version = "${{ inputs.version }}"
+          $version = $env:VERSION
 
           # Update version in nuspec
           $nuspec = 'packaging/chocolatey/google-readonly.nuspec'
@@ -62,6 +92,7 @@ jobs:
           Write-Host "Injected checksums into install script"
 
       - name: Pack Chocolatey package
+        if: env.SKIP != 'true'
         shell: pwsh
         run: |
           cd packaging/chocolatey
@@ -69,6 +100,7 @@ jobs:
           Get-ChildItem *.nupkg
 
       - name: Push to Chocolatey
+        if: env.SKIP != 'true'
         shell: pwsh
         run: |
           cd packaging/chocolatey
