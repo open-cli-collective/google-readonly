@@ -1,4 +1,8 @@
 // Package main is the entry point for the gro CLI.
+//
+// Distribution is fully automated: merges to main with feat:/fix: prefixes
+// trigger auto-release, which creates a GitHub release whose published
+// event fans out to homebrew, chocolatey, and winget publish workflows.
 package main
 
 import (
