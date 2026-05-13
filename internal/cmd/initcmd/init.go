@@ -59,7 +59,8 @@ The wizard first asks how you're getting your credentials.json:
     People API, and downloading OAuth 2.0 Desktop-app credentials.
 
 If you're a Google Workspace admin and want to set up one Internal OAuth app
-for your whole org, see WORKSPACE_ADMINS.md in the repository.
+for your whole org, see:
+  https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md
 
 You can also copy your credentials.json to the clipboard and run 'gro init' —
 it will read, validate, and write it to the config directory for you.`,
@@ -435,10 +436,11 @@ func ensureCredentials(d initDeps, opts *initOptions, credPath string) error {
 	}
 
 	d.View.Println("")
-	if audience == "admin" {
+	switch audience {
+	case "admin":
 		d.View.Println("Your admin should have shared credentials.json (e.g. via 1Password).")
 		d.View.Println("Paste the JSON, or point to the file when prompted.")
-	} else {
+	case "diy":
 		d.View.Println("Set up Google OAuth credentials at https://console.cloud.google.com:")
 		d.View.Println("  1. Create or select a project.")
 		d.View.Println("  2. Enable APIs: Gmail, Google Calendar, Google Drive, and People")
@@ -450,6 +452,8 @@ func ensureCredentials(d initDeps, opts *initOptions, credPath string) error {
 		d.View.Println("")
 		d.View.Println("Workspace admin? Set up an Internal OAuth app once for your whole org:")
 		d.View.Println("  https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md")
+	default:
+		return fmt.Errorf("unknown audience: %s", audience)
 	}
 	d.View.Println("")
 

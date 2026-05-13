@@ -454,8 +454,8 @@ func TestEnsureCredentialsAudienceDIYShowsDIYStepsAndAdminPointer(t *testing.T) 
 	if !strings.Contains(got, "Enable APIs: Gmail") {
 		t.Errorf("diy audience should show DIY steps; output:\n%s", got)
 	}
-	if !strings.Contains(got, "WORKSPACE_ADMINS.md") {
-		t.Errorf("diy audience should show the Workspace admin doc pointer; output:\n%s", got)
+	if !strings.Contains(got, "https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md") {
+		t.Errorf("diy audience should show the fully-qualified Workspace admin doc URL (so Homebrew/Choco users can reach it); output:\n%s", got)
 	}
 }
 
