@@ -56,7 +56,10 @@ Examples:
   gro mail draft --reply-to <message-id> --body "thanks, will review"
   gro mail draft --reply-to <message-id> --reply-all --body "..."`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			isReply := cmd.Flags().Changed("reply-to")
+			// Reply mode is opt-in via a non-empty --reply-to. Empty string
+			// (e.g. --reply-to "") is treated the same as omitting the flag,
+			// since an empty message ID can't be fetched.
+			isReply := strings.TrimSpace(replyTo) != ""
 
 			// 1. Required-flag checks. In reply mode, --to and --subject are
 			//    derived from the source message and only required if not derivable.
@@ -106,6 +109,12 @@ Examples:
 				// reaching the MIME builder, matching how --to/--cc/--bcc
 				// are handled.
 				fromAddr = parsed.Address
+			}
+
+			// 3b. Non-reply mode: require at least one --to address now (no I/O yet).
+			//     Reply mode defers this check until after source derivation.
+			if !isReply && len(toAddrs) == 0 {
+				return fmt.Errorf("--to must contain at least one address")
 			}
 
 			// 4. Body source: exactly one of --body, --stdin, --file.
@@ -195,8 +204,13 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("fetching reply source %s: %w", replyTo, err)
 				}
+				needs := replyNeeds{
+					To:      !cmd.Flags().Changed("to"),
+					Cc:      replyAll && !cmd.Flags().Changed("cc"),
+					Subject: !cmd.Flags().Changed("subject"),
+				}
 				selfSet := map[string]bool{}
-				if replyAll {
+				if needs.Cc {
 					profile, err := client.GetProfile(cmd.Context())
 					if err != nil {
 						return fmt.Errorf("fetching profile for --reply-all: %w", err)
@@ -208,20 +222,20 @@ Examples:
 						selfSet[strings.ToLower(fromAddr)] = true
 					}
 				}
-				derived, err := deriveReplyDefaults(src, replyAll, selfSet)
+				derived, err := deriveReplyDefaults(src, needs, selfSet)
 				if err != nil {
 					return err
 				}
 				threadID = derived.ThreadID
 				inReplyTo = derived.InReplyTo
 				references = derived.References
-				if !cmd.Flags().Changed("to") {
+				if needs.To {
 					toAddrs = derived.To
 				}
-				if !cmd.Flags().Changed("cc") {
+				if needs.Cc {
 					ccAddrs = derived.Cc
 				}
-				if !cmd.Flags().Changed("subject") {
+				if needs.Subject {
 					subject = derived.Subject
 				}
 			}
@@ -302,28 +316,44 @@ type replyDerivation struct {
 	Subject    string
 }
 
-func deriveReplyDefaults(src *gmailapi.Message, replyAll bool, selfSet map[string]bool) (replyDerivation, error) {
+// replyNeeds tells deriveReplyDefaults which slots the caller will actually
+// consume. Source headers are only parsed for needed slots, so an explicit
+// --to/--cc/--subject override is unaffected by a malformed/missing source
+// header for that slot.
+type replyNeeds struct {
+	To      bool
+	Cc      bool
+	Subject bool
+}
+
+func deriveReplyDefaults(src *gmailapi.Message, needs replyNeeds, selfSet map[string]bool) (replyDerivation, error) {
 	if src == nil {
 		return replyDerivation{}, fmt.Errorf("source message is nil")
 	}
-	if strings.TrimSpace(src.From) == "" {
-		return replyDerivation{}, fmt.Errorf("source message %s has no From header", src.ID)
-	}
+	// Message-Id is always required: it feeds In-Reply-To and References,
+	// which are emitted regardless of override flags.
 	if strings.TrimSpace(src.RFCMessageID) == "" {
 		return replyDerivation{}, fmt.Errorf("source message %s has no Message-Id header", src.ID)
-	}
-	fromAddr, err := mail.ParseAddress(src.From)
-	if err != nil {
-		return replyDerivation{}, fmt.Errorf("parsing source From header %q: %w", src.From, err)
 	}
 	out := replyDerivation{
 		ThreadID:   src.ThreadID,
 		InReplyTo:  src.RFCMessageID,
 		References: buildReferences(src.References, src.RFCMessageID),
-		To:         []string{fromAddr.Address},
-		Subject:    addRePrefix(src.Subject),
 	}
-	if replyAll {
+	if needs.To {
+		if strings.TrimSpace(src.From) == "" {
+			return replyDerivation{}, fmt.Errorf("source message %s has no From header", src.ID)
+		}
+		fromAddr, err := mail.ParseAddress(src.From)
+		if err != nil {
+			return replyDerivation{}, fmt.Errorf("parsing source From header %q: %w", src.From, err)
+		}
+		out.To = []string{fromAddr.Address}
+	}
+	if needs.Subject {
+		out.Subject = addRePrefix(src.Subject)
+	}
+	if needs.Cc {
 		ccAddrs, err := splitAddressHeaders(src.To, src.Cc)
 		if err != nil {
 			return replyDerivation{}, fmt.Errorf("parsing source To/Cc headers: %w", err)
