@@ -12,7 +12,7 @@ A non-destructive command-line interface for Google services. Search, read, and 
 - **Bulk operations** - Pipe IDs between commands, use search queries inline, or pass IDs as arguments
 - **JSON output** - Machine-readable output for scripting
 - **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
-- **Single-run guided setup** - `gro init` reads credentials.json from clipboard / paste / file path and walks you through OAuth in one shot; `gro me` confirms identity afterwards
+- **Single-run guided setup** - `gro init` reads `credentials.json` from clipboard / paste / file path (your admin may share one via 1Password) and walks you through OAuth in one shot; `gro me` confirms identity afterwards
 
 ## Installation
 
@@ -94,6 +94,8 @@ go install github.com/open-cli-collective/google-readonly/cmd/gro@latest
 ```
 
 ## Setup
+
+> **Are you a Google Workspace admin setting up `gro` for your whole org?** See [WORKSPACE_ADMINS.md](./WORKSPACE_ADMINS.md) — set up an Internal OAuth app once, distribute `credentials.json` to users via 1Password, and skip Google's app verification process. Otherwise, follow the DIY setup below.
 
 ### 1. Create Google Cloud Project
 
