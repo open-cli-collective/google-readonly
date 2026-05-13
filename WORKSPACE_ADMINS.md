@@ -106,7 +106,7 @@ Before handing the JSON out, prove it works on your own account.
    (Substitute the actual filename from your `~/Downloads` — Google names it after the client ID.)
 3. Complete the OAuth flow in your browser when prompted.
 4. Expected: a normal Workspace consent screen with your org name, no "Google hasn't verified this app" warning, all seven scope descriptions visible. Click **Allow**.
-5. After the redirect (which will hit a `localhost` URL that may look like a connection error — that's expected), the terminal should print `Token saved to Keychain` and `Verified Gmail API for <you>@<your-domain>`.
+5. After the redirect (which will hit a `localhost` URL that may look like a connection error — that's expected), the terminal should print `Token saved to <storage>` and `Verified Gmail API for <you>@<your-domain>`. The storage backend is platform-dependent: macOS Keychain on macOS, libsecret (when available) on Linux, or `~/.config/google-readonly/token.json` as a `0600`-mode file fallback.
 6. Try `gro me` and `gro mail list --max 3` to confirm it actually works.
 
 If step 4 shows an "unverified app" warning instead of going straight to consent, the Audience accidentally got saved as External — revisit step 3.
