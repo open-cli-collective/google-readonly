@@ -44,7 +44,7 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up Google API authentication",
-		Long: `Guided OAuth setup. Walks you through:
+		Long: fmt.Sprintf(`Guided OAuth setup. Walks you through:
 
   1. Reading your downloaded OAuth client JSON (clipboard, paste, or file path).
   2. Opening the consent URL in your browser.
@@ -60,10 +60,10 @@ The wizard first asks how you're getting your credentials.json:
 
 If you're a Google Workspace admin and want to set up one Internal OAuth app
 for your whole org, see:
-  https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md
+  %s
 
 You can also copy your credentials.json to the clipboard and run 'gro init' —
-it will read, validate, and write it to the config directory for you.`,
+it will read, validate, and write it to the config directory for you.`, workspaceAdminsURL),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runWith(cmd.Context(), defaultDeps(), opts)
@@ -451,7 +451,7 @@ func ensureCredentials(d initDeps, opts *initOptions, credPath string) error {
 		d.View.Println("Optional: publish your OAuth app to avoid 7-day token expiry.")
 		d.View.Println("")
 		d.View.Println("Workspace admin? Set up an Internal OAuth app once for your whole org:")
-		d.View.Println("  https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md")
+		d.View.Println("  " + workspaceAdminsURL)
 	default:
 		return fmt.Errorf("unknown audience: %s", audience)
 	}
@@ -585,6 +585,11 @@ func isAuthError(err error) bool {
 }
 
 var errorAs = errors.As
+
+// workspaceAdminsURL points to the repo's Workspace-admin walkthrough.
+// Referenced from both cmd.Long and the runtime wizard, so installed-CLI
+// users (Homebrew/Chocolatey/Winget) reach it without a local checkout.
+const workspaceAdminsURL = "https://github.com/open-cli-collective/google-readonly/blob/main/WORKSPACE_ADMINS.md"
 
 // huhPrompter is the production prompter — wraps huh.
 type huhPrompter struct{}

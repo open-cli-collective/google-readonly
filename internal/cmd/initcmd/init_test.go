@@ -466,10 +466,14 @@ func TestEnsureCredentialsAudienceIsAskedOncePerWizard(t *testing.T) {
 	d.ClipboardSupported = func() bool { return true }
 	// First clipboard read returns invalid JSON, second returns valid. This
 	// forces the wizard's retry loop to run twice while audience must remain
-	// sticky.
+	// sticky. Bounds-check: if the wizard reads more than twice (e.g. a future
+	// retry-cap change), fail cleanly instead of panicking.
 	reads := []string{"not valid json", validOAuthJSON}
 	idx := 0
 	d.ClipboardReadAll = func() (string, error) {
+		if idx >= len(reads) {
+			t.Fatalf("unexpected extra ClipboardReadAll call #%d; wizard should have succeeded after 2 reads", idx+1)
+		}
 		s := reads[idx]
 		idx++
 		return s, nil
