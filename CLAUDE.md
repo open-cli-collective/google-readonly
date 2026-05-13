@@ -10,7 +10,7 @@ gro is a **non-destructive** command-line interface for Google services written 
 **Module:** `github.com/open-cli-collective/google-readonly`
 
 ### Features
-- Gmail: Search, read, thread viewing, labels, attachments, archive, star, mark read/unread, label, categorize, draft (compose-only, never sent)
+- Gmail: Search, read, thread viewing, labels, attachments, archive, star, mark read/unread, label, categorize, draft (compose-only, never sent — supports reply-to-thread)
 - Google Calendar: List calendars, view events, today/week shortcuts
 - Google Contacts: List contacts, search, view details, list groups
 - Google Drive: List files, search, get details, download, tree view, shared drives

@@ -51,6 +51,36 @@ func TestParseMessage(t *testing.T) {
 		}
 	})
 
+	t.Run("extracts reply-related headers", func(t *testing.T) {
+		t.Parallel()
+		msg := &gmail.Message{
+			Id:       "msg123",
+			ThreadId: "thread456",
+			Payload: &gmail.MessagePart{
+				Headers: []*gmail.MessagePartHeader{
+					{Name: "From", Value: "alice@example.com"},
+					{Name: "Cc", Value: "carol@example.com, dave@example.com"},
+					{Name: "Message-Id", Value: "<orig@example.com>"},
+					{Name: "References", Value: "<a@x.com> <b@x.com>"},
+					{Name: "In-Reply-To", Value: "<b@x.com>"},
+				},
+			},
+		}
+		result := parseMessage(msg, false, nil)
+		if result.Cc != "carol@example.com, dave@example.com" {
+			t.Errorf("Cc = %q", result.Cc)
+		}
+		if result.RFCMessageID != "<orig@example.com>" {
+			t.Errorf("RFCMessageID = %q", result.RFCMessageID)
+		}
+		if result.References != "<a@x.com> <b@x.com>" {
+			t.Errorf("References = %q", result.References)
+		}
+		if result.InReplyTo != "<b@x.com>" {
+			t.Errorf("InReplyTo = %q", result.InReplyTo)
+		}
+	})
+
 	t.Run("extracts thread ID", func(t *testing.T) {
 		t.Parallel()
 		msg := &gmail.Message{

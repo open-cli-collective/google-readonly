@@ -669,6 +669,124 @@ func TestBuildMIME_MultipartHTMLBody(t *testing.T) {
 	}
 }
 
+// --- Reply mode tests (#114) ---
+
+func TestBuildMIME_ReplyHeaders(t *testing.T) {
+	t.Parallel()
+	msg := DraftMessage{
+		To:         []string{"a@x.com"},
+		Subject:    "Re: Hi",
+		Body:       []byte("body"),
+		BodyKind:   DraftBodyPlainText,
+		InReplyTo:  "<orig@example.com>",
+		References: []string{"<earlier@example.com>", "<orig@example.com>"},
+	}
+	raw, err := buildMIME(msg)
+	if err != nil {
+		t.Fatalf("buildMIME: %v", err)
+	}
+	m, _, _, _ := parseMIME(t, raw)
+	if got := m.Header.Get("In-Reply-To"); got != "<orig@example.com>" {
+		t.Errorf("In-Reply-To = %q", got)
+	}
+	if got := m.Header.Get("References"); got != "<earlier@example.com> <orig@example.com>" {
+		t.Errorf("References = %q", got)
+	}
+}
+
+func TestBuildMIME_NoReplyHeadersWhenUnset(t *testing.T) {
+	t.Parallel()
+	msg := DraftMessage{
+		To:       []string{"a@x.com"},
+		Subject:  "Hi",
+		Body:     []byte("body"),
+		BodyKind: DraftBodyPlainText,
+	}
+	raw, err := buildMIME(msg)
+	if err != nil {
+		t.Fatalf("buildMIME: %v", err)
+	}
+	m, _, _, _ := parseMIME(t, raw)
+	if got := m.Header.Get("In-Reply-To"); got != "" {
+		t.Errorf("In-Reply-To present when unset: %q", got)
+	}
+	if got := m.Header.Get("References"); got != "" {
+		t.Errorf("References present when unset: %q", got)
+	}
+}
+
+func TestBuildMIME_RejectsHeaderInjection_Reply(t *testing.T) {
+	t.Parallel()
+	base := DraftMessage{
+		To:       []string{"a@x.com"},
+		Subject:  "Hi",
+		Body:     []byte("body"),
+		BodyKind: DraftBodyPlainText,
+	}
+	cases := []struct {
+		name string
+		mut  func(*DraftMessage)
+	}{
+		{"in-reply-to CRLF", func(m *DraftMessage) { m.InReplyTo = "<a@x>\r\nBcc: evil@x.com" }},
+		{"in-reply-to LF", func(m *DraftMessage) { m.InReplyTo = "<a@x>\nBcc: evil@x.com" }},
+		{"references CRLF", func(m *DraftMessage) {
+			m.References = []string{"<earlier@x>", "<a@x>\r\nBcc: evil@x.com"}
+		}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := base
+			tc.mut(&m)
+			if _, err := buildMIME(m); err == nil {
+				t.Errorf("expected error for %s, got nil", tc.name)
+			}
+		})
+	}
+}
+
+func TestCreateDraft_APIWiring_PropagatesThreadID(t *testing.T) {
+	t.Parallel()
+	msg := DraftMessage{
+		To:       []string{"a@x.com"},
+		Subject:  "Re: Hi",
+		Body:     []byte("body"),
+		BodyKind: DraftBodyPlainText,
+		ThreadID: "thread-abc",
+	}
+	var gotThreadID string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Message struct {
+				ThreadId string `json:"threadId"`
+			} `json:"message"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		gotThreadID = body.Message.ThreadId
+		resp := &gmailapi.Draft{Id: "d-1", Message: &gmailapi.Message{Id: "m-1", ThreadId: "thread-abc"}}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer ts.Close()
+	ctx := context.Background()
+	svc, err := gmailapi.NewService(ctx,
+		option.WithEndpoint(ts.URL),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(ts.Client()),
+	)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	c := &Client{service: svc, userID: "me"}
+	if _, err := c.CreateDraft(ctx, msg); err != nil {
+		t.Fatalf("CreateDraft: %v", err)
+	}
+	if gotThreadID != "thread-abc" {
+		t.Errorf("threadId on the wire = %q, want thread-abc", gotThreadID)
+	}
+}
+
 func hasBareLF(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' && (i == 0 || s[i-1] != '\r') {

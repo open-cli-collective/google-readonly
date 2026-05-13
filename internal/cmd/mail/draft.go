@@ -31,6 +31,8 @@ func newDraftCommand() *cobra.Command {
 		htmlMode bool
 		attach   []string
 		jsonOut  bool
+		replyTo  string
+		replyAll bool
 	)
 
 	cmd := &cobra.Command{
@@ -50,33 +52,41 @@ Examples:
   gro mail draft --to "a@x.com, b@x.com" --subject "Sync" --file notes.md
   echo "# Hello" | gro mail draft --to a@x.com --subject "Hi" --stdin
   gro mail draft --to a@x.com --subject "Plain" --body "no md" --plain
-  gro mail draft --to a@x.com --subject "Report" --body "see attached" --attach report.pdf`,
+  gro mail draft --to a@x.com --subject "Report" --body "see attached" --attach report.pdf
+  gro mail draft --reply-to <message-id> --body "thanks, will review"
+  gro mail draft --reply-to <message-id> --reply-all --body "..."`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			// 1. Required-flag checks.
-			if !cmd.Flags().Changed("to") {
-				return fmt.Errorf("--to is required")
+			isReply := cmd.Flags().Changed("reply-to")
+
+			// 1. Required-flag checks. In reply mode, --to and --subject are
+			//    derived from the source message and only required if not derivable.
+			if replyAll && !isReply {
+				return fmt.Errorf("--reply-all requires --reply-to")
 			}
-			if !cmd.Flags().Changed("subject") {
-				return fmt.Errorf("--subject is required (use --subject \"\" for empty subject)")
+			if !isReply {
+				if !cmd.Flags().Changed("to") {
+					return fmt.Errorf("--to is required")
+				}
+				if !cmd.Flags().Changed("subject") {
+					return fmt.Errorf("--subject is required (use --subject \"\" for empty subject)")
+				}
 			}
 
 			// 2. Header-injection guard on raw flag values.
 			for _, f := range []struct{ name, val string }{
 				{"--to", to}, {"--cc", cc}, {"--bcc", bcc},
 				{"--from", fromAddr}, {"--subject", subject},
+				{"--reply-to", replyTo},
 			} {
 				if strings.ContainsAny(f.val, "\r\n") {
 					return fmt.Errorf("%s contains illegal CR or LF", f.name)
 				}
 			}
 
-			// 3. Address parsing.
+			// 3. Address parsing on user-supplied flags.
 			toAddrs, err := parseAddressList("--to", to)
 			if err != nil {
 				return err
-			}
-			if len(toAddrs) == 0 {
-				return fmt.Errorf("--to must contain at least one address")
 			}
 			ccAddrs, err := parseAddressList("--cc", cc)
 			if err != nil {
@@ -169,11 +179,58 @@ Examples:
 				})
 			}
 
-			// 9. Call client.
+			// 9. Build client; in reply mode, fetch source + (optionally) profile and derive defaults.
 			client, err := newGmailClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Gmail client: %w", err)
 			}
+
+			var (
+				threadID   string
+				inReplyTo  string
+				references []string
+			)
+			if isReply {
+				src, err := client.GetMessage(cmd.Context(), replyTo, false)
+				if err != nil {
+					return fmt.Errorf("fetching reply source %s: %w", replyTo, err)
+				}
+				selfSet := map[string]bool{}
+				if replyAll {
+					profile, err := client.GetProfile(cmd.Context())
+					if err != nil {
+						return fmt.Errorf("fetching profile for --reply-all: %w", err)
+					}
+					if profile != nil && profile.EmailAddress != "" {
+						selfSet[strings.ToLower(profile.EmailAddress)] = true
+					}
+					if fromAddr != "" {
+						selfSet[strings.ToLower(fromAddr)] = true
+					}
+				}
+				derived, err := deriveReplyDefaults(src, replyAll, selfSet)
+				if err != nil {
+					return err
+				}
+				threadID = derived.ThreadID
+				inReplyTo = derived.InReplyTo
+				references = derived.References
+				if !cmd.Flags().Changed("to") {
+					toAddrs = derived.To
+				}
+				if !cmd.Flags().Changed("cc") {
+					ccAddrs = derived.Cc
+				}
+				if !cmd.Flags().Changed("subject") {
+					subject = derived.Subject
+				}
+			}
+
+			// 9b. Post-derivation resolved-recipient validation.
+			if len(toAddrs) == 0 {
+				return fmt.Errorf("--to must contain at least one address")
+			}
+
 			result, err := client.CreateDraft(cmd.Context(), gmailapi.DraftMessage{
 				From:        fromAddr,
 				To:          toAddrs,
@@ -183,6 +240,9 @@ Examples:
 				Body:        outBody,
 				BodyKind:    kind,
 				Attachments: attachments,
+				ThreadID:    threadID,
+				InReplyTo:   inReplyTo,
+				References:  references,
 			})
 			if err != nil {
 				return fmt.Errorf("creating draft: %w", err)
@@ -226,8 +286,113 @@ Examples:
 	cmd.Flags().BoolVar(&htmlMode, "html", false, "Treat body as raw HTML (no markdown rendering)")
 	cmd.Flags().StringArrayVarP(&attach, "attach", "a", nil, "File path to attach (repeat for multiple)")
 	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "Output result as JSON")
+	cmd.Flags().StringVar(&replyTo, "reply-to", "", "Source Gmail message ID to reply to (derives To/Subject/threading)")
+	cmd.Flags().BoolVar(&replyAll, "reply-all", false, "Include the source To/Cc as Cc on the reply (requires --reply-to)")
 
 	return cmd
+}
+
+// replyDerivation is the result of analysing the source message for reply mode.
+type replyDerivation struct {
+	ThreadID   string
+	InReplyTo  string
+	References []string
+	To         []string
+	Cc         []string
+	Subject    string
+}
+
+func deriveReplyDefaults(src *gmailapi.Message, replyAll bool, selfSet map[string]bool) (replyDerivation, error) {
+	if src == nil {
+		return replyDerivation{}, fmt.Errorf("source message is nil")
+	}
+	if strings.TrimSpace(src.From) == "" {
+		return replyDerivation{}, fmt.Errorf("source message %s has no From header", src.ID)
+	}
+	if strings.TrimSpace(src.RFCMessageID) == "" {
+		return replyDerivation{}, fmt.Errorf("source message %s has no Message-Id header", src.ID)
+	}
+	fromAddr, err := mail.ParseAddress(src.From)
+	if err != nil {
+		return replyDerivation{}, fmt.Errorf("parsing source From header %q: %w", src.From, err)
+	}
+	out := replyDerivation{
+		ThreadID:   src.ThreadID,
+		InReplyTo:  src.RFCMessageID,
+		References: buildReferences(src.References, src.RFCMessageID),
+		To:         []string{fromAddr.Address},
+		Subject:    addRePrefix(src.Subject),
+	}
+	if replyAll {
+		ccAddrs, err := splitAddressHeaders(src.To, src.Cc)
+		if err != nil {
+			return replyDerivation{}, fmt.Errorf("parsing source To/Cc headers: %w", err)
+		}
+		out.Cc = filterSelf(ccAddrs, selfSet)
+	}
+	return out, nil
+}
+
+// buildReferences appends the source Message-Id to the existing References
+// chain, splitting the raw header on whitespace (RFC 5322 §3.6.4). Returns
+// the new chain with empty tokens dropped.
+func buildReferences(rawRefs, msgID string) []string {
+	out := make([]string, 0)
+	for _, f := range strings.Fields(rawRefs) {
+		if f != "" {
+			out = append(out, f)
+		}
+	}
+	out = append(out, msgID)
+	return out
+}
+
+// splitAddressHeaders parses each non-empty raw header value via
+// mail.ParseAddressList and concatenates the bare addresses. Returns an
+// error on the first malformed header rather than silently dropping content.
+func splitAddressHeaders(values ...string) ([]string, error) {
+	var out []string
+	for _, v := range values {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+		addrs, err := mail.ParseAddressList(v)
+		if err != nil {
+			return nil, fmt.Errorf("%q: %w", v, err)
+		}
+		for _, a := range addrs {
+			out = append(out, a.Address)
+		}
+	}
+	return out, nil
+}
+
+// filterSelf removes addresses present in selfSet (case-insensitive lookup)
+// and de-duplicates while preserving first-seen order.
+func filterSelf(addrs []string, selfSet map[string]bool) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		k := strings.ToLower(a)
+		if selfSet[k] || seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, a)
+	}
+	return out
+}
+
+// addRePrefix prefixes "Re: " unless the subject already begins with a
+// case-insensitive "re:" (followed by space or end-of-string). Locale
+// variants (Aw, Sv, etc.) are intentionally not recognised — Gmail itself
+// doesn't normalise them.
+func addRePrefix(subject string) string {
+	trimmed := strings.TrimLeft(subject, " \t")
+	if len(trimmed) >= 3 && strings.EqualFold(trimmed[:3], "re:") {
+		return subject
+	}
+	return "Re: " + subject
 }
 
 // parseAddressList parses a comma-separated address list. An empty input is OK

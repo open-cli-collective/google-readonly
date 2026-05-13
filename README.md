@@ -288,9 +288,16 @@ gro mail draft --to a@x.com --subject "See attached" --body "..." --attach repor
 
 # From a send-as alias
 gro mail draft --from work@me.com --to a@x.com --subject "Hi" --body "..."
+
+# Reply to an existing message (preserves thread, adds In-Reply-To / References)
+gro mail draft --reply-to <message-id> --body "thanks, will review"
+gro mail draft --reply-to <message-id> --reply-all --body "looping everyone in"
+gro mail draft --reply-to <message-id> --subject "Re: customised" --body "..."
 ```
 
 Drafts always land in your Gmail Drafts folder for human review. The CLI never calls `drafts.send` — sending requires explicit action in Gmail.
+
+With `--reply-to`, `--to` and `--subject` are derived from the source message (To = original From; Subject = `Re: <original>`, no double prefix). Explicit `--to` / `--cc` / `--subject` flags override the derived values. `--reply-all` adds the original To and Cc as Cc on the reply, filtered to remove your own address (and any `--from` alias).
 
 ### Calendar Commands
 
@@ -733,11 +740,15 @@ Flags:
       --html              Send body as raw HTML (no markdown rendering)
   -a, --attach strings    File path to attach (repeat for multiple)
   -j, --json              Output result as JSON
+      --reply-to string   Source Gmail message ID to reply to (derives To/Subject/threading)
+      --reply-all         Include the source To/Cc as Cc on the reply (requires --reply-to)
 ```
 
 `--body`, `--stdin`, and `--file` are mutually exclusive (exactly one required). `--plain` and `--html` are mutually exclusive.
 
 Display names in `--to`/`--cc`/`--bcc` (e.g., `Alice <alice@example.com>`) are stripped; only the email address is sent. Edit the draft in Gmail to set display names.
+
+With `--reply-to`, the draft is threaded onto the source conversation (`In-Reply-To` and `References` headers are set; `Draft.Message.ThreadId` is set to the source thread). `--to` and `--subject` are derived from the source (To = original From; Subject = `Re: <original>` with no double prefix). Explicit `--to`/`--cc`/`--subject` flags override the derived values. `--reply-all` populates Cc with the source To+Cc minus your authenticated account and any `--from` alias.
 
 ### gro calendar list
 
