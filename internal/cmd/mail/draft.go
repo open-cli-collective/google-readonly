@@ -372,17 +372,14 @@ func deriveReplyDefaults(src *gmailapi.Message, needs replyNeeds, selfSet map[st
 }
 
 // buildReferences appends the source Message-Id to the existing References
-// chain, splitting the raw header on whitespace (RFC 5322 §3.6.4). Returns
-// the new chain with empty tokens dropped.
+// chain, splitting the raw header on whitespace (RFC 5322 §3.6.4). If the
+// chain already ends with msgID, it is not duplicated.
 func buildReferences(rawRefs, msgID string) []string {
-	out := make([]string, 0)
-	for _, f := range strings.Fields(rawRefs) {
-		if f != "" {
-			out = append(out, f)
-		}
+	out := strings.Fields(rawRefs)
+	if len(out) > 0 && out[len(out)-1] == msgID {
+		return out
 	}
-	out = append(out, msgID)
-	return out
+	return append(out, msgID)
 }
 
 // splitAddressHeaders parses each non-empty raw header value via
@@ -422,8 +419,9 @@ func filterSelf(addrs []string, selfSet map[string]bool) []string {
 }
 
 // addRePrefix prefixes "Re: " unless the subject already begins with a
-// case-insensitive "re:" (followed by space or end-of-string). Locale
-// variants (Aw, Sv, etc.) are intentionally not recognised — Gmail itself
+// case-insensitive "re:" (the colon is the delimiter; "re:foo" without a
+// trailing space still counts as already-prefixed). Locale variants
+// (Aw, Sv, etc.) are intentionally not recognised — Gmail itself
 // doesn't normalise them.
 func addRePrefix(subject string) string {
 	trimmed := strings.TrimLeft(subject, " \t")

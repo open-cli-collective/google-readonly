@@ -701,6 +701,37 @@ func TestDraftCommand_ReplyTo_EmptyToOverrideRejectedLocally(t *testing.T) {
 	})
 }
 
+func TestDraftCommand_ReplyAll_ExplicitToOverride(t *testing.T) {
+	// --reply-all with explicit --to: To is user's value (needs.To=false), Cc is derived from source.
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc:  func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		GetProfileFunc:  func(_ context.Context) (*gmailapi.Profile, error) { return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) { seen = msg; return &gmailapi.DraftResult{ID: "d1"}, nil },
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--to", "different@x.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.LenSlice(t, len(seen.To), 1)
+		testutil.Equal(t, seen.To[0], "different@x.com")
+		// Cc still derived from source To+Cc minus me@example.com.
+		testutil.LenSlice(t, len(seen.Cc), 2)
+		testutil.Equal(t, seen.Cc[0], "bob@example.com")
+		testutil.Equal(t, seen.Cc[1], "carol@example.com")
+	})
+}
+
+func TestBuildReferences_DedupesTrailingMessageID(t *testing.T) {
+	// If the source's References header already ends with its own Message-Id
+	// (some MUAs do this), the chain shouldn't duplicate.
+	got := buildReferences("<a@x> <orig@x>", "<orig@x>")
+	if len(got) != 2 || got[0] != "<a@x>" || got[1] != "<orig@x>" {
+		t.Errorf("buildReferences dedup = %v, want [<a@x> <orig@x>]", got)
+	}
+}
+
 func TestDraftCommand_ReplyAll_RequiresReplyTo(t *testing.T) {
 	mock := &MockGmailClient{}
 	cmd := newDraftCommand()

@@ -590,7 +590,7 @@ DRAFT_MSG_ID=$(./bin/gro mail draft --reply-to "$SRC_ID" --body "T21 reply" --pl
 | T22 | Reply-all | `./bin/gro mail draft --reply-to "$SRC_ID" --reply-all --body "T22 all" --plain --json` | Exit 0. Cc on the draft contains the source To+Cc minus `$ME`. Read-back JSON same threading checks as T21. |
 | T23 | Explicit subject override | `./bin/gro mail draft --reply-to "$SRC_ID" --subject "T23 custom" --body "x" --plain --json` | Exit 0. Draft subject is `T23 custom` (no `Re:` prefix). Threading headers still set. |
 | T24 | Explicit Cc override | `./bin/gro mail draft --reply-to "$SRC_ID" --cc "$ME" --body "T24 cc" --plain --json` | Exit 0. Draft Cc is exactly `$ME` (replaces, not merges with, derived Cc). |
-| T25 | No double Re: prefix | Reply to a message whose subject already starts with `Re:`. Read-back subject must be unchanged (no `Re: Re: `). | Exit 0. |
+| T25 | No double Re: prefix | First find a source message whose subject already starts with `Re:`: `RE_SRC=$(./bin/gro mail search "subject:Re:" --json \| jq -r '.[0].id')`. Then: `./bin/gro mail draft --reply-to "$RE_SRC" --body "T25" --plain --json` | Exit 0. Read-back subject is unchanged (no `Re: Re: ` doubling). |
 | T26 | Reply-all without reply-to | `./bin/gro mail draft --to "$ME" --subject "x" --body "y" --reply-all; echo "exit=$?"` | Non-zero exit. Error mentions `--reply-all requires --reply-to`. |
 
 ### Cleanup
