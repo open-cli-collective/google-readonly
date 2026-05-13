@@ -40,6 +40,16 @@ type DraftMessage struct {
 	Body        []byte
 	BodyKind    DraftBodyKind
 	Attachments []DraftAttachment
+
+	// ThreadID, when non-empty, threads the draft into an existing Gmail
+	// conversation via Draft.Message.ThreadId. Empty = new thread.
+	ThreadID string
+	// InReplyTo, when non-empty, is emitted as the RFC 5322 In-Reply-To
+	// header (typically the source message's Message-Id, brackets included).
+	InReplyTo string
+	// References, when non-empty, is emitted as the RFC 5322 References
+	// header (space-joined Message-Ids per §3.6.4).
+	References []string
 }
 
 // DraftAttachment is one attachment. Filename should be a basename; the gmail
@@ -68,7 +78,8 @@ func (c *Client) CreateDraft(ctx context.Context, msg DraftMessage) (*DraftResul
 
 	draft := &gmailapi.Draft{
 		Message: &gmailapi.Message{
-			Raw: base64.URLEncoding.EncodeToString(raw),
+			Raw:      base64.URLEncoding.EncodeToString(raw),
+			ThreadId: msg.ThreadID,
 		},
 	}
 	resp, err := c.service.Users.Drafts.Create(c.userID, draft).Context(ctx).Do()
@@ -108,6 +119,12 @@ func buildMIME(msg DraftMessage) ([]byte, error) {
 	}
 	if h := addressHeader("Bcc", msg.Bcc); h != "" {
 		buf.WriteString(h)
+	}
+	if msg.InReplyTo != "" {
+		fmt.Fprintf(&buf, "In-Reply-To: %s\r\n", msg.InReplyTo)
+	}
+	if len(msg.References) > 0 {
+		fmt.Fprintf(&buf, "References: %s\r\n", strings.Join(msg.References, " "))
 	}
 	fmt.Fprintf(&buf, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", msg.Subject))
 
@@ -200,6 +217,14 @@ func guardHeaderInjection(msg DraftMessage) error {
 	}
 	for _, att := range msg.Attachments {
 		if err := check("attachment filename", att.Filename); err != nil {
+			return err
+		}
+	}
+	if err := check("in-reply-to", msg.InReplyTo); err != nil {
+		return err
+	}
+	for _, r := range msg.References {
+		if err := check("references", r); err != nil {
 			return err
 		}
 	}

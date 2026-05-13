@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -485,4 +486,516 @@ func TestDetectMimeType(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- Reply mode tests (#114) ---
+
+// srcReply is a fully-populated synthetic source message for reply tests.
+func srcReply() *gmailapi.Message {
+	return &gmailapi.Message{
+		ID:           "msg-src",
+		ThreadID:     "thread-src",
+		From:         "Alice <alice@example.com>",
+		To:           "me@example.com, bob@example.com",
+		Cc:           "carol@example.com",
+		Subject:      "Project sync",
+		RFCMessageID: "<orig@example.com>",
+		References:   "<earlier@example.com>",
+	}
+}
+
+func TestDraftCommand_ReplyTo_DerivesAllDefaults(t *testing.T) {
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
+			return srcReply(), nil
+		},
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "thanks", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.Equal(t, seen.ThreadID, "thread-src")
+		testutil.Equal(t, seen.InReplyTo, "<orig@example.com>")
+		testutil.LenSlice(t, len(seen.References), 2)
+		testutil.Equal(t, seen.References[0], "<earlier@example.com>")
+		testutil.Equal(t, seen.References[1], "<orig@example.com>")
+		testutil.LenSlice(t, len(seen.To), 1)
+		testutil.Equal(t, seen.To[0], "alice@example.com")
+		testutil.LenSlice(t, len(seen.Cc), 0)
+		testutil.Equal(t, seen.Subject, "Re: Project sync")
+	})
+}
+
+func TestDraftCommand_ReplyTo_ExplicitOverrides(t *testing.T) {
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{
+		"--reply-to", "msg-src",
+		"--to", "override@x.com",
+		"--cc", "extra@x.com",
+		"--subject", "Custom subject",
+		"--body", "x", "--plain",
+	})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.LenSlice(t, len(seen.To), 1)
+		testutil.Equal(t, seen.To[0], "override@x.com")
+		testutil.LenSlice(t, len(seen.Cc), 1)
+		testutil.Equal(t, seen.Cc[0], "extra@x.com")
+		testutil.Equal(t, seen.Subject, "Custom subject")
+		// Headers and ThreadID still derived even when subject/to overridden.
+		testutil.Equal(t, seen.ThreadID, "thread-src")
+		testutil.Equal(t, seen.InReplyTo, "<orig@example.com>")
+	})
+}
+
+func TestDraftCommand_ReplyAll_AddsCc(t *testing.T) {
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) {
+			return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil
+		},
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		// Source To has me@example.com (filtered) + bob@example.com; Cc has carol@example.com.
+		testutil.LenSlice(t, len(seen.Cc), 2)
+		testutil.Equal(t, seen.Cc[0], "bob@example.com")
+		testutil.Equal(t, seen.Cc[1], "carol@example.com")
+	})
+}
+
+func TestDraftCommand_ReplyAll_FiltersFromAlias(t *testing.T) {
+	var seen gmailapi.DraftMessage
+	src := srcReply()
+	src.To = "alias@example.com, bob@example.com"
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) {
+			return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil
+		},
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--from", "alias@example.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		// Source To = alias + bob; source Cc = carol. alias filtered via --from.
+		// Pin the exact list so the test fails if filtering accidentally drops bob/carol too.
+		testutil.LenSlice(t, len(seen.Cc), 2)
+		testutil.Equal(t, seen.Cc[0], "bob@example.com")
+		testutil.Equal(t, seen.Cc[1], "carol@example.com")
+	})
+}
+
+func TestDraftCommand_ReplyTo_OverrideToWithMalformedSourceFrom(t *testing.T) {
+	// --to override means the source From is never parsed, so a malformed
+	// source From header must not fail the command.
+	var seen gmailapi.DraftMessage
+	src := srcReply()
+	src.From = "not-an-email"
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--to", "override@x.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.LenSlice(t, len(seen.To), 1)
+		testutil.Equal(t, seen.To[0], "override@x.com")
+		// Threading headers still derive (Message-Id is unaffected).
+		testutil.Equal(t, seen.InReplyTo, "<orig@example.com>")
+	})
+}
+
+func TestDraftCommand_ReplyAll_OverrideCcWithMalformedSourceToCc(t *testing.T) {
+	// --cc override means source To/Cc are never parsed, so malformed values must not fail.
+	var seen gmailapi.DraftMessage
+	src := srcReply()
+	src.To = "garbage @@@ not parseable"
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--cc", "explicit@x.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.LenSlice(t, len(seen.Cc), 1)
+		testutil.Equal(t, seen.Cc[0], "explicit@x.com")
+	})
+}
+
+func TestDraftCommand_EmptyReplyToIsAnError(t *testing.T) {
+	// --reply-to with an empty value (often an unexpanded shell variable)
+	// must fail explicitly rather than silently producing an unthreaded draft.
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
+			t.Fatal("GetMessage must not be called with empty --reply-to")
+			return nil, nil
+		},
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called with empty --reply-to")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "", "--to", "a@x.com", "--subject", "hi", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "--reply-to requires a non-empty message ID")
+	})
+}
+
+func TestDraftCommand_ReplyTo_EmptyToOverrideRejectedLocally(t *testing.T) {
+	// In reply mode, an explicit --to "" override must fail before any
+	// GetMessage call — it's a local user error.
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
+			t.Fatal("GetMessage must not be called when --to override is empty")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--to", "", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "--to must contain at least one address")
+	})
+}
+
+func TestDraftCommand_ReplyAll_ExplicitToOverride(t *testing.T) {
+	// --reply-all with explicit --to: To is user's value (needs.To=false), Cc is derived from source.
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) {
+			return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil
+		},
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--to", "different@x.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.LenSlice(t, len(seen.To), 1)
+		testutil.Equal(t, seen.To[0], "different@x.com")
+		// Cc still derived from source To+Cc minus me@example.com.
+		testutil.LenSlice(t, len(seen.Cc), 2)
+		testutil.Equal(t, seen.Cc[0], "bob@example.com")
+		testutil.Equal(t, seen.Cc[1], "carol@example.com")
+	})
+}
+
+func TestBuildReferences_DedupesTrailingMessageID(t *testing.T) {
+	// If the source's References header already ends with its own Message-Id
+	// (some MUAs do this), the chain shouldn't duplicate.
+	got := buildReferences("<a@x> <orig@x>", "<orig@x>")
+	if len(got) != 2 || got[0] != "<a@x>" || got[1] != "<orig@x>" {
+		t.Errorf("buildReferences dedup = %v, want [<a@x> <orig@x>]", got)
+	}
+}
+
+func TestDraftCommand_ReplyAll_RequiresReplyTo(t *testing.T) {
+	mock := &MockGmailClient{}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--to", "a@x.com", "--subject", "Hi", "--body", "x", "--reply-all"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "--reply-all")
+		testutil.Contains(t, err.Error(), "--reply-to")
+	})
+}
+
+func TestDraftCommand_Reply_NoDoublePrefix(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"Re: foo", "Re: foo"},
+		{"re: foo", "re: foo"},
+		{"RE: foo", "RE: foo"},
+		{"Aw: foo", "Re: Aw: foo"},
+		{"foo", "Re: foo"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			src := srcReply()
+			src.Subject = tc.in
+			var seen gmailapi.DraftMessage
+			mock := &MockGmailClient{
+				GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+				CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+					seen = msg
+					return &gmailapi.DraftResult{ID: "d1"}, nil
+				},
+			}
+			cmd := newDraftCommand()
+			cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+			withMockClient(mock, func() {
+				err := cmd.Execute()
+				testutil.NoError(t, err)
+				testutil.Equal(t, seen.Subject, tc.want)
+			})
+		})
+	}
+}
+
+func TestDraftCommand_ReplyTo_GetMessageFails(t *testing.T) {
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
+			return nil, fmt.Errorf("not found")
+		},
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called when GetMessage fails")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "fetching reply source")
+	})
+}
+
+func TestDraftCommand_ReplyTo_MissingFromHeader(t *testing.T) {
+	src := srcReply()
+	src.From = ""
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "no From header")
+	})
+}
+
+func TestDraftCommand_ReplyTo_MissingMessageID(t *testing.T) {
+	src := srcReply()
+	src.RFCMessageID = ""
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "no Message-Id header")
+	})
+}
+
+func TestDraftCommand_ReplyTo_MalformedFromHeader(t *testing.T) {
+	src := srcReply()
+	src.From = "not-an-email"
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "parsing source From header")
+	})
+}
+
+func TestDraftCommand_ReplyAll_MalformedToHeader(t *testing.T) {
+	src := srcReply()
+	src.To = "not a valid header @@@"
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) {
+			return &gmailapi.Profile{EmailAddress: "me@example.com"}, nil
+		},
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "parsing source To/Cc headers")
+	})
+}
+
+func TestDraftCommand_LocalValidationBeforeFetch(t *testing.T) {
+	// --body + --stdin is invalid locally; GetMessage must not be called.
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
+			t.Fatal("GetMessage must not be called when local validation fails")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--stdin"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "exactly one of")
+	})
+}
+
+func TestDraftCommand_ReplyAll_GetProfileFails(t *testing.T) {
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) {
+			return nil, fmt.Errorf("profile boom")
+		},
+		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			t.Fatal("CreateDraft must not be called when GetProfile fails for --reply-all")
+			return nil, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "fetching profile")
+	})
+}
+
+func TestDraftCommand_ReplyAll_EmptyProfileFallsBackToFrom(t *testing.T) {
+	// Profile returns empty EmailAddress; --from alias supplies the self set.
+	var seen gmailapi.DraftMessage
+	src := srcReply()
+	src.To = "alias@example.com, bob@example.com"
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		GetProfileFunc: func(_ context.Context) (*gmailapi.Profile, error) { return &gmailapi.Profile{}, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--reply-all", "--from", "alias@example.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		// alias filtered via --from only; carol@example.com from source Cc; bob remains.
+		testutil.LenSlice(t, len(seen.Cc), 2)
+		testutil.Equal(t, seen.Cc[0], "bob@example.com")
+		testutil.Equal(t, seen.Cc[1], "carol@example.com")
+	})
+}
+
+func TestDraftCommand_ReplyTo_FirstReplyEmptyReferences(t *testing.T) {
+	// First reply in a thread: source has no prior References — derived chain is just [Message-Id].
+	var seen gmailapi.DraftMessage
+	src := srcReply()
+	src.References = ""
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.LenSlice(t, len(seen.References), 1)
+		testutil.Equal(t, seen.References[0], "<orig@example.com>")
+	})
+}
+
+func TestDraftCommand_ReplyTo_WithAttachment(t *testing.T) {
+	// Reply mode + --attach must still propagate threading headers through the multipart path.
+	tmp := t.TempDir()
+	att := filepath.Join(tmp, "note.txt")
+	if err := os.WriteFile(att, []byte("attached"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReply(), nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain", "--attach", att})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.NoError(t, err)
+		testutil.Equal(t, seen.ThreadID, "thread-src")
+		testutil.Equal(t, seen.InReplyTo, "<orig@example.com>")
+		testutil.LenSlice(t, len(seen.Attachments), 1)
+	})
+}
+
+func TestDraftCommand_ReplyTo_RejectsHeaderInjection(t *testing.T) {
+	mock := &MockGmailClient{}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src\r\nBcc: evil@x.com", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		err := cmd.Execute()
+		testutil.Error(t, err)
+		testutil.Contains(t, err.Error(), "CR or LF")
+	})
 }

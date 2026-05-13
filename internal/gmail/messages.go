@@ -24,6 +24,17 @@ type Message struct {
 	Attachments []*Attachment `json:"attachments,omitempty"`
 	Labels      []string      `json:"labels,omitempty"`
 	Categories  []string      `json:"categories,omitempty"`
+	// Cc carries the raw "Cc" header value (comma-separated address list).
+	Cc string `json:"cc,omitempty"`
+	// RFCMessageID is the RFC 5322 Message-Id header, distinct from ID
+	// (Gmail's internal message id). Used by reply derivation to populate
+	// In-Reply-To and References on outgoing drafts.
+	RFCMessageID string `json:"rfcMessageId,omitempty"`
+	// References is the raw "References" header value (whitespace-separated
+	// chain of Message-Ids).
+	References string `json:"references,omitempty"`
+	// InReplyTo is the raw "In-Reply-To" header value.
+	InReplyTo string `json:"inReplyTo,omitempty"`
 }
 
 // Attachment represents metadata about an email attachment
@@ -172,6 +183,14 @@ func parseMessage(msg *gmail.Message, includeBody bool, resolver LabelResolver) 
 			m.To = header.Value
 		case "date":
 			m.Date = header.Value
+		case "cc":
+			m.Cc = header.Value
+		case "message-id":
+			m.RFCMessageID = header.Value
+		case "references":
+			m.References = header.Value
+		case "in-reply-to":
+			m.InReplyTo = header.Value
 		}
 	}
 

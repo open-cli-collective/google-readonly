@@ -565,6 +565,34 @@ Skip if no Gmail send-as alias is configured for the test user.
 | T19 | Valid alias | `./bin/gro mail draft --from <configured-alias> --to "$ME" --subject "T19 alias" --body "x" --plain` | Exit 0. Gmail Drafts shows the alias in From line. |
 | T20 | Unconfigured alias | `./bin/gro mail draft --from "not-my-alias@example.com" --to "$ME" --subject "T20 bad alias" --body "x" --plain; echo "exit=$?"` | Non-zero exit. API error surfaced verbatim from `creating draft: ...`. |
 
+### Reply-to-thread (`--reply-to` / `--reply-all`)
+
+**Setup additions:**
+```bash
+# Pick any existing message in your inbox as the source. The query can be
+# anything that resolves to a single recent message.
+SRC_ID=$(./bin/gro mail search "in:inbox" --json | jq -r '.[0].id')
+SRC_RFC=$(./bin/gro mail read "$SRC_ID" --json | jq -r '.rfcMessageId')
+SRC_THREAD=$(./bin/gro mail read "$SRC_ID" --json | jq -r '.threadId')
+echo "source: $SRC_ID / thread: $SRC_THREAD / rfc-id: $SRC_RFC"
+```
+
+For each happy-path scenario, capture the created draft's message ID and read it back to verify the wire-format headers:
+
+```bash
+DRAFT_MSG_ID=$(./bin/gro mail draft --reply-to "$SRC_ID" --body "T21 reply" --plain --json | jq -r '.messageId')
+./bin/gro mail read "$DRAFT_MSG_ID" --json | jq '{inReplyTo, references, threadId}'
+```
+
+| # | Test Case | Command | Expected Result |
+|---|-----------|---------|-----------------|
+| T21 | Simple reply | `./bin/gro mail draft --reply-to "$SRC_ID" --body "T21 reply" --plain --json` | Exit 0. Read-back JSON shows `threadId == $SRC_THREAD`, `inReplyTo == $SRC_RFC`, `references` ends with `$SRC_RFC`, subject prefixed `Re: `. Gmail UI shows the draft grouped under the original conversation. |
+| T22 | Reply-all | `./bin/gro mail draft --reply-to "$SRC_ID" --reply-all --body "T22 all" --plain --json` | Exit 0. Cc on the draft contains the source To+Cc minus `$ME`. Read-back JSON same threading checks as T21. |
+| T23 | Explicit subject override | `./bin/gro mail draft --reply-to "$SRC_ID" --subject "T23 custom" --body "x" --plain --json` | Exit 0. Draft subject is `T23 custom` (no `Re:` prefix). Threading headers still set. |
+| T24 | Explicit Cc override | `./bin/gro mail draft --reply-to "$SRC_ID" --cc "$ME" --body "T24 cc" --plain --json` | Exit 0. Draft Cc is exactly `$ME` (replaces, not merges with, derived Cc). |
+| T25 | No double Re: prefix | First find a source message whose subject already starts with `Re:`: `RE_SRC=$(./bin/gro mail search "subject:Re:" --json \| jq -r '.[0].id')`. Then: `./bin/gro mail draft --reply-to "$RE_SRC" --body "T25" --plain --json` | Exit 0. Read-back subject is unchanged (no `Re: Re: ` doubling). |
+| T26 | Reply-all without reply-to | `./bin/gro mail draft --to "$ME" --subject "x" --body "y" --reply-all; echo "exit=$?"` | Non-zero exit. Error mentions `--reply-all requires --reply-to`. |
+
 ### Cleanup
 
 ```bash
