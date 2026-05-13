@@ -455,6 +455,126 @@ gro mail thread "$THREAD_ID" --json | jq -r '.[].body'
 
 ---
 
+## Draft Composition (`gro mail draft`)
+
+These scenarios exercise the full path: flag parsing → MIME assembly → Gmail API `users.drafts.create` → draft visible in Gmail Drafts UI. Each test creates a draft addressed to the authenticated user; verification is by visual inspection in Gmail and by inspecting CLI stdout/exit code.
+
+**Setup:**
+```bash
+make build
+ME="you@example.com"   # set to the authenticated Google account
+echo "user under test: $ME"
+```
+
+**Cleanup (after running):** Open Gmail → Drafts → select all `T*` drafts → Discard.
+
+### Happy Paths
+
+| # | Test Case | Command | Expected Result |
+|---|-----------|---------|-----------------|
+| T1 | Plain text body | `./bin/gro mail draft --to "$ME" --subject "T1 plain" --body "hello from gro" --plain` | Exit 0. Stdout: `Draft created: r-...`. Gmail Drafts shows plain-text body, no HTML conversion. |
+| T2 | Markdown rendered to HTML (default) | See setup block below for T2 (the markdown table in the body needs a real heredoc, not inline bash quoting). | Gmail Drafts shows real H1 heading, bold/italic text, bullet list, and 2-column table — rendered, not raw markdown. |
+| T3 | Raw HTML body | `./bin/gro mail draft --to "$ME" --subject "T3 html" --body '<h1 style="color:tomato">Tomato</h1><p>Inline <span style="background:yellow">highlight</span>.</p>' --html` | Gmail Drafts shows tomato-colored heading and yellow highlight. Confirms raw HTML is not double-processed. |
+| T4 | Body from stdin (agentic flow) | `echo $'## Status\n\n- [x] done\n- [ ] todo' \| ./bin/gro mail draft --to "$ME" --subject "T4 stdin" --stdin` | Gmail Drafts shows H2 + task list with checkboxes (TaskList extension). |
+| T5 | Body from file | (see T5 setup below) | Gmail Drafts renders headings + strikethrough + numbered list. |
+| T6 | Multiple recipients (To/Cc/Bcc) | `./bin/gro mail draft --to "$ME, ${ME%@*}+to2@${ME#*@}" --cc "${ME%@*}+cc@${ME#*@}" --bcc "${ME%@*}+bcc@${ME#*@}" --subject "T6 recipients" --body "x" --plain` | Gmail Drafts shows all four addresses populated. Plus-addressing routes to same inbox but Gmail records them distinctly. |
+| T7 | Single attachment | (see T7 setup below) | Stdout: `Attachments: 1`, `- gro-t7.txt`. Gmail Drafts has paperclip; attachment downloadable with original content. |
+| T8 | Multiple attachments, mixed types | (see T8 setup below) | Stdout: `Attachments: 2`. Gmail previews CSV inline; both files downloadable. |
+| T9 | Basename only — no path leak | (see T9 setup below) | Attachment shown as `quarterly.txt` (not `/tmp/gro-secret-dir/quarterly.txt`). |
+| T10 | Empty subject explicitly allowed | `./bin/gro mail draft --to "$ME" --subject "" --body "T10" --plain` | Exit 0. Gmail Drafts shows `(no subject)`. |
+| T11 | JSON output | `./bin/gro mail draft --to "$ME" --subject "T11 json" --body "x" --plain --json \| jq .` | Stdout is valid JSON with `id`, `messageId`, `threadId`. `jq` exits 0. |
+
+### Setup blocks
+
+**T2:**
+```bash
+cat > /tmp/gro-t2.md <<'EOF'
+# Heading
+
+**bold** and _italic_
+
+- one
+- two
+- three
+
+| col1 | col2 |
+|------|------|
+| a    | b    |
+| c    | d    |
+EOF
+./bin/gro mail draft --to "$ME" --subject "T2 markdown" --file /tmp/gro-t2.md
+```
+
+**T5:**
+```bash
+cat > /tmp/gro-t5.md <<'EOF'
+# Weekly report
+
+## Highlights
+
+- Shipped `gro mail draft` (#112)
+- ~~Cancelled~~ rescheduled the migration
+
+## Next week
+
+1. Roll out to prod
+2. Monitor
+3. Iterate
+EOF
+./bin/gro mail draft --to "$ME" --subject "T5 file body" --file /tmp/gro-t5.md
+```
+
+**T7:**
+```bash
+echo "T7 attachment content" > /tmp/gro-t7.txt
+./bin/gro mail draft --to "$ME" --subject "T7 single attachment" --body "see attached" --plain --attach /tmp/gro-t7.txt
+```
+
+**T8:**
+```bash
+printf 'a,b,c\n1,2,3\n4,5,6\n' > /tmp/gro-t8.csv
+printf '{"key":"value","nested":{"a":1}}' > /tmp/gro-t8.json
+./bin/gro mail draft --to "$ME" --subject "T8 multi attachments" --body "csv + json" --plain --attach /tmp/gro-t8.csv --attach /tmp/gro-t8.json
+```
+
+**T9:**
+```bash
+mkdir -p /tmp/gro-secret-dir
+echo "report contents" > /tmp/gro-secret-dir/quarterly.txt
+./bin/gro mail draft --to "$ME" --subject "T9 path leak check" --body "attachment name should be 'quarterly.txt' only" --plain --attach /tmp/gro-secret-dir/quarterly.txt
+```
+
+### Validation / Safety
+
+| # | Test Case | Command | Expected Result |
+|---|-----------|---------|-----------------|
+| T12 | Missing `--to` rejected before API call | `./bin/gro mail draft --subject "T12" --body "x" --plain; echo "exit=$?"` | Non-zero exit. Error mentions `--to is required`. No draft in Gmail. |
+| T13 | Missing `--subject` rejected | `./bin/gro mail draft --to "$ME" --body "x" --plain; echo "exit=$?"` | Non-zero exit. Error mentions `--subject is required`. |
+| T14 | Two body sources rejected | `./bin/gro mail draft --to "$ME" --subject "T14" --body "x" --stdin; echo "exit=$?"` | Non-zero exit. Error mentions `exactly one of`. |
+| T15 | `--plain` + `--html` rejected | `./bin/gro mail draft --to "$ME" --subject "T15" --body "x" --plain --html; echo "exit=$?"` | Non-zero exit. Error mentions `mutually exclusive`. |
+| T16 | Invalid email in `--to` | `./bin/gro mail draft --to "not-an-email" --subject "T16" --body "x" --plain; echo "exit=$?"` | Non-zero exit. Error mentions `--to`. |
+| T17 | CR/LF header injection rejected | `./bin/gro mail draft --to "$ME" --subject $'T17\r\nBcc: evil@x.com' --body "x" --plain; echo "exit=$?"` | Non-zero exit. Error mentions CR or LF. No draft created. |
+| T18 | Missing attachment file rejected | `./bin/gro mail draft --to "$ME" --subject "T18" --body "x" --plain --attach /nope/does/not/exist; echo "exit=$?"` | Non-zero exit before API call. Error mentions the missing path. No draft in Gmail. |
+
+### Optional: send-as alias (`--from`)
+
+Skip if no Gmail send-as alias is configured for the test user.
+
+| # | Test Case | Command | Expected Result |
+|---|-----------|---------|-----------------|
+| T19 | Valid alias | `./bin/gro mail draft --from <configured-alias> --to "$ME" --subject "T19 alias" --body "x" --plain` | Exit 0. Gmail Drafts shows the alias in From line. |
+| T20 | Unconfigured alias | `./bin/gro mail draft --from "not-my-alias@example.com" --to "$ME" --subject "T20 bad alias" --body "x" --plain; echo "exit=$?"` | Non-zero exit. API error surfaced verbatim from `creating draft: ...`. |
+
+### Cleanup
+
+```bash
+rm -f /tmp/gro-t2.md /tmp/gro-t5.md /tmp/gro-t7.txt /tmp/gro-t8.csv /tmp/gro-t8.json
+rm -rf /tmp/gro-secret-dir
+# Gmail UI: Drafts → select T* drafts → Discard
+```
+
+---
+
 ## Adding New Tests
 
 When adding new features or fixing bugs:

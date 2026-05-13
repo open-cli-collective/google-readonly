@@ -26,6 +26,7 @@ type MailClient interface {
 	DownloadAttachment(ctx context.Context, messageID string, attachmentID string) ([]byte, error)
 	DownloadInlineAttachment(ctx context.Context, messageID string, partID string) ([]byte, error)
 	GetProfile(ctx context.Context) (*gmail.Profile, error)
+	CreateDraft(ctx context.Context, msg gmail.DraftMessage) (*gmail.DraftResult, error)
 }
 
 // ClientFactory is the function used to create Gmail clients.

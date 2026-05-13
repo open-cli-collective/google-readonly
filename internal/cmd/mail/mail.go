@@ -18,6 +18,7 @@ This command group provides Gmail functionality:
 - thread: Read a full conversation thread
 - labels: List all labels
 - attachments: List and download attachments
+- draft: Compose a draft (never sent automatically)
 
 Organizational operations (non-destructive):
 - archive: Remove messages from inbox
@@ -49,6 +50,7 @@ Examples:
 	cmd.AddCommand(newLabelCommand())
 	cmd.AddCommand(newUnlabelCommand())
 	cmd.AddCommand(newCategorizeCommand())
+	cmd.AddCommand(newDraftCommand())
 
 	return cmd
 }
