@@ -3,6 +3,7 @@ package mail
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"io"
 	"mime"
 	"net/mail"
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	xhtml "golang.org/x/net/html"
 
 	gmailapi "github.com/open-cli-collective/google-readonly/internal/gmail"
 )
@@ -33,6 +35,7 @@ func newDraftCommand() *cobra.Command {
 		jsonOut  bool
 		replyTo  string
 		replyAll bool
+		noQuote  bool
 	)
 
 	cmd := &cobra.Command{
@@ -45,7 +48,10 @@ The CLI never calls drafts.send — sending requires explicit action in Gmail.
 
 Body input is markdown by default and rendered to HTML. Use --plain for plain
 text, --html to send raw HTML verbatim. Body source is one of --body, --stdin,
-or --file.
+or --file (optional when replying — a bare reply is just the quote).
+
+In reply mode the source message is quoted below your text, like Gmail's web
+UI. Use --no-quote to reply without quoting.
 
 Examples:
   gro mail draft --to alice@example.com --subject "Hi" --body "**hello**"
@@ -54,6 +60,8 @@ Examples:
   gro mail draft --to a@x.com --subject "Plain" --body "no md" --plain
   gro mail draft --to a@x.com --subject "Report" --body "see attached" --attach report.pdf
   gro mail draft --reply-to <message-id> --body "thanks, will review"
+  gro mail draft --reply-to <message-id>            # quote-only reply
+  gro mail draft --reply-to <message-id> --no-quote --body "ack"
   gro mail draft --reply-to <message-id> --reply-all --body "..."`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// --reply-to with an empty value is a user error (often a shell
@@ -68,6 +76,9 @@ Examples:
 			//    derived from the source message and only required if not derivable.
 			if replyAll && !isReply {
 				return fmt.Errorf("--reply-all requires --reply-to")
+			}
+			if noQuote && !isReply {
+				return fmt.Errorf("--no-quote requires --reply-to")
 			}
 			if !isReply {
 				if !cmd.Flags().Changed("to") {
@@ -125,7 +136,10 @@ Examples:
 				return fmt.Errorf("--to must contain at least one address")
 			}
 
-			// 4. Body source: exactly one of --body, --stdin, --file.
+			// 4. Body source: at most one of --body, --stdin, --file.
+			//    Non-reply mode requires exactly one. Reply mode allows zero
+			//    (an empty authored body — the reply is then just the quote,
+			//    matching Gmail's "reply with no typed text" behavior).
 			bodySources := 0
 			if cmd.Flags().Changed("body") {
 				bodySources++
@@ -136,7 +150,10 @@ Examples:
 			if cmd.Flags().Changed("file") {
 				bodySources++
 			}
-			if bodySources != 1 {
+			if bodySources > 1 {
+				return fmt.Errorf("at most one of --body, --stdin, or --file may be used")
+			}
+			if bodySources == 0 && !isReply {
 				return fmt.Errorf("exactly one of --body, --stdin, or --file is required")
 			}
 
@@ -208,7 +225,7 @@ Examples:
 				references []string
 			)
 			if isReply {
-				src, err := client.GetMessage(cmd.Context(), replyTo, false)
+				src, err := client.GetMessage(cmd.Context(), replyTo, !noQuote)
 				if err != nil {
 					return fmt.Errorf("fetching reply source %s: %w", replyTo, err)
 				}
@@ -245,6 +262,27 @@ Examples:
 				}
 				if needs.Subject {
 					subject = derived.Subject
+				}
+
+				// Quote the source body (default; suppressed by --no-quote).
+				// Skip entirely if the source has no body part. The leading
+				// separator is omitted when there is no authored body, so a
+				// bare reply is exactly the quote block.
+				if !noQuote && src.Body != "" {
+					attrib := replyAttribution(src)
+					if kind == gmailapi.DraftBodyHTML {
+						sep := ""
+						if len(outBody) > 0 {
+							sep = "\n"
+						}
+						outBody = append(outBody, []byte(sep+quoteHTML(attrib, src.Body, src.BodyIsHTML))...)
+					} else {
+						sep := ""
+						if len(outBody) > 0 {
+							sep = "\n\n"
+						}
+						outBody = append(outBody, []byte(sep+attrib+"\n\n"+quotePlain(src.Body))...)
+					}
 				}
 			}
 
@@ -310,6 +348,7 @@ Examples:
 	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "Output result as JSON")
 	cmd.Flags().StringVar(&replyTo, "reply-to", "", "Source Gmail message ID to reply to (derives To/Subject/threading)")
 	cmd.Flags().BoolVar(&replyAll, "reply-all", false, "Include the source To/Cc as Cc on the reply (requires --reply-to)")
+	cmd.Flags().BoolVar(&noQuote, "no-quote", false, "Reply without quoting the source message (requires --reply-to)")
 
 	return cmd
 }
@@ -429,6 +468,118 @@ func addRePrefix(subject string) string {
 		return subject
 	}
 	return "Re: " + subject
+}
+
+// normalizeLF collapses CRLF and lone CR to LF. Real email text/plain and
+// text/html parts decode as CRLF; quoting must not leak stray CRs into the
+// draft body (a "> \r" plain marker, or "\r<br>" in HTML).
+func normalizeLF(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.ReplaceAll(s, "\r", "\n")
+}
+
+// replyAttribution builds the Gmail-style "On <date> <from> wrote:" line that
+// precedes a quoted reply. The date is rendered in the source message's own
+// timezone (the offset parsed from its Date header) — never converted to UTC
+// or local — and uses a fixed en-US layout. This is deliberately not localized:
+// Gmail's quote-collapse is driven by the gmail_quote markup, not this text,
+// and the CLI has no reliable recipient-locale source. On a Date parse failure
+// the raw header value is echoed. The returned string is unescaped; the HTML
+// branch escapes it before embedding.
+func replyAttribution(src *gmailapi.Message) string {
+	when := src.Date
+	if t, err := mail.ParseDate(src.Date); err == nil {
+		when = t.Format("Mon, Jan 2, 2006 at 3:04 PM")
+	}
+	return fmt.Sprintf("On %s %s wrote:", when, src.From)
+}
+
+// quotePlain prefixes each line of body for a plain-text reply: a non-empty
+// line becomes "> " + line; an empty line becomes ">" (no trailing space, so
+// the output is Gmail-faithful and free of trailing whitespace). Input is
+// normalized to LF first so a CRLF blank line yields ">" not "> \r".
+func quotePlain(body string) string {
+	lines := strings.Split(normalizeLF(body), "\n")
+	for i, ln := range lines {
+		if ln == "" {
+			lines[i] = ">"
+		} else {
+			lines[i] = "> " + ln
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// quoteHTML wraps the attribution and source body in Gmail's own quote markup
+// so the Gmail web UI collapses it behind the "…" affordance when the draft is
+// opened.
+//
+// The attribution is always HTML-escaped: it carries the raw From header
+// (display name + "<addr>") and a crafted display name must not inject markup.
+//
+// The body is treated per its source kind, matching what Gmail itself does on
+// reply: an HTML source (bodyIsHTML) is nested as-is so it renders normally;
+// a plain-text source is escaped with newlines converted to <br>. This is the
+// difference between a readable quote and a wall of visible tags for the many
+// senders (alerts, marketing, SaaS notifications) that are HTML-only.
+func quoteHTML(attrib, body string, bodyIsHTML bool) string {
+	quoted := normalizeLF(body)
+	if bodyIsHTML {
+		quoted = htmlBodyFragment(quoted)
+	} else {
+		quoted = strings.ReplaceAll(html.EscapeString(quoted), "\n", "<br>\n")
+	}
+	return fmt.Sprintf(
+		"<div class=\"gmail_quote\">%s<br>\n"+
+			"<blockquote class=\"gmail_quote\" style=\"margin:0 0 0 .8ex;border-left:1px solid #ccc;padding-left:1ex\">\n"+
+			"%s\n"+
+			"</blockquote></div>",
+		html.EscapeString(attrib), quoted,
+	)
+}
+
+// htmlBodyFragment reduces a source HTML body to a balanced fragment suitable
+// for nesting inside the gmail_quote blockquote. It parses the HTML and
+// re-serializes the <body> children (or the whole tree if there is no body),
+// which: (1) drops the DOCTYPE/<html>/<head> so we don't nest a full document
+// inside a blockquote, and (2) makes container breakout impossible — stray
+// "</blockquote></div>" in the source cannot escape our wrapper because we
+// emit a re-serialized parse tree, not the raw bytes. Active content
+// (script/handlers) is intentionally left for Gmail's render-time sanitizer,
+// exactly as when the original message was read. On a parse failure the body
+// is escaped, degrading safely to the plain-source treatment.
+func htmlBodyFragment(s string) string {
+	doc, err := xhtml.Parse(strings.NewReader(s))
+	if err != nil {
+		return strings.ReplaceAll(html.EscapeString(s), "\n", "<br>\n")
+	}
+	var body *xhtml.Node
+	var find func(*xhtml.Node)
+	find = func(n *xhtml.Node) {
+		if body != nil {
+			return
+		}
+		if n.Type == xhtml.ElementNode && n.Data == "body" {
+			body = n
+			return
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			find(c)
+		}
+	}
+	find(doc)
+	var buf bytes.Buffer
+	render := func(n *xhtml.Node) {
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			_ = xhtml.Render(&buf, c)
+		}
+	}
+	if body != nil {
+		render(body)
+	} else {
+		render(doc)
+	}
+	return buf.String()
 }
 
 // parseAddressList parses a comma-separated address list. An empty input is OK

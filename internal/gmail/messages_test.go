@@ -322,6 +322,45 @@ func TestExtractBody(t *testing.T) {
 	})
 }
 
+func TestExtractBodyWithKind(t *testing.T) {
+	t.Parallel()
+
+	t.Run("plain part: isHTML false", func(t *testing.T) {
+		t.Parallel()
+		payload := &gmail.MessagePart{
+			MimeType: "multipart/alternative",
+			Parts: []*gmail.MessagePart{
+				{MimeType: "text/plain", Body: &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte("hi"))}},
+				{MimeType: "text/html", Body: &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte("<p>hi</p>"))}},
+			},
+		}
+		body, isHTML := extractBodyWithKind(payload)
+		if body != "hi" || isHTML {
+			t.Errorf("got (%q, %v), want (\"hi\", false)", body, isHTML)
+		}
+	})
+
+	t.Run("html-only part: isHTML true", func(t *testing.T) {
+		t.Parallel()
+		payload := &gmail.MessagePart{
+			MimeType: "text/html",
+			Body:     &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte("<p>only</p>"))},
+		}
+		body, isHTML := extractBodyWithKind(payload)
+		if body != "<p>only</p>" || !isHTML {
+			t.Errorf("got (%q, %v), want (\"<p>only</p>\", true)", body, isHTML)
+		}
+	})
+
+	t.Run("no body: isHTML false", func(t *testing.T) {
+		t.Parallel()
+		body, isHTML := extractBodyWithKind(&gmail.MessagePart{MimeType: "text/plain"})
+		if body != "" || isHTML {
+			t.Errorf("got (%q, %v), want (\"\", false)", body, isHTML)
+		}
+	})
+}
+
 func TestMessageStruct(t *testing.T) {
 	t.Parallel()
 	t.Run("message struct has all fields", func(t *testing.T) {
@@ -387,6 +426,29 @@ func TestParseMessageWithBody(t *testing.T) {
 		result := parseMessage(msg, true, nil)
 		if result.Body != bodyText {
 			t.Errorf("got %v, want %v", result.Body, bodyText)
+		}
+		if result.BodyIsHTML {
+			t.Errorf("plain payload: BodyIsHTML = true, want false")
+		}
+	})
+
+	t.Run("html-only payload sets Body and BodyIsHTML", func(t *testing.T) {
+		t.Parallel()
+		htmlContent := "<p>HTML only body</p>"
+		msg := &gmail.Message{
+			Id: "msg-html",
+			Payload: &gmail.MessagePart{
+				MimeType: "text/html",
+				Headers:  []*gmail.MessagePartHeader{{Name: "Subject", Value: "Test"}},
+				Body:     &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte(htmlContent))},
+			},
+		}
+		result := parseMessage(msg, true, nil)
+		if result.Body != htmlContent {
+			t.Errorf("Body = %q, want %q", result.Body, htmlContent)
+		}
+		if !result.BodyIsHTML {
+			t.Errorf("html-only payload: BodyIsHTML = false, want true")
 		}
 	})
 

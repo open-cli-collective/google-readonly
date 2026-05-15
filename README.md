@@ -293,6 +293,8 @@ gro mail draft --from work@me.com --to a@x.com --subject "Hi" --body "..."
 
 # Reply to an existing message (preserves thread, adds In-Reply-To / References)
 gro mail draft --reply-to <message-id> --body "thanks, will review"
+gro mail draft --reply-to <message-id>                       # quote-only reply (no typed text)
+gro mail draft --reply-to <message-id> --no-quote --body "ack"
 gro mail draft --reply-to <message-id> --reply-all --body "looping everyone in"
 gro mail draft --reply-to <message-id> --subject "Re: customised" --body "..."
 ```
@@ -300,6 +302,8 @@ gro mail draft --reply-to <message-id> --subject "Re: customised" --body "..."
 Drafts always land in your Gmail Drafts folder for human review. The CLI never calls `drafts.send` — sending requires explicit action in Gmail.
 
 With `--reply-to`, `--to` and `--subject` are derived from the source message (To = original From; Subject = `Re: <original>`, no double prefix). Explicit `--to` / `--cc` / `--subject` flags override the derived values. `--reply-all` adds the original To and Cc as Cc on the reply, filtered to remove your own address (and any `--from` alias).
+
+By default a reply quotes the source message below your text, like Gmail's web UI: an `On <date> <sender> wrote:` line followed by the original body (`> ` line prefixes for plain replies; a collapsible `gmail_quote` block for HTML/markdown replies, which Gmail's UI hides behind its “…” toggle). A body source is optional when replying — a bare `--reply-to` yields a quote-only draft. Use `--no-quote` to reply without quoting (with no body source the draft is left blank). Source bodies are quoted the way Gmail itself does on reply: a plain-text source is escaped and shown with `> ` / `<br>`, while an HTML source (common for alert/marketing/SaaS senders that ship no plain-text part) is nested as HTML so it renders normally rather than appearing as escaped tags. The attribution line is always HTML-escaped.
 
 ### Calendar Commands
 
@@ -744,13 +748,14 @@ Flags:
   -j, --json              Output result as JSON
       --reply-to string   Source Gmail message ID to reply to (derives To/Subject/threading)
       --reply-all         Include the source To/Cc as Cc on the reply (requires --reply-to)
+      --no-quote          Reply without quoting the source message (requires --reply-to)
 ```
 
-`--body`, `--stdin`, and `--file` are mutually exclusive (exactly one required). `--plain` and `--html` are mutually exclusive.
+`--body`, `--stdin`, and `--file` are mutually exclusive; exactly one is required, except in reply mode where all three are optional (a bare reply is just the quote). `--plain` and `--html` are mutually exclusive.
 
 Display names in `--to`/`--cc`/`--bcc` (e.g., `Alice <alice@example.com>`) are stripped; only the email address is sent. Edit the draft in Gmail to set display names.
 
-With `--reply-to`, the draft is threaded onto the source conversation (`In-Reply-To` and `References` headers are set; `Draft.Message.ThreadId` is set to the source thread). `--to` and `--subject` are derived from the source (To = original From; Subject = `Re: <original>` with no double prefix). Explicit `--to`/`--cc`/`--subject` flags override the derived values. `--reply-all` populates Cc with the source To+Cc minus your authenticated account and any `--from` alias.
+With `--reply-to`, the draft is threaded onto the source conversation (`In-Reply-To` and `References` headers are set; `Draft.Message.ThreadId` is set to the source thread). `--to` and `--subject` are derived from the source (To = original From; Subject = `Re: <original>` with no double prefix). Explicit `--to`/`--cc`/`--subject` flags override the derived values. `--reply-all` populates Cc with the source To+Cc minus your authenticated account and any `--from` alias. The source message is quoted below your text by default (Gmail-style `On <date> <sender> wrote:` attribution; `gmail_quote` markup on HTML replies so Gmail collapses it natively); `--no-quote` suppresses the quote.
 
 ### gro calendar list
 
