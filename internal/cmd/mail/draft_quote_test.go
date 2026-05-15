@@ -102,6 +102,36 @@ func TestDraftCommand_Reply_QuotesHTMLCRLFSourceBody(t *testing.T) {
 	})
 }
 
+// An HTML-only source (no text/plain alternative) must be nested as HTML,
+// like Gmail's own reply — not escaped into a wall of visible tags. The
+// attribution stays escaped regardless.
+func TestDraftCommand_Reply_HTMLSourceNestedUnescaped(t *testing.T) {
+	src := srcReplyWithBody()
+	src.Body = "<!DOCTYPE html><html><body><p>Hello <b>world</b></p></body></html>"
+	src.BodyIsHTML = true
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "ack"})
+	withMockClient(mock, func() {
+		testutil.NoError(t, cmd.Execute())
+		body := string(seen.Body)
+		// Source HTML embedded verbatim (renders normally in Gmail).
+		testutil.Contains(t, body, "<!DOCTYPE html><html><body><p>Hello <b>world</b></p></body></html>")
+		testutil.NotContains(t, body, "&lt;!DOCTYPE")
+		testutil.NotContains(t, body, "&lt;p&gt;")
+		// Still wrapped for collapse, and attribution still escaped.
+		testutil.Contains(t, body, `<blockquote class="gmail_quote"`)
+		testutil.Contains(t, body, "Alice &lt;alice@example.com&gt; wrote:")
+	})
+}
+
 // The HTML quote branch also fires for raw --html replies, not just markdown.
 func TestDraftCommand_Reply_RawHTMLBodyStillQuotes(t *testing.T) {
 	var seen gmailapi.DraftMessage

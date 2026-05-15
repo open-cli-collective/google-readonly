@@ -274,7 +274,7 @@ Examples:
 						if len(outBody) > 0 {
 							sep = "\n"
 						}
-						outBody = append(outBody, []byte(sep+quoteHTML(attrib, src.Body))...)
+						outBody = append(outBody, []byte(sep+quoteHTML(attrib, src.Body, src.BodyIsHTML))...)
 					} else {
 						sep := ""
 						if len(outBody) > 0 {
@@ -511,18 +511,27 @@ func quotePlain(body string) string {
 
 // quoteHTML wraps the attribution and source body in Gmail's own quote markup
 // so the Gmail web UI collapses it behind the "…" affordance when the draft is
-// opened. Both the attribution and the body are HTML-escaped: src.From carries
-// a raw "<addr>" and a crafted display name must not inject markup. A source
-// that is HTML-only (no plain-text alternative) is therefore shown as escaped
-// tags — an accepted limitation that avoids an HTML-to-text dependency.
-func quoteHTML(attrib, body string) string {
-	escBody := strings.ReplaceAll(html.EscapeString(normalizeLF(body)), "\n", "<br>\n")
+// opened.
+//
+// The attribution is always HTML-escaped: it carries the raw From header
+// (display name + "<addr>") and a crafted display name must not inject markup.
+//
+// The body is treated per its source kind, matching what Gmail itself does on
+// reply: an HTML source (bodyIsHTML) is nested as-is so it renders normally;
+// a plain-text source is escaped with newlines converted to <br>. This is the
+// difference between a readable quote and a wall of visible tags for the many
+// senders (alerts, marketing, SaaS notifications) that are HTML-only.
+func quoteHTML(attrib, body string, bodyIsHTML bool) string {
+	quoted := normalizeLF(body)
+	if !bodyIsHTML {
+		quoted = strings.ReplaceAll(html.EscapeString(quoted), "\n", "<br>\n")
+	}
 	return fmt.Sprintf(
 		"<div class=\"gmail_quote\">%s<br>\n"+
 			"<blockquote class=\"gmail_quote\" style=\"margin:0 0 0 .8ex;border-left:1px solid #ccc;padding-left:1ex\">\n"+
 			"%s\n"+
 			"</blockquote></div>",
-		html.EscapeString(attrib), escBody,
+		html.EscapeString(attrib), quoted,
 	)
 }
 

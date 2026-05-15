@@ -322,6 +322,45 @@ func TestExtractBody(t *testing.T) {
 	})
 }
 
+func TestExtractBodyWithKind(t *testing.T) {
+	t.Parallel()
+
+	t.Run("plain part: isHTML false", func(t *testing.T) {
+		t.Parallel()
+		payload := &gmail.MessagePart{
+			MimeType: "multipart/alternative",
+			Parts: []*gmail.MessagePart{
+				{MimeType: "text/plain", Body: &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte("hi"))}},
+				{MimeType: "text/html", Body: &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte("<p>hi</p>"))}},
+			},
+		}
+		body, isHTML := extractBodyWithKind(payload)
+		if body != "hi" || isHTML {
+			t.Errorf("got (%q, %v), want (\"hi\", false)", body, isHTML)
+		}
+	})
+
+	t.Run("html-only part: isHTML true", func(t *testing.T) {
+		t.Parallel()
+		payload := &gmail.MessagePart{
+			MimeType: "text/html",
+			Body:     &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte("<p>only</p>"))},
+		}
+		body, isHTML := extractBodyWithKind(payload)
+		if body != "<p>only</p>" || !isHTML {
+			t.Errorf("got (%q, %v), want (\"<p>only</p>\", true)", body, isHTML)
+		}
+	})
+
+	t.Run("no body: isHTML false", func(t *testing.T) {
+		t.Parallel()
+		body, isHTML := extractBodyWithKind(&gmail.MessagePart{MimeType: "text/plain"})
+		if body != "" || isHTML {
+			t.Errorf("got (%q, %v), want (\"\", false)", body, isHTML)
+		}
+	})
+}
+
 func TestMessageStruct(t *testing.T) {
 	t.Parallel()
 	t.Run("message struct has all fields", func(t *testing.T) {

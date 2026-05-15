@@ -13,14 +13,18 @@ import (
 
 // Message represents a simplified email message
 type Message struct {
-	ID          string        `json:"id"`
-	ThreadID    string        `json:"threadId"`
-	Subject     string        `json:"subject"`
-	From        string        `json:"from"`
-	To          string        `json:"to"`
-	Date        string        `json:"date"`
-	Snippet     string        `json:"snippet"`
-	Body        string        `json:"body,omitempty"`
+	ID       string `json:"id"`
+	ThreadID string `json:"threadId"`
+	Subject  string `json:"subject"`
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Date     string `json:"date"`
+	Snippet  string `json:"snippet"`
+	Body     string `json:"body,omitempty"`
+	// BodyIsHTML reports that Body came from the message's text/html part
+	// (no text/plain alternative). Reply quoting nests HTML sources as HTML
+	// rather than escaping them.
+	BodyIsHTML  bool          `json:"bodyIsHtml,omitempty"`
 	Attachments []*Attachment `json:"attachments,omitempty"`
 	Labels      []string      `json:"labels,omitempty"`
 	Categories  []string      `json:"categories,omitempty"`
@@ -195,7 +199,7 @@ func parseMessage(msg *gmail.Message, includeBody bool, resolver LabelResolver) 
 	}
 
 	if includeBody {
-		m.Body = extractBody(msg.Payload)
+		m.Body, m.BodyIsHTML = extractBodyWithKind(msg.Payload)
 		m.Attachments = extractAttachments(msg.Payload, "")
 	}
 
@@ -302,13 +306,22 @@ func isInlineAttachment(part *gmail.MessagePart) bool {
 }
 
 func extractBody(payload *gmail.MessagePart) string {
-	// Try plain text first, then fall back to HTML
-	for _, mimeType := range []string{"text/plain", "text/html"} {
-		if body := findBodyByMimeType(payload, mimeType); body != "" {
-			return body
-		}
+	body, _ := extractBodyWithKind(payload)
+	return body
+}
+
+// extractBodyWithKind returns the body and whether it came from the text/html
+// part. text/plain is preferred; text/html is the fallback. The bool lets the
+// reply-quoting layer nest an HTML source as HTML (Gmail parity) instead of
+// escaping it into a wall of visible tags.
+func extractBodyWithKind(payload *gmail.MessagePart) (body string, isHTML bool) {
+	if b := findBodyByMimeType(payload, "text/plain"); b != "" {
+		return b, false
 	}
-	return ""
+	if b := findBodyByMimeType(payload, "text/html"); b != "" {
+		return b, true
+	}
+	return "", false
 }
 
 // findBodyByMimeType searches for body content matching the given MIME type
