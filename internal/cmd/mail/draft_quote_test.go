@@ -70,6 +70,57 @@ func TestDraftCommand_Reply_QuotesHTMLWithGmailQuoteMarkup(t *testing.T) {
 		// leak as markup.
 		testutil.Contains(t, body, "On Tue, May 12, 2026 at 11:30 PM Alice &lt;alice@example.com&gt; wrote:")
 		testutil.NotContains(t, body, "<alice@example.com>")
+		// Ordering: the quote follows the authored body and is immediately
+		// preceded by the "\n" separator we add.
+		authoredIdx := strings.Index(body, "<strong>reply</strong>")
+		quoteStart := strings.Index(body, `<div class="gmail_quote">`)
+		testutil.True(t, authoredIdx >= 0 && quoteStart > authoredIdx)
+		testutil.Equal(t, body[quoteStart-1], byte('\n'))
+	})
+}
+
+// CRLF must not leak into the HTML quote (no "\r" / "\r<br>").
+func TestDraftCommand_Reply_QuotesHTMLCRLFSourceBody(t *testing.T) {
+	src := srcReplyWithBody()
+	src.Body = "Line one\r\n\r\nLine two"
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "hi"}) // HTML branch
+	withMockClient(mock, func() {
+		testutil.NoError(t, cmd.Execute())
+		body := string(seen.Body)
+		testutil.NotContains(t, body, "\r")
+		testutil.Contains(t, body, "Line one<br>")
+		testutil.Contains(t, body, "Line two")
+	})
+}
+
+// The HTML quote branch also fires for raw --html replies, not just markdown.
+func TestDraftCommand_Reply_RawHTMLBodyStillQuotes(t *testing.T) {
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReplyWithBody(), nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--html", "--body", "<p>raw body</p>"})
+	withMockClient(mock, func() {
+		testutil.NoError(t, cmd.Execute())
+		body := string(seen.Body)
+		testutil.Equal(t, seen.BodyKind, gmailapi.DraftBodyHTML)
+		testutil.True(t, strings.HasPrefix(body, "<p>raw body</p>")) // raw HTML passed verbatim
+		testutil.Contains(t, body, `<div class="gmail_quote">`)
+		testutil.Contains(t, body, "Line one<br>")
 	})
 }
 

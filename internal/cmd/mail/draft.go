@@ -469,7 +469,15 @@ func addRePrefix(subject string) string {
 	return "Re: " + subject
 }
 
-// replyAttribution builds the Gmail-style "On <date>, <from> wrote:" line that
+// normalizeLF collapses CRLF and lone CR to LF. Real email text/plain and
+// text/html parts decode as CRLF; quoting must not leak stray CRs into the
+// draft body (a "> \r" plain marker, or "\r<br>" in HTML).
+func normalizeLF(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.ReplaceAll(s, "\r", "\n")
+}
+
+// replyAttribution builds the Gmail-style "On <date> <from> wrote:" line that
 // precedes a quoted reply. The date is rendered in the source message's own
 // timezone (the offset parsed from its Date header) — never converted to UTC
 // or local — and uses a fixed en-US layout. This is deliberately not localized:
@@ -487,14 +495,11 @@ func replyAttribution(src *gmailapi.Message) string {
 
 // quotePlain prefixes each line of body for a plain-text reply: a non-empty
 // line becomes "> " + line; an empty line becomes ">" (no trailing space, so
-// the output is Gmail-faithful and free of trailing whitespace). A terminal
-// CR is stripped per line before classification — real email text/plain parts
-// are CRLF, and a CRLF blank line must yield ">" not "> \r". Output is
-// normalized to LF.
+// the output is Gmail-faithful and free of trailing whitespace). Input is
+// normalized to LF first so a CRLF blank line yields ">" not "> \r".
 func quotePlain(body string) string {
-	lines := strings.Split(body, "\n")
+	lines := strings.Split(normalizeLF(body), "\n")
 	for i, ln := range lines {
-		ln = strings.TrimSuffix(ln, "\r")
 		if ln == "" {
 			lines[i] = ">"
 		} else {
@@ -511,7 +516,7 @@ func quotePlain(body string) string {
 // that is HTML-only (no plain-text alternative) is therefore shown as escaped
 // tags — an accepted limitation that avoids an HTML-to-text dependency.
 func quoteHTML(attrib, body string) string {
-	escBody := strings.ReplaceAll(html.EscapeString(body), "\n", "<br>\n")
+	escBody := strings.ReplaceAll(html.EscapeString(normalizeLF(body)), "\n", "<br>\n")
 	return fmt.Sprintf(
 		"<div class=\"gmail_quote\">%s<br>\n"+
 			"<blockquote class=\"gmail_quote\" style=\"margin:0 0 0 .8ex;border-left:1px solid #ccc;padding-left:1ex\">\n"+
