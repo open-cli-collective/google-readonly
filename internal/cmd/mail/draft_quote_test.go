@@ -122,13 +122,52 @@ func TestDraftCommand_Reply_HTMLSourceNestedUnescaped(t *testing.T) {
 	withMockClient(mock, func() {
 		testutil.NoError(t, cmd.Execute())
 		body := string(seen.Body)
-		// Source HTML embedded verbatim (renders normally in Gmail).
-		testutil.Contains(t, body, "<!DOCTYPE html><html><body><p>Hello <b>world</b></p></body></html>")
-		testutil.NotContains(t, body, "&lt;!DOCTYPE")
+		// Source HTML rendered as a body fragment (not escaped), so it
+		// displays normally in Gmail...
+		testutil.Contains(t, body, "<p>Hello <b>world</b></p>")
 		testutil.NotContains(t, body, "&lt;p&gt;")
+		// ...but the DOCTYPE/<html>/<body> document scaffolding is stripped
+		// — we must not nest a full document inside a blockquote.
+		testutil.NotContains(t, body, "<!DOCTYPE")
+		testutil.NotContains(t, body, "<html>")
+		testutil.NotContains(t, body, "<body>")
 		// Still wrapped for collapse, and attribution still escaped.
 		testutil.Contains(t, body, `<blockquote class="gmail_quote"`)
 		testutil.Contains(t, body, "Alice &lt;alice@example.com&gt; wrote:")
+	})
+}
+
+// A malicious/malformed HTML source must not break out of the gmail_quote
+// wrapper: stray "</blockquote></div>" in the source cannot prematurely close
+// our container (we emit a re-parsed tree, not raw bytes), so exactly one
+// closing pair exists and the source content stays contained.
+func TestDraftCommand_Reply_HTMLSourceCannotBreakOutOfQuote(t *testing.T) {
+	src := srcReplyWithBody()
+	src.Body = `<p>real quote</p></blockquote></div><p>forged "authored" text</p>`
+	src.BodyIsHTML = true
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "ack"})
+	withMockClient(mock, func() {
+		testutil.NoError(t, cmd.Execute())
+		body := string(seen.Body)
+		// Exactly our single wrapper close — the source's stray closers were
+		// dropped by the parser, so containment holds.
+		testutil.Equal(t, strings.Count(body, "</blockquote>"), 1)
+		testutil.Equal(t, strings.Count(body, "</div>"), 1)
+		// Source content is preserved, just contained.
+		testutil.Contains(t, body, "<p>real quote</p>")
+		testutil.Contains(t, body, "forged")
+		// The wrapper close is the final thing in the body (nothing escaped
+		// out after it).
+		testutil.True(t, strings.HasSuffix(body, "</blockquote></div>"))
 	})
 }
 

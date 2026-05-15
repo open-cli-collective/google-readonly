@@ -427,6 +427,29 @@ func TestParseMessageWithBody(t *testing.T) {
 		if result.Body != bodyText {
 			t.Errorf("got %v, want %v", result.Body, bodyText)
 		}
+		if result.BodyIsHTML {
+			t.Errorf("plain payload: BodyIsHTML = true, want false")
+		}
+	})
+
+	t.Run("html-only payload sets Body and BodyIsHTML", func(t *testing.T) {
+		t.Parallel()
+		htmlContent := "<p>HTML only body</p>"
+		msg := &gmail.Message{
+			Id: "msg-html",
+			Payload: &gmail.MessagePart{
+				MimeType: "text/html",
+				Headers:  []*gmail.MessagePartHeader{{Name: "Subject", Value: "Test"}},
+				Body:     &gmail.MessagePartBody{Data: base64.URLEncoding.EncodeToString([]byte(htmlContent))},
+			},
+		}
+		result := parseMessage(msg, true, nil)
+		if result.Body != htmlContent {
+			t.Errorf("Body = %q, want %q", result.Body, htmlContent)
+		}
+		if !result.BodyIsHTML {
+			t.Errorf("html-only payload: BodyIsHTML = false, want true")
+		}
 	})
 
 	t.Run("excludes body when not requested", func(t *testing.T) {

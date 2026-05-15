@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	xhtml "golang.org/x/net/html"
 
 	gmailapi "github.com/open-cli-collective/google-readonly/internal/gmail"
 )
@@ -523,7 +524,9 @@ func quotePlain(body string) string {
 // senders (alerts, marketing, SaaS notifications) that are HTML-only.
 func quoteHTML(attrib, body string, bodyIsHTML bool) string {
 	quoted := normalizeLF(body)
-	if !bodyIsHTML {
+	if bodyIsHTML {
+		quoted = htmlBodyFragment(quoted)
+	} else {
 		quoted = strings.ReplaceAll(html.EscapeString(quoted), "\n", "<br>\n")
 	}
 	return fmt.Sprintf(
@@ -533,6 +536,50 @@ func quoteHTML(attrib, body string, bodyIsHTML bool) string {
 			"</blockquote></div>",
 		html.EscapeString(attrib), quoted,
 	)
+}
+
+// htmlBodyFragment reduces a source HTML body to a balanced fragment suitable
+// for nesting inside the gmail_quote blockquote. It parses the HTML and
+// re-serializes the <body> children (or the whole tree if there is no body),
+// which: (1) drops the DOCTYPE/<html>/<head> so we don't nest a full document
+// inside a blockquote, and (2) makes container breakout impossible — stray
+// "</blockquote></div>" in the source cannot escape our wrapper because we
+// emit a re-serialized parse tree, not the raw bytes. Active content
+// (script/handlers) is intentionally left for Gmail's render-time sanitizer,
+// exactly as when the original message was read. On a parse failure the body
+// is escaped, degrading safely to the plain-source treatment.
+func htmlBodyFragment(s string) string {
+	doc, err := xhtml.Parse(strings.NewReader(s))
+	if err != nil {
+		return strings.ReplaceAll(html.EscapeString(s), "\n", "<br>\n")
+	}
+	var body *xhtml.Node
+	var find func(*xhtml.Node)
+	find = func(n *xhtml.Node) {
+		if body != nil {
+			return
+		}
+		if n.Type == xhtml.ElementNode && n.Data == "body" {
+			body = n
+			return
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			find(c)
+		}
+	}
+	find(doc)
+	var buf bytes.Buffer
+	render := func(n *xhtml.Node) {
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			_ = xhtml.Render(&buf, c)
+		}
+	}
+	if body != nil {
+		render(body)
+	} else {
+		render(doc)
+	}
+	return buf.String()
 }
 
 // parseAddressList parses a comma-separated address list. An empty input is OK

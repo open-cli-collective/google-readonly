@@ -22,9 +22,9 @@ type Message struct {
 	Snippet  string `json:"snippet"`
 	Body     string `json:"body,omitempty"`
 	// BodyIsHTML reports that Body came from the message's text/html part
-	// (no text/plain alternative). Reply quoting nests HTML sources as HTML
-	// rather than escaping them.
-	BodyIsHTML  bool          `json:"bodyIsHtml,omitempty"`
+	// (no text/plain alternative). Internal routing bit for reply quoting;
+	// intentionally excluded from the public --json output surface.
+	BodyIsHTML  bool          `json:"-"`
 	Attachments []*Attachment `json:"attachments,omitempty"`
 	Labels      []string      `json:"labels,omitempty"`
 	Categories  []string      `json:"categories,omitempty"`
