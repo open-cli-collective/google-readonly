@@ -20,7 +20,7 @@ func TestDraftCommand_FlagsPresent(t *testing.T) {
 	for _, name := range []string{
 		"to", "cc", "bcc", "from", "subject",
 		"body", "stdin", "file", "plain", "html",
-		"attach", "json",
+		"attach", "json", "no-quote",
 	} {
 		if cmd.Flags().Lookup(name) == nil {
 			t.Errorf("flag %q missing", name)
@@ -83,7 +83,7 @@ func TestDraftCommand_RejectsMultipleBodySources(t *testing.T) {
 	withMockClient(&MockGmailClient{}, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "exactly one of")
+		testutil.Contains(t, err.Error(), "at most one of")
 	})
 }
 
@@ -892,7 +892,7 @@ func TestDraftCommand_LocalValidationBeforeFetch(t *testing.T) {
 	withMockClient(mock, func() {
 		err := cmd.Execute()
 		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "exactly one of")
+		testutil.Contains(t, err.Error(), "at most one of")
 	})
 }
 

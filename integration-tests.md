@@ -592,6 +592,12 @@ DRAFT_MSG_ID=$(./bin/gro mail draft --reply-to "$SRC_ID" --body "T21 reply" --pl
 | T24 | Explicit Cc override | `./bin/gro mail draft --reply-to "$SRC_ID" --cc "$ME" --body "T24 cc" --plain --json` | Exit 0. Draft Cc is exactly `$ME` (replaces, not merges with, derived Cc). |
 | T25 | No double Re: prefix | First find a source message whose subject already starts with `Re:`: `RE_SRC=$(./bin/gro mail search "subject:Re:" --json \| jq -r '.[0].id')`. Then: `./bin/gro mail draft --reply-to "$RE_SRC" --body "T25" --plain --json` | Exit 0. Read-back subject is unchanged (no `Re: Re: ` doubling). |
 | T26 | Reply-all without reply-to | `./bin/gro mail draft --to "$ME" --subject "x" --body "y" --reply-all; echo "exit=$?"` | Non-zero exit. Error mentions `--reply-all requires --reply-to`. |
+| T27 | Quoted reply (plain) | `./bin/gro mail draft --reply-to "$SRC_ID" --body "T27 reply" --plain --json` then read back the draft body | Exit 0. Draft body starts with `T27 reply`, then a blank line, an `On <date> <sender> wrote:` line, then the source body with every line `> `-prefixed (empty lines are `>`). |
+| T28 | Quoted reply (HTML) collapses in Gmail | `./bin/gro mail draft --reply-to "$SRC_ID" --body "T28 **reply**" --json` then open the draft in the Gmail web UI | Exit 0. Draft body contains a `<div class="gmail_quote">` / `<blockquote class="gmail_quote" …>` wrapper. **Manual:** opening the draft in Gmail shows the quoted history collapsed behind Gmail's “…” affordance (not automatable — Gmail client-side rendering). |
+| T29 | Quote-only reply (no body source) | `./bin/gro mail draft --reply-to "$SRC_ID" --json` then read back | Exit 0. Draft body is exactly the quote block (attribution + quoted source), no leading blank lines, no authored text. Threading headers set as T21. |
+| T30 | `--no-quote` reply | `./bin/gro mail draft --reply-to "$SRC_ID" --no-quote --body "T30" --plain --json` then read back | Exit 0. Draft body is exactly `T30` — no attribution, no quote. Threading headers still set. |
+| T31 | `--no-quote` bare (blank draft) | `./bin/gro mail draft --reply-to "$SRC_ID" --no-quote --json` then read back | Exit 0. Draft body is empty. Threading headers still set. |
+| T32 | `--no-quote` without reply-to | `./bin/gro mail draft --to "$ME" --subject "x" --body "y" --no-quote; echo "exit=$?"` | Non-zero exit. Error mentions `--no-quote requires --reply-to`. |
 
 ### Cleanup
 

@@ -45,6 +45,10 @@ make install        # Install to /usr/local/bin
 
 See `docs/golden-principles.md` for the full set of enforced rules.
 
+## Design Principles
+
+- **Gmail browser parity**: Mail features must integrate with how people expect Gmail to behave in the browser. `gro` is one client among many on a shared mailbox — drafts, quoting, threading, and labels should look and behave like native Gmail when later opened or sent from the web UI. Emit the conventions/markers Gmail's own client recognizes (e.g. wrap reply quotes in `gmail_quote` markup so Gmail collapses them behind its `…` toggle; `Re:` subject handling; RFC threading headers) rather than reimplementing client-side rendering. Prefer Gmail-native parity over technically-valid-but-foreign output.
+
 ## Testing
 
 Run tests: `make test`
