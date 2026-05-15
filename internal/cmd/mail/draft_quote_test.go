@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	gmailapi "github.com/open-cli-collective/google-readonly/internal/gmail"
@@ -215,5 +216,51 @@ func TestDraftCommand_Reply_DateParseFailureFallsBackToRaw(t *testing.T) {
 	withMockClient(mock, func() {
 		testutil.NoError(t, cmd.Execute())
 		testutil.Contains(t, string(seen.Body), "On definitely not a date Alice <alice@example.com> wrote:")
+	})
+}
+
+// Real email text/plain bodies are CRLF. A CRLF blank line must quote as ">"
+// (not "> \r") and content lines must not carry a trailing CR.
+func TestDraftCommand_Reply_QuotesCRLFSourceBody(t *testing.T) {
+	src := srcReplyWithBody()
+	src.Body = "Line one\r\n\r\nLine two"
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return src, nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src", "--body", "x", "--plain"})
+	withMockClient(mock, func() {
+		testutil.NoError(t, cmd.Execute())
+		want := "x\n\n" + wantAttrib + "\n\n> Line one\n>\n> Line two"
+		testutil.Equal(t, string(seen.Body), want)
+		testutil.NotContains(t, string(seen.Body), "\r")
+	})
+}
+
+// The literal product path `gro mail draft --reply-to <id>` (no flags) defaults
+// to markdown/HTML. A bare reply must have no leading newline and begin with
+// the gmail_quote block.
+func TestDraftCommand_Reply_BareReplyDefaultModeIsQuoteOnlyHTML(t *testing.T) {
+	var seen gmailapi.DraftMessage
+	mock := &MockGmailClient{
+		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) { return srcReplyWithBody(), nil },
+		CreateDraftFunc: func(_ context.Context, msg gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
+			seen = msg
+			return &gmailapi.DraftResult{ID: "d1"}, nil
+		},
+	}
+	cmd := newDraftCommand()
+	cmd.SetArgs([]string{"--reply-to", "msg-src"}) // no body source, no --plain
+	withMockClient(mock, func() {
+		testutil.NoError(t, cmd.Execute())
+		body := string(seen.Body)
+		testutil.Equal(t, seen.BodyKind, gmailapi.DraftBodyHTML)
+		testutil.True(t, strings.HasPrefix(body, `<div class="gmail_quote">`))
+		testutil.Contains(t, body, `<blockquote class="gmail_quote"`)
 	})
 }

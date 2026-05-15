@@ -487,10 +487,14 @@ func replyAttribution(src *gmailapi.Message) string {
 
 // quotePlain prefixes each line of body for a plain-text reply: a non-empty
 // line becomes "> " + line; an empty line becomes ">" (no trailing space, so
-// the output is Gmail-faithful and free of trailing whitespace).
+// the output is Gmail-faithful and free of trailing whitespace). A terminal
+// CR is stripped per line before classification — real email text/plain parts
+// are CRLF, and a CRLF blank line must yield ">" not "> \r". Output is
+// normalized to LF.
 func quotePlain(body string) string {
 	lines := strings.Split(body, "\n")
 	for i, ln := range lines {
+		ln = strings.TrimSuffix(ln, "\r")
 		if ln == "" {
 			lines[i] = ">"
 		} else {
