@@ -111,6 +111,10 @@ type migrationPlan struct {
 func planMigration(service, profile, ref string, cands []candidate,
 	current func() (string, bool), overwrite bool) (migrationPlan, error) {
 
+	if len(cands) == 0 {
+		return migrationPlan{}, nil // nothing legacy — pure no-op
+	}
+
 	distinct := map[string]bool{}
 	for _, c := range cands {
 		distinct[c.value] = true

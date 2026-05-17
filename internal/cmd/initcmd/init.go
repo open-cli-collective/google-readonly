@@ -99,6 +99,10 @@ type initDeps struct {
 	// Browser opener.
 	OpenBrowser func(url string) error
 
+	// EnsureMigrated runs/resolves the one-time §1.8 migration up front (a
+	// legacy-vs-keyring conflict aborts init loudly).
+	EnsureMigrated func() error
+
 	// Token storage (credstore-backed; the keyring is the only store).
 	HasStoredToken    func() bool
 	SetToken          func(t *oauth2.Token) error
@@ -158,6 +162,7 @@ func defaultDeps() initDeps {
 		ClipboardSupported: func() bool { return !clipboard.Unsupported },
 		ClipboardReadAll:   clipboard.ReadAll,
 		OpenBrowser:        browser.OpenURL,
+		EnsureMigrated:     ensureMigrated,
 		HasStoredToken:     storeHasToken,
 		SetToken:           storeSetToken,
 		DeleteToken:        storeDeleteToken,
@@ -190,11 +195,25 @@ func defaultDeps() initDeps {
 	}
 }
 
-// storeHasToken / storeSetToken / storeDeleteToken / storeBackendLabel back
-// the wizard's token-storage deps via credstore. init is ingress; the
-// one-time §1.8 migration runs on the first authenticated use (config test /
-// gro me / any API command), not mid-wizard — so these use the non-migrating
-// open paths to stay deterministic.
+// ensureMigrated runs (and resolves) the one-time §1.8 migration up front via
+// the full keychain.Open() path, surfacing a legacy-vs-keyring conflict as a
+// hard error instead of swallowing it. Closes a self-inflicted conflict: if
+// init left a legacy original (token.json / old security / secret-tool) in
+// place and then wrote a fresh OAuth token to the keyring, the next real
+// command's Open() would hit the §1.8 conflict. After this runs, legacy
+// originals are gone (or init aborted loudly), so the storeSetToken /
+// storeHasToken / storeDeleteToken paths can stay non-migrating. A genuine
+// fresh install migrates nothing (no-op).
+func ensureMigrated() error {
+	st, err := keychain.Open()
+	if err != nil {
+		return err
+	}
+	return st.Close()
+}
+
+// storeHasToken backs the wizard's "is a token already present?" gate.
+// Non-migrating: ensureMigrated already ran the one-time migration up front.
 func storeHasToken() bool {
 	st, err := keychain.OpenNoMigrate()
 	if err != nil {
@@ -245,6 +264,17 @@ func readAllStdin() (string, error) {
 
 // runWith is the testable entry point for the wizard. NewCommand wraps it.
 func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
+	// Step 0: run/resolve the one-time §1.8 migration up front. A legacy
+	// token is migrated into the keyring (its original removed) before the
+	// wizard decides anything; a legacy-vs-keyring conflict aborts loudly
+	// rather than letting init write a fresh token alongside a stale legacy
+	// original that the next command would conflict on.
+	if d.EnsureMigrated != nil {
+		if err := d.EnsureMigrated(); err != nil {
+			return fmt.Errorf("resolving credential migration: %w", err)
+		}
+	}
+
 	credPath, err := d.GetCredentialsPath()
 	if err != nil {
 		return fmt.Errorf("getting credentials path: %w", err)

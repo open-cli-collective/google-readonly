@@ -43,6 +43,23 @@ func TestSetCredentialFromEnvEmptyNamesVar(t *testing.T) {
 	}
 }
 
+func TestSetCredentialFromEnvSuccess(t *testing.T) {
+	credtest.Setup(t)
+	t.Setenv("GRO_TEST_TOKEN", tokenJSON)
+	if err := run(&options{key: keychain.KeyOAuthToken, fromEnv: "GRO_TEST_TOKEN"}); err != nil {
+		t.Fatalf("set-credential --from-env: %v", err)
+	}
+	st, err := keychain.OpenNoMigrate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+	tok, err := st.Token()
+	if err != nil || tok.RefreshToken != "SECRET-REFRESH" {
+		t.Fatalf("token not stored from env: %+v err=%v", tok, err)
+	}
+}
+
 func TestSetCredentialRejectsNonToken(t *testing.T) {
 	credtest.Setup(t)
 	err := run(&options{key: keychain.KeyOAuthToken, stdin: true, in: strings.NewReader(`{"not":"a token"}`)})

@@ -81,6 +81,16 @@ func TestPlanMigration(t *testing.T) {
 		}
 	})
 
+	t.Run("zero candidates: no write, no signal, no cleanups", func(t *testing.T) {
+		p, err := planMigration("s", "default", "s/default", nil, noTarget, false)
+		if err != nil {
+			t.Fatalf("unexpected: %v", err)
+		}
+		if p.write != "" || p.signal || len(p.cleanups) != 0 {
+			t.Fatalf("empty candidates must be a pure no-op: %+v", p)
+		}
+	})
+
 	t.Run("equal target is cleanup-only, no signal", func(t *testing.T) {
 		c := []candidate{{location: "file:/x/token.json", value: tokenA, deleter: func() error { return nil }}}
 		p, err := planMigration("s", "default", "s/default", c, func() (string, bool) { return tokenA, true }, false)
@@ -240,6 +250,26 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 		}
 		if _, e := os.Stat(legacy); !os.IsNotExist(e) {
 			t.Fatal("legacy must be removed when a valid target exists")
+		}
+	})
+
+	t.Run("legacy valid, target invalid: target rewritten from legacy", func(t *testing.T) {
+		tmp := credtest.Setup(t)
+		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		_ = os.MkdirAll(dir, 0o700)
+		legacy := filepath.Join(dir, "credentials.json")
+		target := filepath.Join(dir, "oauth_client.json")
+		_ = os.WriteFile(legacy, []byte(validClientJSONFixture), 0o600)
+		_ = os.WriteFile(target, []byte("corrupt"), 0o644)
+		cfg := &config.Config{CredentialRef: config.DefaultCredentialRef, OAuthClientPath: target}
+		if err := migrateOAuthClientJSON(cfg); err != nil {
+			t.Fatalf("migrate: %v", err)
+		}
+		if b, e := os.ReadFile(target); e != nil || string(b) != validClientJSONFixture {
+			t.Fatalf("invalid target must be rewritten from valid legacy: %v", e)
+		}
+		if _, e := os.Stat(legacy); !os.IsNotExist(e) {
+			t.Fatal("legacy must be removed after rewrite")
 		}
 	})
 

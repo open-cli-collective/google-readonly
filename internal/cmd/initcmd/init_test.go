@@ -264,6 +264,7 @@ func baseDeps(t *testing.T, fs *fakeFS) initDeps {
 		ClipboardSupported: func() bool { return false },
 		ClipboardReadAll:   func() (string, error) { return "", errors.New("disabled") },
 		OpenBrowser:        func(_ string) error { return nil },
+		EnsureMigrated:     func() error { return nil },
 		HasStoredToken:     func() bool { return false },
 		SetToken:           func(_ *oauth2.Token) error { return nil },
 		DeleteToken:        func() error { return nil },
@@ -862,4 +863,59 @@ func contains(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// TestRunWith_AuthCodeStdin covers the only non-interactive install path:
+// --auth-code-stdin reads the code from stdin (no browser prompt, no
+// interactive redirect prompt) and feeds it to the exchange.
+func TestRunWith_AuthCodeStdin(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	srcDir := t.TempDir()
+	src := filepath.Join(srcDir, "downloaded.json")
+	if err := os.WriteFile(src, []byte(validOAuthJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+	d.StdinReadAll = func() (string, error) { return "http://localhost/?code=STDIN-CODE\n", nil }
+	var gotCode string
+	d.ExchangeAuthCode = func(_ context.Context, _ *oauth2.Config, code string) (*oauth2.Token, error) {
+		gotCode = code
+		return &oauth2.Token{AccessToken: "tok"}, nil
+	}
+	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON}
+	d.Prompter = stub
+
+	err := runWith(context.Background(), d,
+		&initOptions{credentialsFile: src, authCodeStdin: true, noBrowser: true, noVerify: true})
+	if err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+	if gotCode != "STDIN-CODE" {
+		t.Fatalf("code must come from stdin, got %q", gotCode)
+	}
+	if contains(stub.calls, "redirect") || contains(stub.calls, "browser") {
+		t.Fatalf("--auth-code-stdin must not prompt for redirect/browser, calls=%v", stub.calls)
+	}
+}
+
+// TestRunWith_EnsureMigratedRunsFirst proves init resolves the one-time
+// migration before any token write, and surfaces a §1.8 conflict as a hard
+// abort (not a silent fresh-write alongside a stale legacy original — the
+// Codex-flagged self-inflicted conflict).
+func TestRunWith_EnsureMigratedRunsFirst(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	order := []string{}
+	d.EnsureMigrated = func() error { order = append(order, "migrate"); return errors.New("legacy/keyring conflict") }
+	d.SetToken = func(_ *oauth2.Token) error { order = append(order, "set"); return nil }
+
+	err := runWith(context.Background(), d, &initOptions{credentialsFile: "x", noVerify: true})
+	if err == nil || !strings.Contains(err.Error(), "resolving credential migration") {
+		t.Fatalf("init must abort on a migration conflict, got %v", err)
+	}
+	if len(order) != 1 || order[0] != "migrate" {
+		t.Fatalf("EnsureMigrated must run first and SetToken must not run on conflict; order=%v", order)
+	}
 }

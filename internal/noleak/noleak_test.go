@@ -5,6 +5,7 @@ package noleak
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -15,13 +16,22 @@ import (
 	"golang.org/x/oauth2"
 
 	cfgcmd "github.com/open-cli-collective/google-readonly/internal/cmd/config"
+	mecmd "github.com/open-cli-collective/google-readonly/internal/cmd/me"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/setcred"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/credtest"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
 	"github.com/open-cli-collective/google-readonly/internal/output"
+	"github.com/open-cli-collective/google-readonly/internal/people"
 )
+
+// fakePeople is a no-network mecmd.PeopleClient for the me no-leak test.
+type fakePeople struct{}
+
+func (fakePeople) GetMe(_ context.Context) (*people.Profile, error) {
+	return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada", PrimaryEmail: "ada@example.com"}, nil
+}
 
 const (
 	access  = "xoxp-SECRET-ACCESS-TOKEN-abcdefghijklmnop"
@@ -92,8 +102,9 @@ func TestConfigClearNeverLeaks(t *testing.T) {
 		seed(t)
 		cmd := cfgcmd.NewCommand()
 		cmd.SetArgs(args)
-		got := captureStdout(t, func() { _ = cmd.Execute() })
-		assertNoLeak(t, "config "+strings.Join(args, " "), []byte(got))
+		so, se := captureBoth(t, func() { _ = cmd.Execute() })
+		assertNoLeak(t, "config "+strings.Join(args, " ")+" [stdout]", []byte(so))
+		assertNoLeak(t, "config "+strings.Join(args, " ")+" [stderr]", []byte(se))
 	}
 }
 
@@ -103,8 +114,30 @@ func TestSetCredentialNeverLeaks(t *testing.T) {
 	cmd := setcred.NewCmd()
 	cmd.SetArgs([]string{"--key", keychain.KeyOAuthToken, "--stdin"})
 	cmd.SetIn(strings.NewReader(blob))
-	got := captureStdout(t, func() { _ = cmd.Execute() })
-	assertNoLeak(t, "set-credential --stdin", []byte(got))
+	so, se := captureBoth(t, func() { _ = cmd.Execute() })
+	assertNoLeak(t, "set-credential --stdin [stdout]", []byte(so))
+	assertNoLeak(t, "set-credential --stdin [stderr]", []byte(se))
+}
+
+// TestMeNeverLeaks covers the §445 smoke command across text + --json +
+// --extended (which reads token expiry from the keyring via gatherExtras),
+// on both output channels. me's People client is mocked (no network).
+func TestMeNeverLeaks(t *testing.T) {
+	seed(t)
+	orig := mecmd.ClientFactory
+	mecmd.ClientFactory = func(_ context.Context) (mecmd.PeopleClient, error) {
+		return fakePeople{}, nil
+	}
+	t.Cleanup(func() { mecmd.ClientFactory = orig })
+
+	for _, args := range [][]string{{}, {"--json"}, {"--extended"}, {"--extended", "--json"}} {
+		cmd := mecmd.NewCommand()
+		cmd.SetArgs(args)
+		so, se := captureBoth(t, func() { _ = cmd.Execute() })
+		label := "me " + strings.Join(args, " ")
+		assertNoLeak(t, label+" [stdout]", []byte(so))
+		assertNoLeak(t, label+" [stderr]", []byte(se))
+	}
 }
 
 // ---- §1.8 migration signal -------------------------------------------------

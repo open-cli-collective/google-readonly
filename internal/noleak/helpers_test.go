@@ -34,3 +34,26 @@ func captureStdout(t *testing.T, f func()) string {
 	}()
 	return <-done
 }
+
+// captureBoth captures process os.Stdout AND os.Stderr for the duration of f
+// (§1.12: no secret on ANY channel).
+func captureBoth(t *testing.T, f func()) (stdout, stderr string) {
+	t.Helper()
+	or, ow, _ := os.Pipe()
+	er, ew, _ := os.Pipe()
+	oo, oe := os.Stdout, os.Stderr
+	os.Stdout, os.Stderr = ow, ew
+	od := make(chan string, 1)
+	ed := make(chan string, 1)
+	go func() { var b bytes.Buffer; _, _ = io.Copy(&b, or); od <- b.String() }()
+	go func() { var b bytes.Buffer; _, _ = io.Copy(&b, er); ed <- b.String() }()
+	func() {
+		defer func() {
+			os.Stdout, os.Stderr = oo, oe
+			_ = ow.Close()
+			_ = ew.Close()
+		}()
+		f()
+	}()
+	return <-od, <-ed
+}
