@@ -168,8 +168,8 @@ func TestGetConfigPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if path != filepath.Join(tmpDir, DirName, ConfigFile) {
-		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, ConfigFile))
+	if path != filepath.Join(tmpDir, DirName, ConfigFileYAML) {
+		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, ConfigFileYAML))
 	}
 }
 
@@ -184,6 +184,28 @@ func TestLoadConfig(t *testing.T) {
 		}
 		if cfg.CacheTTLHours != DefaultCacheTTLHours {
 			t.Errorf("got %v, want %v", cfg.CacheTTLHours, DefaultCacheTTLHours)
+		}
+	})
+
+	t.Run("config.yml wins over legacy config.json when both present", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		dir := filepath.Join(tmpDir, DirName)
+		if err := os.MkdirAll(dir, DirPerm); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ConfigFile), []byte(`{"cache_ttl_hours": 99}`), TokenPerm); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ConfigFileYAML), []byte("cache_ttl_hours: 7\n"), TokenPerm); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.CacheTTLHours != 7 {
+			t.Errorf("config.yml must win: got %v, want 7", cfg.CacheTTLHours)
 		}
 	})
 
@@ -271,8 +293,8 @@ func TestSaveConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !strings.Contains(string(data), `"cache_ttl_hours": 12`) {
-			t.Errorf("expected %q to contain %q", string(data), `"cache_ttl_hours": 12`)
+		if !strings.Contains(string(data), "cache_ttl_hours: 12") {
+			t.Errorf("expected %q to contain %q", string(data), "cache_ttl_hours: 12")
 		}
 	})
 

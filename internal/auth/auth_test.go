@@ -167,60 +167,7 @@ func TestCheckScopesMigration_MissingScope(t *testing.T) {
 	}
 }
 
-func TestTokenFromFile(t *testing.T) {
-	t.Parallel()
-	t.Run("reads valid token file", func(t *testing.T) {
-		t.Parallel()
-		tmpDir := t.TempDir()
-		tokenPath := filepath.Join(tmpDir, "token.json")
-
-		tokenData := `{
-			"access_token": "test-access-token",
-			"token_type": "Bearer",
-			"refresh_token": "test-refresh-token",
-			"expiry": "2024-01-01T00:00:00Z"
-		}`
-		err := os.WriteFile(tokenPath, []byte(tokenData), 0600)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		token, err := tokenFromFile(tokenPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if token.AccessToken != "test-access-token" {
-			t.Errorf("got %v, want %v", token.AccessToken, "test-access-token")
-		}
-		if token.TokenType != "Bearer" {
-			t.Errorf("got %v, want %v", token.TokenType, "Bearer")
-		}
-		if token.RefreshToken != "test-refresh-token" {
-			t.Errorf("got %v, want %v", token.RefreshToken, "test-refresh-token")
-		}
-	})
-
-	t.Run("returns error for non-existent file", func(t *testing.T) {
-		t.Parallel()
-		_, err := tokenFromFile("/nonexistent/token.json")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-
-	t.Run("returns error for invalid JSON", func(t *testing.T) {
-		t.Parallel()
-		tmpDir := t.TempDir()
-		tokenPath := filepath.Join(tmpDir, "token.json")
-
-		err := os.WriteFile(tokenPath, []byte("not valid json"), 0600)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		_, err = tokenFromFile(tokenPath)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-}
+// TestTokenFromFile was removed: the plaintext token.json fallback no longer
+// exists. The token now lives only in the OS keyring via credstore (§1.1 /
+// §2.3); legacy token.json is handled one-time by internal/keychain's
+// migration and covered by that package's tests.

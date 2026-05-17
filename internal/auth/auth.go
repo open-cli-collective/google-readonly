@@ -3,7 +3,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/people/v1"
 
+	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
 
@@ -84,44 +84,57 @@ func CheckScopesMigration(grantedScopes []string) string {
 	return msg
 }
 
-// GetOAuthConfig loads OAuth configuration from credentials file with all scopes
+// GetOAuthConfig loads the OAuth client config from the deployment-material
+// OAuth client JSON referenced by config.yml's oauth_client_path (§1.2 — not
+// a secret; lives on disk, never the keyring), with all scopes.
 func GetOAuthConfig() (*oauth2.Config, error) {
-	credPath, err := GetCredentialsPath()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		return nil, err
 	}
-	b, err := os.ReadFile(credPath) //nolint:gosec // Path from user config directory
+	path := config.ExpandPath(cfg.OAuthClientPath)
+	b, err := os.ReadFile(path) //nolint:gosec // deployment-material path from config
 	if err != nil {
-		return nil, fmt.Errorf("unable to read credentials file: %w", err)
+		return nil, fmt.Errorf("unable to read OAuth client JSON %s (run 'gro init'): %w",
+			config.ShortenPath(path), err)
 	}
 	return google.ConfigFromJSON(b, AllScopes...)
 }
 
-// GetHTTPClient returns an HTTP client with OAuth2 authentication.
-// It retrieves tokens from keychain (preferred) or falls back to file storage.
-// Returns an error if no token is found - caller should direct user to run 'gro init'.
+// GetHTTPClient returns an HTTP client with OAuth2 authentication. The token
+// is read solely from the OS keyring via credstore (§1.1/§2.3 — no
+// security/secret-tool shell-out, no token.json fallback). The active
+// credential_ref is captured once here; refreshed tokens persist back to that
+// exact ref via the closure passed to the token source (the sole sanctioned
+// non-ingress keyring write). Returns an actionable error if no token exists.
 func GetHTTPClient(ctx context.Context) (*http.Client, error) {
-	config, err := GetOAuthConfig()
+	oauthCfg, err := GetOAuthConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	// Try to load token from keychain
-	tok, err := keychain.GetToken()
+	st, err := keychain.Open()
 	if err != nil {
-		// Try file fallback
-		tokPath, pathErr := GetTokenPath()
-		if pathErr != nil {
-			return nil, fmt.Errorf("no OAuth token found - please run 'gro init' first: %w", err)
+		return nil, err
+	}
+	tok, err := st.Token()
+	if err != nil {
+		_ = st.Close()
+		return nil, fmt.Errorf("no OAuth token found - please run 'gro init' first: %w", err)
+	}
+	ref := st.Ref()
+	_ = st.Close() // do not hold the Store for the client's lifetime
+
+	persist := func(t *oauth2.Token) error {
+		ps, perr := keychain.OpenRef(ref) // runMigration=false: refresh is not ingress
+		if perr != nil {
+			return perr
 		}
-		tok, err = tokenFromFile(tokPath)
-		if err != nil {
-			return nil, fmt.Errorf("no OAuth token found - please run 'gro init' first: %w", err)
-		}
+		defer func() { _ = ps.Close() }()
+		return ps.SetToken(t)
 	}
 
-	// Create persistent token source that saves refreshed tokens
-	tokenSource := keychain.NewPersistentTokenSource(ctx, config, tok)
+	tokenSource := keychain.NewPersistentTokenSource(ctx, oauthCfg, tok, persist)
 	return oauth2.NewClient(ctx, tokenSource), nil
 }
 
@@ -133,16 +146,4 @@ func GetAuthURL(config *oauth2.Config) string {
 // ExchangeAuthCode exchanges an authorization code for a token
 func ExchangeAuthCode(ctx context.Context, config *oauth2.Config, code string) (*oauth2.Token, error) {
 	return config.Exchange(ctx, code)
-}
-
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file) //nolint:gosec // Path from user config directory
-	if err != nil {
-		return nil, err
-	}
-	// Close error is non-fatal for read operations
-	defer func() { _ = f.Close() }()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
 }

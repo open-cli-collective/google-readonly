@@ -5,8 +5,8 @@ Comprehensive integration test suite for gro. Tests are designed to work against
 ## Test Environment Setup
 
 ### Prerequisites
-- Valid OAuth credentials configured (`~/.config/google-readonly/credentials.json`)
-- OAuth token (stored in system keychain or `~/.config/google-readonly/token.json`)
+- OAuth client JSON present (`~/.config/google-readonly/oauth_client.json`; deployment material, not a secret)
+- OAuth token authenticated (stored only in the OS keyring via `cli-common/credstore`; no `token.json` fallback)
 - Access to a Gmail account with:
   - At least some messages in the inbox
   - At least one email with attachments (for attachment tests)
@@ -20,8 +20,8 @@ Comprehensive integration test suite for gro. Tests are designed to work against
 
 ### Verification
 ```bash
-ls ~/.config/google-readonly/credentials.json
-gro config show  # Check configuration status
+ls ~/.config/google-readonly/oauth_client.json
+gro config show  # Check configuration status (backend, ref, token presence, client-JSON fingerprint)
 gro mail search "is:inbox" --max 1  # Quick connectivity check
 ```
 
@@ -394,7 +394,7 @@ gro mail thread "$THREAD_ID" --json | jq -r '.[].body'
 
 ### Setup
 - [ ] Build latest: `make build`
-- [ ] Verify credentials exist: `ls ~/.config/google-readonly/credentials.json`
+- [ ] Verify the OAuth client JSON exists: `ls ~/.config/google-readonly/oauth_client.json`
 - [ ] Quick connectivity test: `gro mail search "is:inbox" --max 1`
 
 ### Core Commands

@@ -106,7 +106,7 @@ Before handing the JSON out, prove it works on your own account.
    (Substitute the actual filename from your `~/Downloads` — Google names it after the client ID.)
 3. Complete the OAuth flow in your browser when prompted.
 4. Expected: a normal Workspace consent screen with your org name, no "Google hasn't verified this app" warning, all seven scope descriptions visible. Click **Allow**.
-5. After the redirect (which will hit a `localhost` URL that may look like a connection error — that's expected), the terminal should print `Token saved to <storage>` and `Verified Gmail API for <you>@<your-domain>`. The storage backend is platform-dependent: macOS Keychain on macOS, libsecret (when available) on Linux, or `~/.config/google-readonly/token.json` as a `0600`-mode file fallback.
+5. After the redirect (which will hit a `localhost` URL that may look like a connection error — that's expected), the terminal should print `Token saved to <storage>` and `Verified Gmail API for <you>@<your-domain>`. The token is stored only in the OS keyring via `cli-common/credstore` — macOS Keychain, Linux Secret Service, or Windows Credential Manager (or, when `keyring.backend: file` is set, an encrypted file unlocked by `GOOGLE_READONLY_KEYRING_PASSPHRASE`). There is no plaintext `token.json` fallback.
 6. Try `gro me` and `gro mail list --max 3` to confirm it actually works.
 
 If step 4 shows an "unverified app" warning instead of going straight to consent, the Audience accidentally got saved as External — revisit step 3.
@@ -137,12 +137,12 @@ Together — the scope list, the structural guardrails, and the absent destructi
 ### Recommended: 1Password shared vault
 
 1. Create an item in an org-shared 1Password vault (e.g. "Engineering").
-2. Attach the `credentials.json` as a document, or paste its contents into a Secure Note field.
-3. Tell users: download the document (or copy the Secure Note contents) and put it at `~/.config/google-readonly/credentials.json`, then run `gro init`.
+2. Attach the OAuth client JSON as a document, or paste its contents into a Secure Note field.
+3. Tell users: download the document (or copy the Secure Note contents) and put it at `~/.config/google-readonly/oauth_client.json` (the default `oauth_client_path`), then run `gro init`. A file placed at the legacy `~/.config/google-readonly/credentials.json` is auto-migrated to `oauth_client.json` on first run.
 
 ### MDM-pushed file
 
-If your org uses an MDM solution (Jamf, Kandji, Intune), pushing `credentials.json` to `~/.config/google-readonly/credentials.json` during onboarding works well.
+If your org uses an MDM solution (Jamf, Kandji, Intune), pushing the OAuth client JSON to `~/.config/google-readonly/oauth_client.json` during onboarding works well (the file is deployment material, not a secret — §1.2).
 
 ### Other channels (with caveats)
 

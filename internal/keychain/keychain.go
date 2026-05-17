@@ -1,203 +1,231 @@
-// Package keychain provides secure storage for OAuth tokens using platform-native
-// secure storage mechanisms (macOS Keychain, Linux secret-tool) with file fallback.
+// Package keychain is gro's credential adapter. Despite the historical
+// package name, it no longer shells out to macOS `security` or Linux
+// `secret-tool`, and no longer writes a plaintext token.json: it is a thin
+// wrapper over cli-common's credstore, which owns OS-keyring storage,
+// §1.4 backend selection (incl. Linux fail-closed and the encrypted-file
+// fallback), Windows Credential Manager, and the §1.5.2 allowed-key
+// allowlist. The name is retained to avoid churning every importer during
+// the Phase B migration (Open CLI Collective Secret-Handling Standard §2.3).
+//
+// The access secret is the per-user OAuth token: the whole oauth2.Token
+// (AccessToken AND RefreshToken are secret) serialized as one credstore
+// string value under the single bundle key "oauth_token". The OAuth client
+// JSON is deployment material (§1.2) and is NOT stored here.
 package keychain
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"strings"
 
+	"github.com/open-cli-collective/cli-common/credstore"
 	"golang.org/x/oauth2"
 
 	"github.com/open-cli-collective/google-readonly/internal/config"
 )
 
-const (
-	serviceName = config.DirName
-	tokenKey    = "oauth_token" //nolint:gosec // Not a credential; key name for keychain lookup
-)
+// KeyOAuthToken is gro's single bundle key (§1.3). The migration renames the
+// historical keychain account "oauth_token" into this same key under the
+// resolved credential_ref.
+const KeyOAuthToken = "oauth_token" //nolint:gosec // G101: a bundle key name, not a credential
 
-// StorageBackend represents where tokens are stored
-type StorageBackend string
+// allowedKeys is gro's §1.5.2 allowlist: exactly the one bundle key.
+var allowedKeys = []string{KeyOAuthToken}
 
-// StorageBackend constants define where OAuth tokens are persisted.
-const (
-	BackendKeychain   StorageBackend = "Keychain"    // macOS Keychain
-	BackendSecretTool StorageBackend = "secret-tool" // Linux libsecret
-	BackendFile       StorageBackend = "config file" // File fallback
-)
+// ErrTokenNotFound indicates no token exists in the keyring (errors.Is-able
+// wrapper of credstore.ErrNotFound). Name retained for existing callers.
+var ErrTokenNotFound = errors.New("no token found in secure storage")
 
-var (
-	// ErrTokenNotFound indicates no token exists in storage
-	ErrTokenNotFound = errors.New("no token found in secure storage")
-)
-
-// tokenFilePath returns the full path to the token file
-func tokenFilePath() (string, error) {
-	return config.GetTokenPath()
+// Store is an open handle to gro's credential bundle. Construct with one of
+// the Open* functions, always Close. It carries the resolved ref so callers
+// can report it in `config show` / errors without re-deriving it (the ref is
+// not secret — §1.12).
+type Store struct {
+	cs      *credstore.Store
+	service string
+	profile string
+	ref     string
 }
 
-// GetToken retrieves the OAuth token from secure storage
-func GetToken() (*oauth2.Token, error) {
-	return getToken()
-}
+// Open resolves the authoritative credential_ref from config.yml (§1.3 — the
+// service/profile are parsed, never assumed), opens the backing credstore,
+// and runs the one-time legacy migration (§1.8) before returning. Used by all
+// real API commands AND `config test` (the smoke check must surface
+// migration/conflicts exactly as a real command would). A legacy-vs-keyring
+// conflict surfaces here as a §1.8 error.
+func Open() (*Store, error) { return open(false, true) }
 
-// SetToken stores the OAuth token in secure storage
-func SetToken(token *oauth2.Token) error {
-	return setToken(token)
-}
+// OpenForMigrationOverwrite is Open with the §1.8 `--overwrite` resolution: a
+// legacy value is forced over an existing keyring entry. It still cannot
+// resolve a legacy-vs-legacy disagreement (the user must pick).
+func OpenForMigrationOverwrite() (*Store, error) { return open(true, true) }
 
-// DeleteToken removes the OAuth token from secure storage
-func DeleteToken() error {
-	return deleteToken()
-}
+// OpenNoMigrate opens WITHOUT the one-time migration. Reserved for the
+// diagnostic/remediation paths (`config show`, `config clear`): if migration
+// ran first it would return a §1.8 conflict before the user could inspect or
+// clear the conflicting entry, leaving no way out.
+func OpenNoMigrate() (*Store, error) { return open(false, false) }
 
-// HasStoredToken returns true if a token exists in secure storage
-func HasStoredToken() bool {
-	_, err := GetToken()
-	return err == nil
-}
-
-// GetStorageBackend returns the current storage backend being used
-func GetStorageBackend() StorageBackend {
-	return getStorageBackend()
-}
-
-// IsSecureStorage returns true if using secure storage (keychain/secret-tool)
-func IsSecureStorage() bool {
-	backend := GetStorageBackend()
-	return backend == BackendKeychain || backend == BackendSecretTool
-}
-
-// MigrateFromFile migrates token.json to secure storage if it exists
-func MigrateFromFile(tokenFilePath string) error {
-	// Check if token file exists
-	if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
-		return nil // Nothing to migrate
-	}
-
-	// Check if already migrated (token in secure storage)
-	if IsSecureStorage() && HasStoredToken() {
-		return nil // Already migrated
-	}
-
-	// Read token from file
-	f, err := os.Open(tokenFilePath) //nolint:gosec // Path from user config directory
+func open(overwrite, runMigration bool) (*Store, error) {
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("opening token file: %w", err)
+		return nil, err
 	}
-	defer f.Close()
-
-	var token oauth2.Token
-	if err := json.NewDecoder(f).Decode(&token); err != nil {
-		return fmt.Errorf("parsing token file: %w", err)
-	}
-
-	// Store in secure storage
-	if err := SetToken(&token); err != nil {
-		return fmt.Errorf("storing token in secure storage: %w", err)
-	}
-
-	// Securely delete old token file (overwrite with zeros before removal)
-	if err := secureDelete(tokenFilePath); err != nil {
-		// Non-fatal - token is now in secure storage
-		fmt.Fprintf(os.Stderr, "Warning: could not securely delete old token file: %v\n", err)
-	} else {
-		fmt.Fprintf(os.Stderr, "Migrated token to secure storage. Old token file securely deleted.\n")
-	}
-
-	return nil
+	return openWith(cfg, overwrite, runMigration)
 }
 
-// secureDelete overwrites a file with zeros before deleting it to prevent
-// forensic recovery of sensitive data.
-func secureDelete(path string) error {
-	// Get file size
-	info, err := os.Stat(path)
+// OpenRef opens a store against an explicit ref instead of config.yml's
+// credential_ref — used by `gro set-credential --ref` and the refresh
+// persister. An empty ref falls back to the configured/default ref.
+// Migration does NOT run here: the one-time §1.8 migration only ever targets
+// the canonical configured ref (running it against an arbitrary --ref would
+// discover the default ref's legacy data and could write it under the wrong
+// service/profile).
+func OpenRef(ref string) (*Store, error) {
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil // Already gone
-		}
-		return err
+		return nil, err
 	}
-
-	// Overwrite with zeros
-	f, err := os.OpenFile(path, os.O_WRONLY, 0) //nolint:gosec // Path from user config directory
-	if err != nil {
-		// If we can't open for writing, try to delete anyway
-		return os.Remove(path)
+	if ref != "" {
+		cfg.CredentialRef = ref
 	}
-
-	zeros := make([]byte, info.Size())
-	_, _ = f.Write(zeros) // Best effort overwrite
-	_ = f.Sync()          // Flush to disk
-	_ = f.Close()         // Ignore close error, we're deleting anyway
-
-	return os.Remove(path)
+	return openWith(cfg, false, false)
 }
 
-// File-based storage implementation (fallback)
+// openWith is the seam unit tests drive with an injected config (file-backend
+// opt-in via Keyring.Backend) so they never touch a real keyring (§1.12 test
+// obligation, and hermeticity).
+func openWith(cfg *config.Config, overwrite, runMigration bool) (*Store, error) {
+	service, profile, err := credstore.ParseRef(cfg.CredentialRef)
+	if err != nil {
+		return nil, fmt.Errorf("invalid credential_ref %q: %w", cfg.CredentialRef, err)
+	}
 
-func getFromConfigFile() (*oauth2.Token, error) {
-	path, err := tokenFilePath()
+	opts := &credstore.Options{AllowedKeys: allowedKeys}
+	switch b := strings.TrimSpace(cfg.Keyring.Backend); b {
+	case "":
+		// Auto-select per §1.4 (credstore decides; fail-closed on Linux).
+	case "file":
+		opts.ConfigBackend = credstore.BackendFile
+	default:
+		// Fail closed: an unrecognized backend must not silently degrade to
+		// auto-selection and store credentials somewhere unintended.
+		return nil, fmt.Errorf("invalid keyring.backend %q in config (only \"file\" is supported)", b)
+	}
+	opts.FilePassphrase = passphraseFunc(service)
+
+	cs, err := credstore.Open(service, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := os.Open(path) //nolint:gosec // Path from user config directory
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrTokenNotFound
+	s := &Store{cs: cs, service: service, profile: profile, ref: cfg.CredentialRef}
+
+	if runMigration {
+		if err := migrateLegacyOverwrite(s, cfg, overwrite); err != nil {
+			_ = cs.Close()
+			return nil, err
 		}
-		return nil, fmt.Errorf("opening token file: %w", err)
 	}
-	defer f.Close()
-
-	var token oauth2.Token
-	if err := json.NewDecoder(f).Decode(&token); err != nil {
-		return nil, fmt.Errorf("parsing token file: %w", err)
-	}
-
-	return &token, nil
+	return s, nil
 }
 
-func setInConfigFile(token *oauth2.Token) error {
-	path, err := tokenFilePath()
+// Close releases the backing store. Safe on a nil receiver.
+func (s *Store) Close() error {
+	if s == nil || s.cs == nil {
+		return nil
+	}
+	return s.cs.Close()
+}
+
+// Ref returns the resolved credential ref (non-secret; safe to display).
+func (s *Store) Ref() string { return s.ref }
+
+// Service returns the resolved service segment (non-secret; used for the
+// §1.4 passphrase-source label).
+func (s *Store) Service() string { return s.service }
+
+// Backend reports the credstore backend and how it was selected, for
+// `config show` (§1.6). Neither value is secret.
+func (s *Store) Backend() (credstore.Backend, credstore.Source) { return s.cs.Backend() }
+
+// Token returns the OAuth token from the keyring. ErrTokenNotFound (an
+// errors.Is-matchable wrapper of credstore.ErrNotFound) when unset.
+func (s *Store) Token() (*oauth2.Token, error) {
+	v, err := s.cs.Get(s.profile, KeyOAuthToken)
+	if errors.Is(err, credstore.ErrNotFound) || (err == nil && v == "") {
+		return nil, ErrTokenNotFound
+	}
 	if err != nil {
-		return err
+		// Never embed the value; naming ref/key/op is allowed (§1.12).
+		return nil, fmt.Errorf("read %s from %s: %w", KeyOAuthToken, s.ref, err)
 	}
-
-	// Ensure directory exists
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, config.DirPerm); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
+	var tok oauth2.Token
+	if err := json.Unmarshal([]byte(v), &tok); err != nil {
+		return nil, fmt.Errorf("parse stored token from %s: %w", s.ref, err)
 	}
+	return &tok, nil
+}
 
-	// Write token with restricted permissions
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, config.TokenPerm) //nolint:gosec // Path from user config directory
+// SetToken stores the OAuth token. Ingress-only at init/set-credential, plus
+// the single sanctioned non-ingress write: runtime token refresh persisting
+// the rotated token back under the active ref (standard §ix / line 174).
+func (s *Store) SetToken(tok *oauth2.Token) error {
+	// G117: gosec flags marshaling a struct whose field matches a secret
+	// pattern (access_token). That is the intended operation: the token must
+	// be serialized to be handed to credstore, which is what encrypts and
+	// stores it. The bytes never leave this function except into the keyring.
+	data, err := json.Marshal(tok) //nolint:gosec // G117: serializing the token for keyring storage is the point; not a leak
 	if err != nil {
-		return fmt.Errorf("creating token file: %w", err)
+		return fmt.Errorf("serialize token: %w", err)
 	}
-	defer f.Close()
-
-	if err := json.NewEncoder(f).Encode(token); err != nil { //nolint:gosec // G117: token persistence is the intended purpose; file written with 0600
-		return fmt.Errorf("writing token: %w", err)
+	if err := s.cs.Set(s.profile, KeyOAuthToken, string(data), credstore.WithOverwrite()); err != nil {
+		return fmt.Errorf("store %s at %s: %w", KeyOAuthToken, s.ref, err)
 	}
-
 	return nil
 }
 
-func deleteFromConfigFile() error {
-	path, err := tokenFilePath()
+// DeleteToken removes the token (idempotent: an absent key is not an error —
+// §1.7). The Exists pre-check is backend-agnostic: credstore's file backend
+// surfaces a raw os "not found" rather than ErrNotFound on Delete. A genuine
+// Exists failure (e.g. keyring temporarily inaccessible) is surfaced, not
+// swallowed — otherwise a non-deletion would be reported as success.
+func (s *Store) DeleteToken() error {
+	ok, err := s.cs.Exists(s.profile, KeyOAuthToken)
+	if err != nil {
+		return fmt.Errorf("check %s at %s: %w", KeyOAuthToken, s.ref, err)
+	}
+	if !ok {
+		return nil
+	}
+	if err := s.cs.Delete(s.profile, KeyOAuthToken); err != nil && !errors.Is(err, credstore.ErrNotFound) {
+		return fmt.Errorf("delete %s at %s: %w", KeyOAuthToken, s.ref, err)
+	}
+	return nil
+}
+
+// HasToken reports presence without returning the value (`config show`,
+// `init` overwrite check — §1.6). A genuine Exists failure (keyring
+// temporarily inaccessible) is surfaced, not folded into "absent": callers
+// that gate re-auth/overwrite on this must not mistake an error for "no
+// token" and clobber a token that is actually present.
+func (s *Store) HasToken() (bool, error) {
+	ok, err := s.cs.Exists(s.profile, KeyOAuthToken)
+	if err != nil {
+		return false, fmt.Errorf("check %s at %s: %w", KeyOAuthToken, s.ref, err)
+	}
+	return ok, nil
+}
+
+// EnsureMigrated runs (and resolves) the one-time §1.8 legacy migration up
+// front via the full Open() path, then closes. A legacy-vs-keyring conflict
+// surfaces as a hard error. Shared by `gro init` and `gro set-credential` so
+// the migration guarantee lives in exactly one place.
+func EnsureMigrated() error {
+	st, err := Open()
 	if err != nil {
 		return err
 	}
-
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("deleting token file: %w", err)
-	}
-
-	return nil
+	return st.Close()
 }

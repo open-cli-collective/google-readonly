@@ -15,7 +15,9 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/cmd/initcmd"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/mail"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/me"
+	"github.com/open-cli-collective/google-readonly/internal/cmd/setcred"
 	"github.com/open-cli-collective/google-readonly/internal/log"
+	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
 	"github.com/open-cli-collective/google-readonly/internal/version"
 )
 
@@ -46,12 +48,26 @@ func Execute() {
 	ExecuteContext(context.Background())
 }
 
-// ExecuteContext runs the root command with the given context
+// ExecuteContext runs the root command with the given context. os.Exit stays
+// strictly AFTER runRoot returns so runRoot's deferred FlushMigrationNotice
+// is never skipped by the exit (it would be if the defer lived here).
 func ExecuteContext(ctx context.Context) {
-	if err := rootCmd.ExecuteContext(ctx); err != nil {
+	if err := runRoot(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// runRoot owns the deferred §1.8 migration-notice flush. The defer fires on
+// success AND error, before any os.Exit — the reliable "finally" hook
+// (Cobra's PersistentPostRunE is skipped on a RunE error, which would lose
+// the signal if the one-time migration succeeded but the command then
+// failed). A JSON command consumes the record via output.JSON, so this is a
+// no-op for it; everything else gets the human stderr line. Stderr never
+// corrupts a --json stdout body.
+func runRoot(ctx context.Context) error {
+	defer migrationsink.FlushMigrationNotice(os.Stderr)
+	return rootCmd.ExecuteContext(ctx)
 }
 
 func init() {
@@ -64,6 +80,7 @@ func init() {
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())
 	rootCmd.AddCommand(config.NewCommand())
+	rootCmd.AddCommand(setcred.NewCmd())
 	rootCmd.AddCommand(me.NewCommand())
 	rootCmd.AddCommand(mail.NewCommand())
 	rootCmd.AddCommand(calendar.NewCommand())

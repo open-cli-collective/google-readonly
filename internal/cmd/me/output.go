@@ -2,12 +2,12 @@ package me
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
+	"github.com/open-cli-collective/google-readonly/internal/output"
 	"github.com/open-cli-collective/google-readonly/internal/people"
 )
 
@@ -83,17 +83,18 @@ func RenderID(w io.Writer, p *people.Profile) {
 }
 
 // RenderJSON emits one of three JSON shapes depending on (idOnly, extended).
+// It routes through output.JSON so the §1.8 one-time-migration block is
+// spliced in on the first post-migration `gro me --json` (`gro me` is the
+// §445 installer smoke command, so its JSON must carry _migration).
 func RenderJSON(w io.Writer, p *people.Profile, e Extras, idOnly, extended bool) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
 	switch {
 	case idOnly:
 		// JSON paths consistently emit raw values (empty strings remain
 		// empty), unlike text rendering which uses "-". This keeps
 		// `gro me --json` shapes machine-friendly across all flag combos.
-		return enc.Encode(jsonIDOnly{PrimaryEmail: p.PrimaryEmail})
+		return output.JSON(w, jsonIDOnly{PrimaryEmail: p.PrimaryEmail})
 	case extended:
-		return enc.Encode(jsonExtended{
+		return output.JSON(w, jsonExtended{
 			jsonOneLiner: jsonOneLiner{
 				ResourceName: p.ResourceName,
 				DisplayName:  p.DisplayName,
@@ -104,7 +105,7 @@ func RenderJSON(w io.Writer, p *people.Profile, e Extras, idOnly, extended bool)
 			StorageBackend: e.StorageBackend,
 		})
 	default:
-		return enc.Encode(jsonOneLiner{
+		return output.JSON(w, jsonOneLiner{
 			ResourceName: p.ResourceName,
 			DisplayName:  p.DisplayName,
 			PrimaryEmail: p.PrimaryEmail,
@@ -123,14 +124,27 @@ func normalizeField(s string) string {
 	return s
 }
 
-// gatherExtras collects the non-People data shown by --extended.
+// gatherExtras collects the non-People data shown by --extended. Uses
+// OpenNoMigrate: the one-time migration already ran via the People client on
+// the main path; this is a read-only display gather and must not re-trigger
+// migration or surface a conflict here.
 func gatherExtras() Extras {
 	var e Extras
-	if tok, err := keychain.GetToken(); err == nil && tok != nil && !tok.Expiry.IsZero() {
-		e.TokenExpiry = tok.Expiry.Format("2006-01-02T15:04:05Z07:00")
+	st, err := keychain.OpenNoMigrate()
+	if err != nil {
+		return e
 	}
-	if keychain.HasStoredToken() {
-		e.StorageBackend = string(keychain.GetStorageBackend())
+	defer func() { _ = st.Close() }()
+	// Best-effort: --extended fields are supplementary; a keyring blip skips
+	// them rather than failing `me` (this gather already tolerates an
+	// OpenNoMigrate error the same way just above).
+	if has, herr := st.HasToken(); herr == nil && has {
+		if backend, _ := st.Backend(); backend != "" {
+			e.StorageBackend = string(backend)
+		}
+		if tok, terr := st.Token(); terr == nil && tok != nil && !tok.Expiry.IsZero() {
+			e.TokenExpiry = tok.Expiry.Format("2006-01-02T15:04:05Z07:00")
+		}
 	}
 	return e
 }
