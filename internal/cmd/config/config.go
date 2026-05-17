@@ -12,7 +12,6 @@ import (
 
 	"github.com/open-cli-collective/cli-common/credstore"
 
-	"github.com/open-cli-collective/google-readonly/internal/cache"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
@@ -268,18 +267,21 @@ func runClear(all, dryRun bool) error {
 			return fmt.Errorf("removing %s: %w", config.ShortenPath(cfgPath), err)
 		}
 
-		// Drive metadata cache: cache.New also runs the transparent legacy
-		// relocation, then Clear removes the (new) cache dir. An explicit
-		// full reset additionally force-cleans the legacy dir even if the
-		// transparent shim had skipped it (carry-failed). All best-effort —
-		// the cache is disposable.
-		if c, cerr := cache.New(config.GetCacheTTLHours()); cerr == nil {
-			if clrErr := c.Clear(); clrErr == nil {
-				fmt.Printf("Removed Drive metadata cache at %s.\n", config.ShortenPath(c.GetDir()))
+		// Drive metadata cache: an explicit full reset removes BOTH the
+		// current cache dir and the legacy (pre-B2b) one directly — no
+		// cache.New(), so no migrate-then-delete dance and no MkdirAll
+		// side-effect. A removal error is surfaced (not silently swallowed):
+		// the user must not believe a full reset succeeded if it did not.
+		if cacheDir, cerr := config.CacheDirPath(); cerr == nil {
+			if rmErr := os.RemoveAll(cacheDir); rmErr != nil {
+				return fmt.Errorf("removing Drive metadata cache %s: %w", config.ShortenPath(cacheDir), rmErr)
 			}
+			fmt.Printf("Removed Drive metadata cache at %s.\n", config.ShortenPath(cacheDir))
 		}
 		if legacy, lerr := config.LegacyCacheDir(); lerr == nil {
-			_ = os.RemoveAll(legacy)
+			if rmErr := os.RemoveAll(legacy); rmErr != nil {
+				return fmt.Errorf("removing legacy Drive cache %s: %w", config.ShortenPath(legacy), rmErr)
+			}
 		}
 	}
 
