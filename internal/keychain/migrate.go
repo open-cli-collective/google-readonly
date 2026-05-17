@@ -246,8 +246,16 @@ func readLegacyTokenFile(path string) (string, bool) {
 	return v, true
 }
 
+// The four legacy-keyring helpers below shell out to `security` /
+// `secret-tool`. gosec G204 flags "subprocess launched with a variable"
+// because `service`/`account` are parameters — but every caller passes the
+// package consts `legacyKeychainService` (config.DirName) and KeyOAuthToken.
+// They are compile-time constants passed as exec argv (no shell), so there is
+// no command-injection surface; gosec just can't prove constness through the
+// call graph.
+
 func keychainRead(service, account string) (string, bool) {
-	out, err := exec.Command("security", "find-generic-password",
+	out, err := exec.Command("security", "find-generic-password", //nolint:gosec // G204: args are package consts passed as argv, no shell
 		"-s", service, "-a", account, "-w").Output()
 	if err != nil {
 		return "", false
@@ -266,7 +274,7 @@ func keychainRead(service, account string) (string, bool) {
 const securityErrItemNotFound = 44
 
 func keychainDelete(service, account string) error {
-	err := exec.Command("security", "delete-generic-password",
+	err := exec.Command("security", "delete-generic-password", //nolint:gosec // G204: args are package consts passed as argv, no shell
 		"-s", service, "-a", account).Run()
 	if err == nil {
 		return nil
@@ -279,7 +287,7 @@ func keychainDelete(service, account string) error {
 }
 
 func secretToolRead(service, account string) (string, bool) {
-	out, err := exec.Command("secret-tool", "lookup",
+	out, err := exec.Command("secret-tool", "lookup", //nolint:gosec // G204: args are package consts passed as argv, no shell
 		"service", service, "account", account).Output()
 	if err != nil {
 		return "", false
@@ -292,7 +300,7 @@ func secretToolRead(service, account string) (string, bool) {
 }
 
 func secretToolDelete(service, account string) error {
-	err := exec.Command("secret-tool", "clear",
+	err := exec.Command("secret-tool", "clear", //nolint:gosec // G204: args are package consts passed as argv, no shell
 		"service", service, "account", account).Run()
 	if err == nil {
 		return nil
@@ -371,7 +379,11 @@ func migrateOAuthClientJSON(cfg *config.Config) error {
 			config.ShortenPath(target))
 	default:
 		// Legacy valid, target absent or invalid → install legacy → target.
-		if werr := os.WriteFile(target, legacyData, config.OutputFilePerm); werr != nil {
+		// G703: `target` is tainted by config (oauth_client_path) — but it is
+		// the user's own config choosing where their own client JSON lands,
+		// not attacker/network input. Same threat model as the G304 reads
+		// above; the OAuth client JSON is deployment material (§1.2).
+		if werr := os.WriteFile(target, legacyData, config.OutputFilePerm); werr != nil { //nolint:gosec // G703: config-derived path, user's own deployment material
 			return fmt.Errorf("write OAuth client JSON %s: %w", config.ShortenPath(target), werr)
 		}
 		if rmErr := os.Remove(legacyPath); rmErr != nil && !os.IsNotExist(rmErr) {

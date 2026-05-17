@@ -172,7 +172,11 @@ func (s *Store) Token() (*oauth2.Token, error) {
 // the single sanctioned non-ingress write: runtime token refresh persisting
 // the rotated token back under the active ref (standard §ix / line 174).
 func (s *Store) SetToken(tok *oauth2.Token) error {
-	data, err := json.Marshal(tok)
+	// G117: gosec flags marshaling a struct whose field matches a secret
+	// pattern (access_token). That is the intended operation: the token must
+	// be serialized to be handed to credstore, which is what encrypts and
+	// stores it. The bytes never leave this function except into the keyring.
+	data, err := json.Marshal(tok) //nolint:gosec // G117: serializing the token for keyring storage is the point; not a leak
 	if err != nil {
 		return fmt.Errorf("serialize token: %w", err)
 	}
