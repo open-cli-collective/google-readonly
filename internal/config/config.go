@@ -90,11 +90,17 @@ type KeyringConfig struct {
 	Backend string `yaml:"backend,omitempty" json:"-"`
 }
 
-// GetConfigDir returns the configuration directory, creating it if needed.
+// legacyCacheSubdir is the pre-B2b cache location: a "cache" subdir inside the
+// config dir. Retained only so the one-time relocation can find and remove it.
+// A local literal (not cache.CacheDir) — internal/config must not import
+// internal/cache.
+const legacyCacheSubdir = "cache"
+
+// configDirPath resolves the configuration directory WITHOUT creating it.
 // Uses $XDG_CONFIG_HOME if set, else ~/.config/google-readonly. Identical on
 // Linux, macOS, and Windows — matches the released layout (no %APPDATA%
 // branch), so config.yml sits beside the legacy files it supersedes.
-func GetConfigDir() (string, error) {
+func configDirPath() (string, error) {
 	configHome := os.Getenv("XDG_CONFIG_HOME")
 	if configHome == "" {
 		home, err := os.UserHomeDir()
@@ -103,11 +109,54 @@ func GetConfigDir() (string, error) {
 		}
 		configHome = filepath.Join(home, ".config")
 	}
-	configDir := filepath.Join(configHome, DirName)
+	return filepath.Join(configHome, DirName), nil
+}
+
+// GetConfigDir returns the configuration directory, creating it if needed.
+func GetConfigDir() (string, error) {
+	configDir, err := configDirPath()
+	if err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(configDir, DirPerm); err != nil { //nolint:gosec // not user-controlled
 		return "", err
 	}
 	return configDir, nil
+}
+
+// CacheDirPath resolves the OS-designated cache directory WITHOUT creating it
+// (used by `config clear --all --dry-run` and tests). os.UserCacheDir gives
+// the canonical per-OS root: Linux $XDG_CACHE_HOME or ~/.cache, macOS
+// ~/Library/Caches, Windows %LocalAppData%. We append only DirName — no
+// platform-specific suffix — to keep all three consistent.
+func CacheDirPath() (string, error) {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, DirName), nil
+}
+
+// GetCacheDir returns the cache directory, creating it if needed.
+func GetCacheDir() (string, error) {
+	cacheDir, err := CacheDirPath()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(cacheDir, DirPerm); err != nil { //nolint:gosec // not user-controlled
+		return "", err
+	}
+	return cacheDir, nil
+}
+
+// LegacyCacheDir resolves the pre-B2b cache directory (a "cache" subdir of the
+// config dir) WITHOUT creating anything — for the one-time relocation only.
+func LegacyCacheDir() (string, error) {
+	configDir, err := configDirPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, legacyCacheSubdir), nil
 }
 
 // GetCredentialsPath returns the path to the LEGACY credentials.json
@@ -121,6 +170,16 @@ func GetTokenPath() (string, error) { return inDir(TokenFile) }
 
 // GetConfigPath returns the authoritative config file path (config.yml).
 func GetConfigPath() (string, error) { return inDir(ConfigFileYAML) }
+
+// GetConfigPathNoCreate is GetConfigPath WITHOUT creating the config dir —
+// for side-effect-free paths such as `config clear --dry-run`.
+func GetConfigPathNoCreate() (string, error) {
+	dir, err := configDirPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, ConfigFileYAML), nil
+}
 
 // LegacyConfigJSONPath returns the pre-migration config.json path.
 func LegacyConfigJSONPath() (string, error) { return inDir(ConfigFile) }

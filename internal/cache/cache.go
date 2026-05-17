@@ -13,8 +13,6 @@ import (
 const (
 	// DefaultTTLHours is the default cache TTL if not configured
 	DefaultTTLHours = 24
-	// CacheDir is the subdirectory within config for cache files
-	CacheDir = "cache"
 	// DrivesFile is the cache file for shared drives
 	DrivesFile = "drives.json"
 )
@@ -38,17 +36,17 @@ type Cache struct {
 	ttlHours int
 }
 
-// New creates a new Cache instance
+// New creates a new Cache instance rooted at the OS cache dir (B2b). It also
+// runs a transparent, best-effort one-time relocation of a pre-B2b cache that
+// lived inside the config dir; relocation never fails New (the cache is
+// disposable — it simply repopulates).
 func New(ttlHours int) (*Cache, error) {
-	configDir, err := config.GetConfigDir()
+	cacheDir, err := config.GetCacheDir()
 	if err != nil {
 		return nil, err
 	}
 
-	cacheDir := filepath.Join(configDir, CacheDir)
-	if err := os.MkdirAll(cacheDir, config.DirPerm); err != nil {
-		return nil, err
-	}
+	migrateLegacyCacheDir(cacheDir)
 
 	if ttlHours <= 0 {
 		ttlHours = DefaultTTLHours
@@ -58,6 +56,45 @@ func New(ttlHours int) (*Cache, error) {
 		dir:      cacheDir,
 		ttlHours: ttlHours,
 	}, nil
+}
+
+// migrateLegacyCacheDir relocates a pre-B2b cache (a "cache" subdir of the
+// config dir) into newDir, then removes the legacy dir. Strictly silent and
+// best-effort: any failure is abandoned without touching New's result. If the
+// warm-cache carry fails the legacy dir is left intact (don't delete data we
+// could not carry); a stuck legacy dir is force-cleaned by `config clear
+// --all`. Idempotent: once the legacy dir is gone this is a single stat.
+func migrateLegacyCacheDir(newDir string) {
+	legacy, err := config.LegacyCacheDir()
+	if err != nil {
+		return
+	}
+	if _, err := os.Stat(legacy); err != nil {
+		return // absent (steady state) or unreadable — nothing safe to do
+	}
+
+	legacyDrives := filepath.Join(legacy, DrivesFile)
+	newDrives := filepath.Join(newDir, DrivesFile)
+	switch _, serr := os.Stat(newDrives); {
+	case serr == nil:
+		// New cache already present: nothing to carry, safe to drop legacy.
+	case os.IsNotExist(serr):
+		// New cache absent: try to carry the warm legacy file.
+		data, rerr := os.ReadFile(legacyDrives) //nolint:gosec // G304: path from config dir, not user input
+		switch {
+		case rerr == nil:
+			if werr := os.WriteFile(newDrives, data, config.TokenPerm); werr != nil { //nolint:gosec // G703: config-derived cache path, user's own disposable data
+				return // carry failed: keep legacy intact, retry next run
+			}
+		case os.IsNotExist(rerr):
+			// No warm file to carry — fine, fall through to cleanup.
+		default:
+			return // legacy drives file exists but unreadable: do NOT delete it
+		}
+	default:
+		return // ambiguous stat on the new path: do not risk deleting un-carried legacy
+	}
+	_ = os.RemoveAll(legacy) // best-effort; cosmetic if it lingers
 }
 
 // GetDrives returns cached shared drives, or nil if cache is stale or missing

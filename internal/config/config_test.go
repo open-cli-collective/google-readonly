@@ -378,3 +378,88 @@ func TestGetCacheTTLHours(t *testing.T) {
 		}
 	})
 }
+
+func TestCacheDirResolvers(t *testing.T) {
+	// Each subtest gets its OWN hermetic env + fresh temp dir: GetCacheDir is
+	// creating, so a shared env would let one subtest's mkdir defeat
+	// another's "non-creating" assertion.
+	hermeticCfg := func(t *testing.T) string {
+		t.Helper()
+		d := t.TempDir()
+		t.Setenv("HOME", d)
+		t.Setenv("XDG_CACHE_HOME", filepath.Join(d, "xcache"))
+		t.Setenv("LOCALAPPDATA", filepath.Join(d, "localappdata"))
+		t.Setenv("XDG_CONFIG_HOME", filepath.Join(d, "xconfig"))
+		return d
+	}
+
+	t.Run("GetCacheDir is under os.UserCacheDir()/DirName, not the config tree", func(t *testing.T) {
+		hermeticCfg(t)
+		base, err := os.UserCacheDir() // computed in-test — no hard-coded per-OS strings
+		if err != nil {
+			t.Fatalf("UserCacheDir: %v", err)
+		}
+		want := filepath.Join(base, DirName)
+
+		got, err := GetCacheDir()
+		if err != nil {
+			t.Fatalf("GetCacheDir: %v", err)
+		}
+		if got != want {
+			t.Errorf("GetCacheDir = %q, want %q", got, want)
+		}
+		cfgDir, err := configDirPath()
+		if err != nil {
+			t.Fatalf("configDirPath: %v", err)
+		}
+		if strings.HasPrefix(got, cfgDir) {
+			t.Errorf("cache dir %q must not be under the config dir %q", got, cfgDir)
+		}
+		if info, serr := os.Stat(got); serr != nil || !info.IsDir() {
+			t.Errorf("GetCacheDir must create the dir: stat err=%v", serr)
+		}
+	})
+
+	t.Run("CacheDirPath and LegacyCacheDir are non-creating", func(t *testing.T) {
+		d := hermeticCfg(t)
+		cp, err := CacheDirPath()
+		if err != nil {
+			t.Fatalf("CacheDirPath: %v", err)
+		}
+		if _, serr := os.Stat(cp); !os.IsNotExist(serr) {
+			t.Errorf("CacheDirPath must not create %q (stat err=%v)", cp, serr)
+		}
+		lp, err := LegacyCacheDir()
+		if err != nil {
+			t.Fatalf("LegacyCacheDir: %v", err)
+		}
+		if _, serr := os.Stat(lp); !os.IsNotExist(serr) {
+			t.Errorf("LegacyCacheDir must not create %q (stat err=%v)", lp, serr)
+		}
+		if want := filepath.Join(filepath.Join(d, "xconfig"), DirName, legacyCacheSubdir); lp != want {
+			t.Errorf("LegacyCacheDir = %q, want %q", lp, want)
+		}
+
+		gp, err := GetConfigPathNoCreate()
+		if err != nil {
+			t.Fatalf("GetConfigPathNoCreate: %v", err)
+		}
+		if _, serr := os.Stat(filepath.Dir(gp)); !os.IsNotExist(serr) {
+			t.Errorf("GetConfigPathNoCreate must not create the config dir %q (stat err=%v)", filepath.Dir(gp), serr)
+		}
+		if want := filepath.Join(filepath.Join(d, "xconfig"), DirName, ConfigFileYAML); gp != want {
+			t.Errorf("GetConfigPathNoCreate = %q, want %q", gp, want)
+		}
+	})
+
+	t.Run("GetConfigDir still creates", func(t *testing.T) {
+		hermeticCfg(t)
+		cd, err := GetConfigDir()
+		if err != nil {
+			t.Fatalf("GetConfigDir: %v", err)
+		}
+		if info, serr := os.Stat(cd); serr != nil || !info.IsDir() {
+			t.Errorf("GetConfigDir must create the dir: stat err=%v", serr)
+		}
+	})
+}
