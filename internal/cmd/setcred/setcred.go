@@ -84,23 +84,28 @@ func run(opts *options) error {
 	}
 
 	// §1.8: when targeting the default ref, run the one-time legacy migration
-	// first (mirrors init's ensureMigrated). Otherwise a pre-existing legacy
-	// token.json + this fresh keyring write would collide on the next real
-	// command's Open() with a §1.8 conflict. A genuine conflict here aborts
-	// loudly (the user must resolve it, not silently overwrite via this
-	// scriptable path). An explicit --ref never migrates — the one-time
-	// migration only ever targets the canonical configured ref (see
-	// keychain.OpenRef).
+	// first (shared keychain.EnsureMigrated, same guarantee as init).
+	// Otherwise a pre-existing legacy token.json + this fresh keyring write
+	// would collide on the next real command's Open() with a §1.8 conflict. A
+	// genuine conflict here aborts loudly (the user must resolve it, not
+	// silently overwrite via this scriptable path). An explicit --ref never
+	// migrates — the one-time migration only ever targets the canonical
+	// configured ref (see keychain.OpenRef).
+	migrated := false
 	if opts.ref == "" {
-		mst, merr := keychain.Open()
-		if merr != nil {
+		if merr := keychain.EnsureMigrated(); merr != nil {
 			return merr
 		}
-		_ = mst.Close()
+		migrated = true
 	}
 
 	st, err := keychain.OpenRef(opts.ref) // ingress: runMigration=false
 	if err != nil {
+		if migrated {
+			// The legacy original may already have been consumed by the
+			// migration above; make the failure actionable.
+			return fmt.Errorf("legacy migration succeeded but the keyring write could not be opened (run 'gro init' to re-authenticate): %w", err)
+		}
 		return err
 	}
 	defer func() { _ = st.Close() }()

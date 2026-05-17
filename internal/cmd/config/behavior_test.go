@@ -30,9 +30,15 @@ func capture(t *testing.T, f func()) string {
 	os.Stdout = w
 	done := make(chan string, 1)
 	go func() { var b bytes.Buffer; _, _ = io.Copy(&b, r); done <- b.String() }()
-	f()
-	os.Stdout = orig
-	_ = w.Close()
+	func() {
+		// Restore even if f() panics, so a failure doesn't leave os.Stdout
+		// redirected for every subsequent test in the process.
+		defer func() {
+			os.Stdout = orig
+			_ = w.Close()
+		}()
+		f()
+	}()
 	return <-done
 }
 
@@ -109,8 +115,8 @@ func TestRunClearSemantics(t *testing.T) {
 		_ = capture(t, func() { _ = runClear(false, true) })
 		st, _ := keychain.OpenNoMigrate()
 		defer func() { _ = st.Close() }()
-		if !st.HasToken() {
-			t.Fatal("--dry-run must not remove the token")
+		if h, herr := st.HasToken(); herr != nil || !h {
+			t.Fatalf("--dry-run must not remove the token (has=%v err=%v)", h, herr)
 		}
 	})
 
@@ -119,8 +125,8 @@ func TestRunClearSemantics(t *testing.T) {
 		_ = capture(t, func() { _ = runClear(false, false) })
 		st, _ := keychain.OpenNoMigrate()
 		defer func() { _ = st.Close() }()
-		if st.HasToken() {
-			t.Fatal("clear must remove the token")
+		if h, herr := st.HasToken(); herr != nil || h {
+			t.Fatalf("clear must remove the token (has=%v err=%v)", h, herr)
 		}
 	})
 

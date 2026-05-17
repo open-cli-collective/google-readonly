@@ -135,7 +135,10 @@ func gatherExtras() Extras {
 		return e
 	}
 	defer func() { _ = st.Close() }()
-	if st.HasToken() {
+	// Best-effort: --extended fields are supplementary; a keyring blip skips
+	// them rather than failing `me` (this gather already tolerates an
+	// OpenNoMigrate error the same way just above).
+	if has, herr := st.HasToken(); herr == nil && has {
 		if backend, _ := st.Backend(); backend != "" {
 			e.StorageBackend = string(backend)
 		}

@@ -204,23 +204,25 @@ func defaultDeps() initDeps {
 // originals are gone (or init aborted loudly), so the storeSetToken /
 // storeHasToken / storeDeleteToken paths can stay non-migrating. A genuine
 // fresh install migrates nothing (no-op).
-func ensureMigrated() error {
-	st, err := keychain.Open()
-	if err != nil {
-		return err
-	}
-	return st.Close()
-}
+func ensureMigrated() error { return keychain.EnsureMigrated() }
 
 // storeHasToken backs the wizard's "is a token already present?" gate.
 // Non-migrating: ensureMigrated already ran the one-time migration up front.
+// Fail closed: a keyring error returns true (assume a token may be present)
+// so the wizard shows its overwrite confirmation rather than silently
+// skipping it and clobbering a token that might actually be there. The
+// keyring is then re-exercised by storeSetToken, which surfaces the error.
 func storeHasToken() bool {
 	st, err := keychain.OpenNoMigrate()
 	if err != nil {
-		return false
+		return true
 	}
 	defer func() { _ = st.Close() }()
-	return st.HasToken()
+	has, herr := st.HasToken()
+	if herr != nil {
+		return true
+	}
+	return has
 }
 
 func storeSetToken(t *oauth2.Token) error {

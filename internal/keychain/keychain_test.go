@@ -113,8 +113,8 @@ func TestStoreRoundTripAndDelete(t *testing.T) {
 	}
 	defer func() { _ = st.Close() }()
 
-	if st.HasToken() {
-		t.Fatal("fresh store should have no token")
+	if h, herr := st.HasToken(); herr != nil || h {
+		t.Fatalf("fresh store should have no token (has=%v err=%v)", h, herr)
 	}
 	if _, err := st.Token(); !errors.Is(err, ErrTokenNotFound) {
 		t.Fatalf("want ErrTokenNotFound, got %v", err)
@@ -166,8 +166,8 @@ func TestMigrateTokenFileAndIdempotent(t *testing.T) {
 		t.Fatalf("idempotent reopen: %v", err)
 	}
 	defer func() { _ = st2.Close() }()
-	if !st2.HasToken() {
-		t.Fatal("token vanished on idempotent reopen")
+	if h, herr := st2.HasToken(); herr != nil || !h {
+		t.Fatalf("token vanished on idempotent reopen (has=%v err=%v)", h, herr)
 	}
 }
 

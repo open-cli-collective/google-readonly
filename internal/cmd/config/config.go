@@ -114,12 +114,16 @@ func runShow(jsonOut, verbose bool) error {
 	}
 	defer func() { _ = st.Close() }()
 
+	hasTok, err := st.HasToken()
+	if err != nil {
+		return err
+	}
 	backend, src := st.Backend()
 	status := showStatus{
 		CredentialRef:      st.Ref(),
 		Backend:            string(backend),
 		BackendSource:      string(src),
-		OAuthTokenPresent:  st.HasToken(),
+		OAuthTokenPresent:  hasTok,
 		OAuthClientPath:    config.ShortenPath(cfg.OAuthClientPath),
 		OAuthClientPresent: false,
 	}
@@ -172,7 +176,12 @@ func runTest(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if !st.HasToken() {
+	has, err := st.HasToken()
+	if err != nil {
+		_ = st.Close()
+		return fmt.Errorf("checking stored token: %w", err)
+	}
+	if !has {
 		_ = st.Close()
 		fmt.Println("  OAuth token: Not found")
 		fmt.Println()
@@ -213,7 +222,10 @@ func runClear(all, dryRun bool) error {
 	}
 	defer func() { _ = st.Close() }()
 
-	hasTok := st.HasToken()
+	hasTok, err := st.HasToken()
+	if err != nil {
+		return fmt.Errorf("checking stored token: %w", err)
+	}
 	cfgPath, err := config.GetConfigPath()
 	if err != nil {
 		return fmt.Errorf("resolving config path: %w", err)

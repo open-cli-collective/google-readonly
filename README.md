@@ -191,14 +191,26 @@ op read 'op://Vault/gro/oauth_token' | gro set-credential --key oauth_token --st
 # From an environment variable
 gro set-credential --key oauth_token --from-env GRO_OAUTH_TOKEN
 
+# Target a non-default credential ref (default: config.yml credential_ref)
+gro set-credential --key oauth_token --stdin --ref my-service/profile
+
 # Two-phase install: feed the OAuth redirect code on stdin instead of pasting it
 gro init --auth-code-stdin < auth_code.txt
 ```
 
+Flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--key oauth_token` | Required. Only `oauth_token` is accepted. |
+| `--stdin` | Read the token JSON from stdin. |
+| `--from-env NAME` | Read the token JSON from the named environment variable. |
+| `--ref SERVICE/PROFILE` | Target credential ref. Defaults to `config.yml`'s `credential_ref`. |
+
 The token lands in the same OS keyring as `gro init` (or the
-`keyring.backend: file` encrypted file). `--ref` targets a non-default
-credential ref; the default ref runs the one-time legacy migration first so a
-pre-existing `token.json` cannot later collide.
+`keyring.backend: file` encrypted file). With the default ref, `set-credential`
+runs the one-time legacy migration first so a pre-existing `token.json` cannot
+later collide; an explicit `--ref` never migrates.
 
 ## Commands
 

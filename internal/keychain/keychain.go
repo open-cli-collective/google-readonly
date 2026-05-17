@@ -206,8 +206,26 @@ func (s *Store) DeleteToken() error {
 }
 
 // HasToken reports presence without returning the value (`config show`,
-// `init` overwrite check — §1.6).
-func (s *Store) HasToken() bool {
+// `init` overwrite check — §1.6). A genuine Exists failure (keyring
+// temporarily inaccessible) is surfaced, not folded into "absent": callers
+// that gate re-auth/overwrite on this must not mistake an error for "no
+// token" and clobber a token that is actually present.
+func (s *Store) HasToken() (bool, error) {
 	ok, err := s.cs.Exists(s.profile, KeyOAuthToken)
-	return err == nil && ok
+	if err != nil {
+		return false, fmt.Errorf("check %s at %s: %w", KeyOAuthToken, s.ref, err)
+	}
+	return ok, nil
+}
+
+// EnsureMigrated runs (and resolves) the one-time §1.8 legacy migration up
+// front via the full Open() path, then closes. A legacy-vs-keyring conflict
+// surfaces as a hard error. Shared by `gro init` and `gro set-credential` so
+// the migration guarantee lives in exactly one place.
+func EnsureMigrated() error {
+	st, err := Open()
+	if err != nil {
+		return err
+	}
+	return st.Close()
 }
