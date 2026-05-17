@@ -28,6 +28,10 @@ func Setup(t *testing.T) string {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "xdgconfig"))
+	// Isolate the OS cache dir too (B2b): XDG_CACHE_HOME covers Linux/CI,
+	// LOCALAPPDATA covers Windows os.UserCacheDir; HOME already covers macOS.
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmp, "xdgcache"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(tmp, "localappdata"))
 	t.Setenv("GOOGLE_READONLY_KEYRING_BACKEND", "file")
 	t.Setenv("GOOGLE_READONLY_KEYRING_PASSPHRASE", "test-passphrase")
 	t.Setenv("GRO_TEST_DISABLE_LEGACY_KEYCHAIN_SCAN", "1")

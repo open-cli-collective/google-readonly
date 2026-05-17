@@ -543,10 +543,12 @@ Usage: gro config test
 
 ### gro config clear
 
-Remove stored OAuth token (forces re-authentication).
+Remove the stored OAuth token (forces re-authentication). `--all` also removes
+`config.yml` and the Drive metadata cache; `--dry-run` reports what would be
+removed without removing anything.
 
 ```
-Usage: gro config clear
+Usage: gro config clear [--all] [--dry-run]
 ```
 
 ### gro config cache show
@@ -1262,6 +1264,13 @@ gro config cache clear
 # Change cache TTL
 gro config cache ttl 12    # Set to 12 hours
 ```
+
+The cache lives in the OS cache directory — `$XDG_CACHE_HOME/google-readonly`
+(or `~/.cache/google-readonly`) on Linux, `~/Library/Caches/google-readonly`
+on macOS, `%LocalAppData%\google-readonly` on Windows — kept separate from
+your config. A cache left by an older gro version (inside the config dir) is
+relocated automatically on first use; `gro config clear --all` also clears the
+Drive metadata cache.
 
 The cache is automatically repopulated when stale or after being cleared.
 

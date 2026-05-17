@@ -7,10 +7,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
+// hermetic isolates every cache path resolver from the developer's real
+// dirs (also fixes a pre-existing pollution bug). Covers all OSes
+// os.UserCacheDir / config dir resolution can consult: HOME (macOS
+// ~/Library/Caches), XDG_CACHE_HOME (Linux/CI), LOCALAPPDATA (Windows),
+// XDG_CONFIG_HOME (legacy-cache-dir resolution).
+func hermetic(t *testing.T) {
+	t.Helper()
+	d := t.TempDir()
+	t.Setenv("HOME", d)
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(d, "xcache"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(d, "localappdata"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(d, "xconfig"))
+}
+
 func TestNew(t *testing.T) {
+	hermetic(t)
 	t.Run("creates cache with default TTL", func(t *testing.T) {
 		c, err := New(0)
 		testutil.NoError(t, err)
@@ -37,6 +53,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestCache_GetSetDrives(t *testing.T) {
+	hermetic(t)
 	c, err := New(24)
 	testutil.NoError(t, err)
 	defer c.Clear()
@@ -67,6 +84,7 @@ func TestCache_GetSetDrives(t *testing.T) {
 }
 
 func TestCache_Expiration(t *testing.T) {
+	hermetic(t)
 	c, err := New(1) // 1 hour TTL
 	testutil.NoError(t, err)
 	defer c.Clear()
@@ -118,6 +136,7 @@ func TestCache_Expiration(t *testing.T) {
 }
 
 func TestCache_CorruptedCache(t *testing.T) {
+	hermetic(t)
 	c, err := New(24)
 	testutil.NoError(t, err)
 	defer c.Clear()
@@ -134,6 +153,7 @@ func TestCache_CorruptedCache(t *testing.T) {
 }
 
 func TestCache_Clear(t *testing.T) {
+	hermetic(t)
 	c, err := New(24)
 	testutil.NoError(t, err)
 
@@ -156,6 +176,7 @@ func TestCache_Clear(t *testing.T) {
 }
 
 func TestCache_GetStatus(t *testing.T) {
+	hermetic(t)
 	c, err := New(24)
 	testutil.NoError(t, err)
 	defer c.Clear()
@@ -202,10 +223,78 @@ func TestCache_GetStatus(t *testing.T) {
 }
 
 func TestCache_GetDir(t *testing.T) {
+	hermetic(t)
 	c, err := New(24)
 	testutil.NoError(t, err)
 	defer c.Clear()
 
+	// Assert the exact resolved path, not a substring: with no Windows
+	// \Cache suffix and macOS ~/Library/Caches there is no portable
+	// "cache" substring (Codex Minor-2).
+	want, err := config.CacheDirPath()
+	testutil.NoError(t, err)
 	testutil.NotEmpty(t, c.GetDir())
-	testutil.Contains(t, c.GetDir(), "cache")
+	testutil.Equal(t, c.GetDir(), want)
+}
+
+func TestMigrateLegacyCacheDir(t *testing.T) {
+	hermetic(t)
+
+	legacy, err := config.LegacyCacheDir()
+	testutil.NoError(t, err)
+	newDir, err := config.CacheDirPath()
+	testutil.NoError(t, err)
+
+	seedLegacy := func(t *testing.T, payload string) {
+		t.Helper()
+		testutil.NoError(t, os.MkdirAll(legacy, 0o700))
+		testutil.NoError(t, os.WriteFile(filepath.Join(legacy, DrivesFile), []byte(payload), 0o600))
+	}
+
+	t.Run("carries warm cache then removes legacy", func(t *testing.T) {
+		seedLegacy(t, `{"cached_at":"2026-01-01T00:00:00Z","ttl_hours":24,"drives":[{"id":"d1","name":"Eng"}]}`)
+
+		c, err := New(24)
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		got, err := os.ReadFile(filepath.Join(newDir, DrivesFile))
+		testutil.NoError(t, err)
+		testutil.Contains(t, string(got), `"d1"`)
+		_, statErr := os.Stat(legacy)
+		testutil.True(t, os.IsNotExist(statErr)) // legacy removed
+
+		// Idempotent: a second New is a no-op and keeps the new cache.
+		c2, err := New(24)
+		testutil.NoError(t, err)
+		defer c2.Clear()
+		_, err = os.Stat(filepath.Join(newDir, DrivesFile))
+		testutil.NoError(t, err)
+	})
+
+	t.Run("does not overwrite an existing new cache; still removes legacy", func(t *testing.T) {
+		// New cache already warm with distinct content.
+		c, err := New(24)
+		testutil.NoError(t, err)
+		defer c.Clear()
+		testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "new", Name: "Keep"}}))
+		seedLegacy(t, `{"drives":[{"id":"old","name":"Stale"}]}`)
+
+		c2, err := New(24)
+		testutil.NoError(t, err)
+		defer c2.Clear()
+
+		drives, err := c2.GetDrives()
+		testutil.NoError(t, err)
+		testutil.Len(t, drives, 1)
+		testutil.Equal(t, drives[0].ID, "new") // not overwritten by legacy
+		_, statErr := os.Stat(legacy)
+		testutil.True(t, os.IsNotExist(statErr)) // legacy still removed
+	})
+
+	t.Run("no legacy is a clean no-op", func(t *testing.T) {
+		c, err := New(24)
+		testutil.NoError(t, err) // migration never fails New
+		defer c.Clear()
+	})
 }

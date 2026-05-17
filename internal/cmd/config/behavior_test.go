@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/open-cli-collective/google-readonly/internal/cache"
 	appconfig "github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/credtest"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
@@ -148,6 +149,88 @@ func TestRunClearSemantics(t *testing.T) {
 		_ = capture(t, func() { _ = runClear(true, false) })
 		if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
 			t.Fatal("--all must remove config.yml")
+		}
+	})
+
+	t.Run("--all removes the Drive cache (new + legacy)", func(t *testing.T) {
+		seedTokenAndClient(t)
+		c, err := cache.New(24)
+		if err != nil {
+			t.Fatalf("cache.New: %v", err)
+		}
+		if err := c.SetDrives([]*cache.CachedDrive{{ID: "d1", Name: "Eng"}}); err != nil {
+			t.Fatalf("SetDrives: %v", err)
+		}
+		newDir := c.GetDir()
+		legacy, err := appconfig.LegacyCacheDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(legacy, 0o700); err != nil {
+			t.Fatal(err)
+		}
+
+		_ = capture(t, func() { _ = runClear(true, false) })
+
+		if _, err := os.Stat(newDir); !os.IsNotExist(err) {
+			t.Fatalf("--all must remove the new Drive cache dir (stat err=%v)", err)
+		}
+		if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+			t.Fatalf("--all must force-clean the legacy cache dir (stat err=%v)", err)
+		}
+	})
+
+	t.Run("plain clear neither initializes nor migrates the cache", func(t *testing.T) {
+		seedTokenAndClient(t)
+		legacy, err := appconfig.LegacyCacheDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(legacy, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(legacy, cache.DrivesFile), []byte(`{"drives":[]}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		newDir, err := appconfig.CacheDirPath()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_ = capture(t, func() { _ = runClear(false, false) })
+
+		if _, err := os.Stat(legacy); err != nil {
+			t.Fatalf("plain clear must not migrate/remove the legacy cache (stat err=%v)", err)
+		}
+		if _, err := os.Stat(newDir); !os.IsNotExist(err) {
+			t.Fatalf("plain clear must not initialize the new cache dir (stat err=%v)", err)
+		}
+	})
+
+	t.Run("--dry-run --all creates and removes nothing, names the cache", func(t *testing.T) {
+		seedTokenAndClient(t)
+		legacy, err := appconfig.LegacyCacheDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(legacy, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		newDir, err := appconfig.CacheDirPath()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := capture(t, func() { _ = runClear(true, true) })
+
+		if _, err := os.Stat(legacy); err != nil {
+			t.Fatalf("--dry-run must not touch the legacy cache (stat err=%v)", err)
+		}
+		if _, err := os.Stat(newDir); !os.IsNotExist(err) {
+			t.Fatalf("--dry-run must not create the new cache dir (stat err=%v)", err)
+		}
+		if !strings.Contains(out, "Drive metadata cache") {
+			t.Fatalf("--dry-run --all output should name the Drive metadata cache, got:\n%s", out)
 		}
 	})
 }

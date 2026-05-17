@@ -12,6 +12,7 @@ import (
 
 	"github.com/open-cli-collective/cli-common/credstore"
 
+	"github.com/open-cli-collective/google-readonly/internal/cache"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
@@ -69,18 +70,15 @@ func newClearCommand() *cobra.Command {
 		Use:   "clear",
 		Short: "Remove the stored OAuth token (active profile)",
 		Long: `Remove the stored OAuth token under the active credential_ref,
-forcing re-authentication (§1.7). --all also removes config.yml. --dry-run
-reports what would be removed without removing it. The OAuth client JSON
-(deployment material) is never removed.
-
-Note: the Drive metadata cache is not yet relocated/cleared here — that
-lands in a follow-up unit (B2b).`,
+forcing re-authentication (§1.7). --all also removes config.yml and the Drive
+metadata cache. --dry-run reports what would be removed without removing it.
+The OAuth client JSON (deployment material) is never removed.`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runClear(all, dryRun)
 		},
 	}
-	cmd.Flags().BoolVar(&all, "all", false, "Also remove config.yml (active-profile scope)")
+	cmd.Flags().BoolVar(&all, "all", false, "Also remove config.yml and the Drive metadata cache")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Report what would be removed; remove nothing")
 	return cmd
 }
@@ -239,6 +237,10 @@ func runClear(all, dryRun bool) error {
 		}
 		if all {
 			fmt.Printf("Would remove: %s\n", config.ShortenPath(cfgPath))
+			// Non-creating resolver: --dry-run must not create or migrate.
+			if cacheDir, cerr := config.CacheDirPath(); cerr == nil {
+				fmt.Printf("Would remove: Drive metadata cache at %s\n", config.ShortenPath(cacheDir))
+			}
 		}
 		fmt.Println()
 		fmt.Println("--dry-run: nothing was removed.")
@@ -262,6 +264,20 @@ func runClear(all, dryRun bool) error {
 			fmt.Printf("No %s to remove.\n", config.ShortenPath(cfgPath))
 		default:
 			return fmt.Errorf("removing %s: %w", config.ShortenPath(cfgPath), err)
+		}
+
+		// Drive metadata cache: cache.New also runs the transparent legacy
+		// relocation, then Clear removes the (new) cache dir. An explicit
+		// full reset additionally force-cleans the legacy dir even if the
+		// transparent shim had skipped it (carry-failed). All best-effort —
+		// the cache is disposable.
+		if c, cerr := cache.New(config.GetCacheTTLHours()); cerr == nil {
+			if clrErr := c.Clear(); clrErr == nil {
+				fmt.Printf("Removed Drive metadata cache at %s.\n", config.ShortenPath(c.GetDir()))
+			}
+		}
+		if legacy, lerr := config.LegacyCacheDir(); lerr == nil {
+			_ = os.RemoveAll(legacy)
 		}
 	}
 
