@@ -504,7 +504,7 @@ Guided setup for Google API OAuth authentication.
 Usage: gro init [flags]
 
 Flags:
-      --auth-code-stdin           Read the OAuth authorization code/redirect URL from stdin (two-phase install; pair with --no-browser)
+      --auth-code-stdin           Read the OAuth authorization code/redirect URL from stdin (two-phase install; implies no browser-open)
       --credentials-file string   Path to a downloaded OAuth client JSON (bypasses the wizard)
       --no-browser                Don't try to open the consent URL in a browser
       --no-verify                 Skip connectivity verification after setup

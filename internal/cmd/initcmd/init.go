@@ -75,7 +75,7 @@ it will read, validate, and write it to the config directory for you.`, workspac
 	cmd.Flags().StringVar(&opts.credentialsFile, "credentials-file", "", "Path to a downloaded OAuth client JSON (bypasses interactive paste)")
 	cmd.Flags().BoolVar(&opts.noBrowser, "no-browser", false, "Don't try to open the consent URL in a browser")
 	cmd.Flags().BoolVar(&opts.noVerify, "no-verify", false, "Skip connectivity verification after setup")
-	cmd.Flags().BoolVar(&opts.authCodeStdin, "auth-code-stdin", false, "Read the OAuth authorization code/redirect URL from stdin (two-phase install; pair with --no-browser)")
+	cmd.Flags().BoolVar(&opts.authCodeStdin, "auth-code-stdin", false, "Read the OAuth authorization code/redirect URL from stdin (two-phase install; implies no browser-open)")
 
 	return cmd
 }
@@ -264,7 +264,10 @@ func readAllStdin() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(b), nil
+	// Trim: a piped auth code carries a trailing newline that would
+	// otherwise be sent verbatim to ExchangeAuthCode (opaque OAuth error).
+	// Mirrors setcred.readValue.
+	return strings.TrimSpace(string(b)), nil
 }
 
 // runWith is the testable entry point for the wizard. NewCommand wraps it.

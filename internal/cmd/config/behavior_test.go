@@ -113,7 +113,10 @@ func TestRunClearSemantics(t *testing.T) {
 	t.Run("dry-run removes nothing", func(t *testing.T) {
 		seedTokenAndClient(t)
 		_ = capture(t, func() { _ = runClear(false, true) })
-		st, _ := keychain.OpenNoMigrate()
+		st, err := keychain.OpenNoMigrate()
+		if err != nil {
+			t.Fatalf("OpenNoMigrate: %v", err)
+		}
 		defer func() { _ = st.Close() }()
 		if h, herr := st.HasToken(); herr != nil || !h {
 			t.Fatalf("--dry-run must not remove the token (has=%v err=%v)", h, herr)
@@ -123,7 +126,10 @@ func TestRunClearSemantics(t *testing.T) {
 	t.Run("clear removes the token", func(t *testing.T) {
 		seedTokenAndClient(t)
 		_ = capture(t, func() { _ = runClear(false, false) })
-		st, _ := keychain.OpenNoMigrate()
+		st, err := keychain.OpenNoMigrate()
+		if err != nil {
+			t.Fatalf("OpenNoMigrate: %v", err)
+		}
 		defer func() { _ = st.Close() }()
 		if h, herr := st.HasToken(); herr != nil || h {
 			t.Fatalf("clear must remove the token (has=%v err=%v)", h, herr)

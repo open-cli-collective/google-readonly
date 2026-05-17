@@ -255,10 +255,14 @@ func runClear(all, dryRun bool) error {
 	}
 
 	if all {
-		if err := os.Remove(cfgPath); err != nil && !os.IsNotExist(err) {
+		switch err := os.Remove(cfgPath); {
+		case err == nil:
+			fmt.Printf("Removed %s.\n", config.ShortenPath(cfgPath))
+		case os.IsNotExist(err):
+			fmt.Printf("No %s to remove.\n", config.ShortenPath(cfgPath))
+		default:
 			return fmt.Errorf("removing %s: %w", config.ShortenPath(cfgPath), err)
 		}
-		fmt.Printf("Removed %s.\n", config.ShortenPath(cfgPath))
 	}
 
 	fmt.Println()
