@@ -99,7 +99,10 @@ func run(opts *options) error {
 
 func readValue(opts *options) (string, error) {
 	if opts.fromEnv != "" {
-		v := os.Getenv(opts.fromEnv)
+		// TrimSpace mirrors the --stdin path: a trailing newline from
+		// `export X=$(cat token.json)` would otherwise make the JSON parse
+		// fail with an opaque error.
+		v := strings.TrimSpace(os.Getenv(opts.fromEnv))
 		if v == "" {
 			// Name the variable (never the value) so the user knows what to
 			// populate (§1.12: the var name is not secret).

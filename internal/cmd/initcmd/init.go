@@ -224,7 +224,10 @@ func storeHasToken() bool {
 }
 
 func storeSetToken(t *oauth2.Token) error {
-	st, err := keychain.OpenRef("") // default ref, runMigration=false
+	// OpenNoMigrate (not OpenRef("")): symmetric with storeHasToken /
+	// storeDeleteToken — same configured ref, non-migrating (ensureMigrated
+	// already ran the one-time migration up front).
+	st, err := keychain.OpenNoMigrate()
 	if err != nil {
 		return err
 	}

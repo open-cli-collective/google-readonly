@@ -201,9 +201,3 @@ func (s *Store) HasToken() bool {
 	ok, err := s.cs.Exists(s.profile, KeyOAuthToken)
 	return err == nil && ok
 }
-
-// Clear removes the whole bundle under the active profile (`config clear`,
-// §1.7). Idempotent; scope is the active profile only.
-func (s *Store) Clear() ([]string, error) {
-	return s.cs.DeleteBundle(s.profile)
-}

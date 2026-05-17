@@ -239,10 +239,14 @@ func SaveConfig(cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	if cfg.OAuthClientPath != "" {
-		cfg.OAuthClientPath = ExpandPath(cfg.OAuthClientPath)
+	// Serialize a copy: persisting an expanded path must not mutate the
+	// caller's *Config (a caller inspecting OAuthClientPath after SaveConfig
+	// would otherwise observe an unexpectedly rewritten value).
+	out := *cfg
+	if out.OAuthClientPath != "" {
+		out.OAuthClientPath = ExpandPath(out.OAuthClientPath)
 	}
-	data, err := yaml.Marshal(cfg)
+	data, err := yaml.Marshal(&out)
 	if err != nil {
 		return err
 	}

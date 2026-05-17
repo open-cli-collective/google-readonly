@@ -4,6 +4,7 @@ package config
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -129,7 +130,7 @@ func runShow(jsonOut, verbose bool) error {
 		status.OAuthClientPresent = true
 		status.OAuthClientFingerprint = "sha256:" + fileFingerprint(data)
 		if verbose {
-			status.OAuthClientContents = string(data)
+			status.OAuthClientContents = redactClientJSON(data)
 		}
 	}
 
@@ -213,7 +214,10 @@ func runClear(all, dryRun bool) error {
 	defer func() { _ = st.Close() }()
 
 	hasTok := st.HasToken()
-	cfgPath, _ := config.GetConfigPath()
+	cfgPath, err := config.GetConfigPath()
+	if err != nil {
+		return fmt.Errorf("resolving config path: %w", err)
+	}
 
 	if dryRun {
 		if hasTok {
@@ -230,7 +234,7 @@ func runClear(all, dryRun bool) error {
 	}
 
 	if hasTok {
-		if _, err := st.Clear(); err != nil {
+		if err := st.DeleteToken(); err != nil {
 			return fmt.Errorf("clearing token: %w", err)
 		}
 		fmt.Printf("Cleared OAuth token from %s.\n", st.Ref())
@@ -261,4 +265,40 @@ func presence(ok bool) string {
 func fileFingerprint(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])[:12]
+}
+
+// redactClientJSON renders the OAuth client JSON for `config show --verbose`
+// with every client_secret replaced by "[redacted]". The client JSON is
+// deployment material (§1.2), not a per-user access secret, but echoing the
+// client_secret onto stdout (CI logs, shell history, log aggregation) is
+// needless exposure. If the bytes do not parse, the raw contents are NOT
+// inlined — they may still carry the secret.
+func redactClientJSON(data []byte) string {
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return "[OAuth client JSON present but not valid JSON; not inlined]"
+	}
+	redactSecrets(v)
+	out, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "[OAuth client JSON could not be re-encoded; not inlined]"
+	}
+	return string(out)
+}
+
+func redactSecrets(v any) {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, val := range t {
+			if k == "client_secret" {
+				t[k] = "[redacted]"
+				continue
+			}
+			redactSecrets(val)
+		}
+	case []any:
+		for _, e := range t {
+			redactSecrets(e)
+		}
+	}
 }
