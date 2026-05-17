@@ -83,6 +83,22 @@ func run(opts *options) error {
 		return fmt.Errorf("token has neither an access nor a refresh token")
 	}
 
+	// §1.8: when targeting the default ref, run the one-time legacy migration
+	// first (mirrors init's ensureMigrated). Otherwise a pre-existing legacy
+	// token.json + this fresh keyring write would collide on the next real
+	// command's Open() with a §1.8 conflict. A genuine conflict here aborts
+	// loudly (the user must resolve it, not silently overwrite via this
+	// scriptable path). An explicit --ref never migrates — the one-time
+	// migration only ever targets the canonical configured ref (see
+	// keychain.OpenRef).
+	if opts.ref == "" {
+		mst, merr := keychain.Open()
+		if merr != nil {
+			return merr
+		}
+		_ = mst.Close()
+	}
+
 	st, err := keychain.OpenRef(opts.ref) // ingress: runMigration=false
 	if err != nil {
 		return err

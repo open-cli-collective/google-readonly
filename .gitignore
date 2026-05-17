@@ -17,3 +17,6 @@ dist/
 coverage.out
 coverage.html
 *.out
+
+# Editor/tool local state
+.twapp-*.json

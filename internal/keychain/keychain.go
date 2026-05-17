@@ -188,9 +188,15 @@ func (s *Store) SetToken(tok *oauth2.Token) error {
 
 // DeleteToken removes the token (idempotent: an absent key is not an error —
 // §1.7). The Exists pre-check is backend-agnostic: credstore's file backend
-// surfaces a raw os "not found" rather than ErrNotFound on Delete.
+// surfaces a raw os "not found" rather than ErrNotFound on Delete. A genuine
+// Exists failure (e.g. keyring temporarily inaccessible) is surfaced, not
+// swallowed — otherwise a non-deletion would be reported as success.
 func (s *Store) DeleteToken() error {
-	if ok, _ := s.cs.Exists(s.profile, KeyOAuthToken); !ok {
+	ok, err := s.cs.Exists(s.profile, KeyOAuthToken)
+	if err != nil {
+		return fmt.Errorf("check %s at %s: %w", KeyOAuthToken, s.ref, err)
+	}
+	if !ok {
 		return nil
 	}
 	if err := s.cs.Delete(s.profile, KeyOAuthToken); err != nil && !errors.Is(err, credstore.ErrNotFound) {

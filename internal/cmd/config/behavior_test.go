@@ -16,11 +16,16 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 )
 
-const clientJSON = `{"installed":{"client_id":"123.apps.googleusercontent.com","project_id":"p","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","client_secret":"x","redirect_uris":["http://localhost"]}}`
+const clientSecretSentinel = "SENTINEL-CLIENT-SECRET-7f3a"
+
+const clientJSON = `{"installed":{"client_id":"123.apps.googleusercontent.com","project_id":"p","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","client_secret":"` + clientSecretSentinel + `","redirect_uris":["http://localhost"]}}`
 
 func capture(t *testing.T, f func()) string {
 	t.Helper()
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
 	orig := os.Stdout
 	os.Stdout = w
 	done := make(chan string, 1)
@@ -83,6 +88,15 @@ func TestRunShowReportsState(t *testing.T) {
 	}
 	if st.OAuthClientContents == "" || !strings.Contains(st.OAuthClientContents, "client_id") {
 		t.Errorf("--verbose must inline client JSON, got %q", st.OAuthClientContents)
+	}
+	if strings.Contains(st.OAuthClientContents, clientSecretSentinel) {
+		t.Errorf("--verbose must NOT expose client_secret; got %q", st.OAuthClientContents)
+	}
+	if !strings.Contains(st.OAuthClientContents, "[redacted]") {
+		t.Errorf("--verbose must redact client_secret to [redacted]; got %q", st.OAuthClientContents)
+	}
+	if strings.Contains(jsonOut, clientSecretSentinel) {
+		t.Errorf("show --json must never expose client_secret")
 	}
 	if strings.Contains(jsonOut, `"A"`) || strings.Contains(jsonOut, `"R"`) {
 		t.Errorf("show must never include the token value")

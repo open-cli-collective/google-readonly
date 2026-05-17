@@ -176,6 +176,30 @@ gro init --no-browser                                        # don't auto-open
 gro init --no-verify                                         # skip post-setup API check
 ```
 
+### Non-interactive ingress (CI / automation)
+
+For unattended installs you can seed the token without the browser flow using
+`gro set-credential`. It accepts a serialized `oauth2.Token` JSON object
+**only** via stdin or a named environment variable — never as a flag or
+positional argument — and only for the key `oauth_token`. The value is never
+echoed.
+
+```bash
+# From a secrets manager via stdin
+op read 'op://Vault/gro/oauth_token' | gro set-credential --key oauth_token --stdin
+
+# From an environment variable
+gro set-credential --key oauth_token --from-env GRO_OAUTH_TOKEN
+
+# Two-phase install: feed the OAuth redirect code on stdin instead of pasting it
+gro init --auth-code-stdin < auth_code.txt
+```
+
+The token lands in the same OS keyring as `gro init` (or the
+`keyring.backend: file` encrypted file). `--ref` targets a non-default
+credential ref; the default ref runs the one-time legacy migration first so a
+pre-existing `token.json` cannot later collide.
+
 ## Commands
 
 ### Configuration Commands

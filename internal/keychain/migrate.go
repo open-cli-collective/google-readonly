@@ -54,6 +54,12 @@ func migrateLegacyOverwrite(s *Store, cfg *config.Config, overwrite bool) error 
 		return err
 	}
 
+	// Promote a legacy config.json to config.yml so §2.3's "read transparently
+	// once" actually holds even when there is no legacy token to migrate.
+	if err := promoteLegacyConfigJSON(cfg); err != nil {
+		return err
+	}
+
 	cands := discover()
 	if len(cands) == 0 {
 		return nil // nothing legacy on disk/keychain — the steady state
@@ -394,6 +400,46 @@ func migrateOAuthClientJSON(cfg *config.Config) error {
 	}
 
 	cfg.OAuthClientPath = target
+	return nil
+}
+
+// promoteLegacyConfigJSON rewrites a legacy config.json as config.yml and
+// removes it (§2.3: "read transparently once"). Idempotent by construction:
+// it acts only when config.yml is absent AND config.json is present, so once
+// config.yml exists the loader never reads config.json again and a second run
+// is a silent no-op. config.json is non-secret (refs/paths/ttl/scopes), so a
+// plain os.Remove is sufficient.
+func promoteLegacyConfigJSON(cfg *config.Config) error {
+	ymlPath, err := config.GetConfigPath()
+	if err != nil {
+		return err
+	}
+	switch _, serr := os.Stat(ymlPath); {
+	case serr == nil:
+		return nil // config.yml already present — nothing to promote
+	case !os.IsNotExist(serr):
+		return serr
+	}
+
+	jsonPath, err := config.LegacyConfigJSONPath()
+	if err != nil {
+		return err
+	}
+	switch _, serr := os.Stat(jsonPath); {
+	case os.IsNotExist(serr):
+		return nil // no legacy config.json — fresh-install steady state
+	case serr != nil:
+		return serr
+	}
+
+	if err := config.SaveConfig(cfg); err != nil {
+		return fmt.Errorf("promote legacy config.json to config.yml: %w", err)
+	}
+	if err := os.Remove(jsonPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove legacy config.json after promotion: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "Migrated %s -> %s (non-secret config).\n",
+		config.ShortenPath(jsonPath), config.ShortenPath(ymlPath))
 	return nil
 }
 
