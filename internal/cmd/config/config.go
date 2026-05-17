@@ -224,7 +224,9 @@ func runClear(all, dryRun bool) error {
 	if err != nil {
 		return fmt.Errorf("checking stored token: %w", err)
 	}
-	cfgPath, err := config.GetConfigPath()
+	// NoCreate: clear (incl. --dry-run) must not create the config dir as a
+	// side-effect. os.Remove below tolerates an absent dir/file.
+	cfgPath, err := config.GetConfigPathNoCreate()
 	if err != nil {
 		return fmt.Errorf("resolving config path: %w", err)
 	}

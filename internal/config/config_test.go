@@ -439,6 +439,17 @@ func TestCacheDirResolvers(t *testing.T) {
 		if want := filepath.Join(filepath.Join(d, "xconfig"), DirName, legacyCacheSubdir); lp != want {
 			t.Errorf("LegacyCacheDir = %q, want %q", lp, want)
 		}
+
+		gp, err := GetConfigPathNoCreate()
+		if err != nil {
+			t.Fatalf("GetConfigPathNoCreate: %v", err)
+		}
+		if _, serr := os.Stat(filepath.Dir(gp)); !os.IsNotExist(serr) {
+			t.Errorf("GetConfigPathNoCreate must not create the config dir %q (stat err=%v)", filepath.Dir(gp), serr)
+		}
+		if want := filepath.Join(filepath.Join(d, "xconfig"), DirName, ConfigFileYAML); gp != want {
+			t.Errorf("GetConfigPathNoCreate = %q, want %q", gp, want)
+		}
 	})
 
 	t.Run("GetConfigDir still creates", func(t *testing.T) {

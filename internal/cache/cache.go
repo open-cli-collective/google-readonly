@@ -75,11 +75,18 @@ func migrateLegacyCacheDir(newDir string) {
 
 	legacyDrives := filepath.Join(legacy, DrivesFile)
 	newDrives := filepath.Join(newDir, DrivesFile)
-	if _, err := os.Stat(newDrives); os.IsNotExist(err) {
-		if data, rerr := os.ReadFile(legacyDrives); rerr == nil { //nolint:gosec // G304: path from config dir, not user input
+	if _, serr := os.Stat(newDrives); os.IsNotExist(serr) {
+		// New cache absent: try to carry the warm legacy file.
+		data, rerr := os.ReadFile(legacyDrives) //nolint:gosec // G304: path from config dir, not user input
+		switch {
+		case rerr == nil:
 			if werr := os.WriteFile(newDrives, data, config.TokenPerm); werr != nil { //nolint:gosec // G703: config-derived cache path, user's own disposable data
-				return // carry failed: keep legacy intact, try again next run
+				return // carry failed: keep legacy intact, retry next run
 			}
+		case os.IsNotExist(rerr):
+			// No warm file to carry — fine, fall through to cleanup.
+		default:
+			return // legacy drives file exists but unreadable: do NOT delete it
 		}
 	}
 	_ = os.RemoveAll(legacy) // best-effort; cosmetic if it lingers

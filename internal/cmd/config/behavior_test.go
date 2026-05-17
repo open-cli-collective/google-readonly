@@ -152,21 +152,20 @@ func TestRunClearSemantics(t *testing.T) {
 		}
 	})
 
-	t.Run("--all removes the Drive cache (new + legacy)", func(t *testing.T) {
+	t.Run("--all force-cleans legacy even when the shim skipped it (carry-failed)", func(t *testing.T) {
 		seedTokenAndClient(t)
-		c, err := cache.New(24)
+		newDir, err := appconfig.CacheDirPath()
 		if err != nil {
-			t.Fatalf("cache.New: %v", err)
+			t.Fatal(err)
 		}
-		if err := c.SetDrives([]*cache.CachedDrive{{ID: "d1", Name: "Eng"}}); err != nil {
-			t.Fatalf("SetDrives: %v", err)
-		}
-		newDir := c.GetDir()
 		legacy, err := appconfig.LegacyCacheDir()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.MkdirAll(legacy, 0o700); err != nil {
+		// drives.json-as-dir => cache.New's shim carry fails and it leaves
+		// legacy intact. Only runClear's explicit RemoveAll(legacy) fallback
+		// can clean it — this exercises that fallback specifically.
+		if err := os.MkdirAll(filepath.Join(legacy, cache.DrivesFile), 0o700); err != nil {
 			t.Fatal(err)
 		}
 
@@ -176,7 +175,7 @@ func TestRunClearSemantics(t *testing.T) {
 			t.Fatalf("--all must remove the new Drive cache dir (stat err=%v)", err)
 		}
 		if _, err := os.Stat(legacy); !os.IsNotExist(err) {
-			t.Fatalf("--all must force-clean the legacy cache dir (stat err=%v)", err)
+			t.Fatalf("--all must force-clean the carry-failed legacy cache dir (stat err=%v)", err)
 		}
 	})
 

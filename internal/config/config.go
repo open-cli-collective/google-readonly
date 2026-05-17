@@ -171,6 +171,16 @@ func GetTokenPath() (string, error) { return inDir(TokenFile) }
 // GetConfigPath returns the authoritative config file path (config.yml).
 func GetConfigPath() (string, error) { return inDir(ConfigFileYAML) }
 
+// GetConfigPathNoCreate is GetConfigPath WITHOUT creating the config dir —
+// for side-effect-free paths such as `config clear --dry-run`.
+func GetConfigPathNoCreate() (string, error) {
+	dir, err := configDirPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, ConfigFileYAML), nil
+}
+
 // LegacyConfigJSONPath returns the pre-migration config.json path.
 func LegacyConfigJSONPath() (string, error) { return inDir(ConfigFile) }
 

@@ -238,21 +238,27 @@ func TestCache_GetDir(t *testing.T) {
 }
 
 func TestMigrateLegacyCacheDir(t *testing.T) {
-	hermetic(t)
-
-	legacy, err := config.LegacyCacheDir()
-	testutil.NoError(t, err)
-	newDir, err := config.CacheDirPath()
-	testutil.NoError(t, err)
-
-	seedLegacy := func(t *testing.T, payload string) {
+	// Each subtest fully isolates its own fixtures: a fresh hermetic env +
+	// freshly-resolved legacy/newDir, so there is no ordered-cleanup coupling
+	// between subtests.
+	setup := func(t *testing.T) (legacy, newDir string) {
+		t.Helper()
+		hermetic(t)
+		legacy, err := config.LegacyCacheDir()
+		testutil.NoError(t, err)
+		newDir, err = config.CacheDirPath()
+		testutil.NoError(t, err)
+		return legacy, newDir
+	}
+	seedLegacy := func(t *testing.T, legacy, payload string) {
 		t.Helper()
 		testutil.NoError(t, os.MkdirAll(legacy, 0o700))
 		testutil.NoError(t, os.WriteFile(filepath.Join(legacy, DrivesFile), []byte(payload), 0o600))
 	}
 
 	t.Run("carries warm cache then removes legacy", func(t *testing.T) {
-		seedLegacy(t, `{"cached_at":"2026-01-01T00:00:00Z","ttl_hours":24,"drives":[{"id":"d1","name":"Eng"}]}`)
+		legacy, newDir := setup(t)
+		seedLegacy(t, legacy, `{"cached_at":"2026-01-01T00:00:00Z","ttl_hours":24,"drives":[{"id":"d1","name":"Eng"}]}`)
 
 		c, err := New(24)
 		testutil.NoError(t, err)
@@ -273,12 +279,13 @@ func TestMigrateLegacyCacheDir(t *testing.T) {
 	})
 
 	t.Run("does not overwrite an existing new cache; still removes legacy", func(t *testing.T) {
+		legacy, _ := setup(t)
 		// New cache already warm with distinct content.
 		c, err := New(24)
 		testutil.NoError(t, err)
 		defer c.Clear()
 		testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "new", Name: "Keep"}}))
-		seedLegacy(t, `{"drives":[{"id":"old","name":"Stale"}]}`)
+		seedLegacy(t, legacy, `{"drives":[{"id":"old","name":"Stale"}]}`)
 
 		c2, err := New(24)
 		testutil.NoError(t, err)
@@ -292,7 +299,25 @@ func TestMigrateLegacyCacheDir(t *testing.T) {
 		testutil.True(t, os.IsNotExist(statErr)) // legacy still removed
 	})
 
+	t.Run("unreadable legacy drives file: legacy preserved, no partial carry", func(t *testing.T) {
+		legacy, newDir := setup(t)
+		// drives.json as a directory => os.ReadFile errors with a
+		// non-IsNotExist error => carry fails => legacy must NOT be removed
+		// and nothing must be written into the new cache.
+		testutil.NoError(t, os.MkdirAll(filepath.Join(legacy, DrivesFile), 0o700))
+
+		c, err := New(24)
+		testutil.NoError(t, err) // migration never fails New
+		defer c.Clear()
+
+		_, statErr := os.Stat(legacy)
+		testutil.NoError(t, statErr) // legacy left intact (not deleted)
+		_, newErr := os.Stat(filepath.Join(newDir, DrivesFile))
+		testutil.True(t, os.IsNotExist(newErr)) // no partial/corrupt carry
+	})
+
 	t.Run("no legacy is a clean no-op", func(t *testing.T) {
+		setup(t)
 		c, err := New(24)
 		testutil.NoError(t, err) // migration never fails New
 		defer c.Clear()
