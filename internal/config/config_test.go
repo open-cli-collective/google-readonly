@@ -168,8 +168,8 @@ func TestGetConfigPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if path != filepath.Join(tmpDir, DirName, ConfigFile) {
-		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, ConfigFile))
+	if path != filepath.Join(tmpDir, DirName, ConfigFileYAML) {
+		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, ConfigFileYAML))
 	}
 }
 
@@ -271,8 +271,8 @@ func TestSaveConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !strings.Contains(string(data), `"cache_ttl_hours": 12`) {
-			t.Errorf("expected %q to contain %q", string(data), `"cache_ttl_hours": 12`)
+		if !strings.Contains(string(data), "cache_ttl_hours: 12") {
+			t.Errorf("expected %q to contain %q", string(data), "cache_ttl_hours: 12")
 		}
 	})
 

@@ -15,7 +15,6 @@ import (
 	"google.golang.org/api/googleapi"
 
 	"github.com/open-cli-collective/google-readonly/internal/config"
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
 	"github.com/open-cli-collective/google-readonly/internal/people"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 	"github.com/open-cli-collective/google-readonly/internal/view"
@@ -268,7 +267,8 @@ func baseDeps(t *testing.T, fs *fakeFS) initDeps {
 		HasStoredToken:     func() bool { return false },
 		SetToken:           func(_ *oauth2.Token) error { return nil },
 		DeleteToken:        func() error { return nil },
-		GetStorageBackend:  func() keychain.StorageBackend { return "test" },
+		GetStorageBackend:  func() string { return "test" },
+		StdinReadAll:       func() (string, error) { return "", nil },
 		ExchangeAuthCode: func(_ context.Context, _ *oauth2.Config, _ string) (*oauth2.Token, error) {
 			return &oauth2.Token{AccessToken: "tok"}, nil
 		},

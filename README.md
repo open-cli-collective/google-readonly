@@ -11,8 +11,8 @@ A non-destructive command-line interface for Google services. Search, read, and 
 - **Drive support** - List files, search, view metadata, download files, folder tree, star/unstar
 - **Bulk operations** - Pipe IDs between commands, use search queries inline, or pass IDs as arguments
 - **JSON output** - Machine-readable output for scripting
-- **Secure storage** - OAuth tokens stored in system keychain (macOS/Linux)
-- **Single-run guided setup** - `gro init` reads `credentials.json` from clipboard / paste / file path (your admin may share one via 1Password) and walks you through OAuth in one shot; `gro me` confirms identity afterwards
+- **Secure storage** - the OAuth token is stored only in the OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file) via the shared `cli-common/credstore`
+- **Single-run guided setup** - `gro init` reads the OAuth client JSON from clipboard / paste / file path (your admin may share one via 1Password) and walks you through OAuth in one shot; `gro me` confirms identity afterwards
 
 ## Installation
 
@@ -162,7 +162,7 @@ The wizard will:
 
 4. **Set the cache TTL** (first-run only). The wizard asks how many hours to cache Drive metadata. Press Enter to accept the default (24h).
 
-The token is saved securely (system keychain on macOS, libsecret on Linux, or `~/.config/google-readonly/token.json` as fallback).
+The token is saved only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file when `keyring.backend: file` is set with `GOOGLE_READONLY_KEYRING_PASSPHRASE`). There is no plaintext `token.json` fallback.
 
 When init succeeds, it prints the same `gro me` one-liner as its proof-of-life. You can re-run `gro me` any time after.
 
@@ -468,8 +468,9 @@ Guided setup for Google API OAuth authentication.
 Usage: gro init [flags]
 
 Flags:
-      --credentials-file string   Path to credentials.json (bypasses the wizard)
-      --no-browser                Don't try to open the browser automatically
+      --auth-code-stdin           Read the OAuth authorization code/redirect URL from stdin (two-phase install; pair with --no-browser)
+      --credentials-file string   Path to a downloaded OAuth client JSON (bypasses the wizard)
+      --no-browser                Don't try to open the consent URL in a browser
       --no-verify                 Skip connectivity verification after setup
 ```
 
@@ -1206,9 +1207,9 @@ Configuration files are stored in `~/.config/google-readonly/`:
 
 | File | Description |
 |------|-------------|
-| `credentials.json` | OAuth client credentials (from Google Cloud Console) |
-| `token.json` | OAuth access/refresh token (fallback if keychain unavailable) |
-| `config.json` | User settings (cache TTL, etc.) |
+| `oauth_client.json` | OAuth client JSON — deployment material, not a secret (from Google Cloud Console; legacy `credentials.json` is auto-migrated) |
+| OS keyring (`google-readonly/default` → `oauth_token`) | OAuth access/refresh token — the only place the token is stored (legacy `token.json` is migrated in once, then removed) |
+| `config.yml` | Non-secret config: `credential_ref`, `oauth_client_path`, `cache_ttl_hours`, `granted_scopes` (legacy `config.json` read once) |
 | `cache/` | Cached API metadata for faster repeated lookups |
 
 ### Cache Settings
@@ -1232,18 +1233,18 @@ The cache is automatically repopulated when stale or after being cleared.
 
 - This tool is **non-destructive by design** - no send, delete, or trash operations are possible
 - Organizational operations (archive, label, star, RSVP, color, group management) are the most impactful actions available
-- OAuth tokens are stored in system keychain (macOS Keychain / Linux secret-tool) when available
-- File-based storage uses `0600` permissions
+- The OAuth token is stored only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager); the opt-in encrypted-file backend is AES-encrypted with a passphrase from `GOOGLE_READONLY_KEYRING_PASSPHRASE`
+- The OAuth client JSON is deployment material (not a secret) and is never written to the keyring
 - Credentials never leave your machine
 - Zip extraction includes security safeguards (size limits, path traversal prevention)
 
 ## Troubleshooting
 
-### "Unable to read credentials file"
+### "unable to read OAuth client JSON"
 
-Ensure `credentials.json` exists:
+Ensure the OAuth client JSON exists (run `gro init`, or check `gro config show`):
 ```bash
-ls -la ~/.config/google-readonly/credentials.json
+ls -la ~/.config/google-readonly/oauth_client.json
 ```
 
 ### "Token has been expired or revoked"

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,6 +36,7 @@ type initOptions struct {
 	credentialsFile string
 	noBrowser       bool
 	noVerify        bool
+	authCodeStdin   bool
 }
 
 // NewCommand returns the init command.
@@ -70,9 +72,10 @@ it will read, validate, and write it to the config directory for you.`, workspac
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.credentialsFile, "credentials-file", "", "Path to a downloaded credentials.json (bypasses interactive paste)")
+	cmd.Flags().StringVar(&opts.credentialsFile, "credentials-file", "", "Path to a downloaded OAuth client JSON (bypasses interactive paste)")
 	cmd.Flags().BoolVar(&opts.noBrowser, "no-browser", false, "Don't try to open the consent URL in a browser")
 	cmd.Flags().BoolVar(&opts.noVerify, "no-verify", false, "Skip connectivity verification after setup")
+	cmd.Flags().BoolVar(&opts.authCodeStdin, "auth-code-stdin", false, "Read the OAuth authorization code/redirect URL from stdin (two-phase install; pair with --no-browser)")
 
 	return cmd
 }
@@ -96,11 +99,14 @@ type initDeps struct {
 	// Browser opener.
 	OpenBrowser func(url string) error
 
-	// Token storage.
+	// Token storage (credstore-backed; the keyring is the only store).
 	HasStoredToken    func() bool
 	SetToken          func(t *oauth2.Token) error
 	DeleteToken       func() error
-	GetStorageBackend func() keychain.StorageBackend
+	GetStorageBackend func() string
+
+	// StdinReadAll backs --auth-code-stdin (two-phase install). Test seam.
+	StdinReadAll func() (string, error)
 
 	// OAuth.
 	ExchangeAuthCode func(ctx context.Context, cfg *oauth2.Config, code string) (*oauth2.Token, error)
@@ -135,8 +141,16 @@ type prompter interface {
 // defaultDeps wires up production collaborators.
 func defaultDeps() initDeps {
 	return initDeps{
-		View:               view.New(),
-		GetCredentialsPath: auth.GetCredentialsPath,
+		View: view.New(),
+		// The OAuth client JSON is deployment material (§1.2): the wizard
+		// writes it to oauth_client_path, not the legacy credentials.json.
+		GetCredentialsPath: func() (string, error) {
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				return "", err
+			}
+			return config.ExpandPath(cfg.OAuthClientPath), nil
+		},
 		ReadFile:           os.ReadFile,
 		WriteFile:          os.WriteFile,
 		Chmod:              os.Chmod,
@@ -144,10 +158,11 @@ func defaultDeps() initDeps {
 		ClipboardSupported: func() bool { return !clipboard.Unsupported },
 		ClipboardReadAll:   clipboard.ReadAll,
 		OpenBrowser:        browser.OpenURL,
-		HasStoredToken:     keychain.HasStoredToken,
-		SetToken:           keychain.SetToken,
-		DeleteToken:        keychain.DeleteToken,
-		GetStorageBackend:  keychain.GetStorageBackend,
+		HasStoredToken:     storeHasToken,
+		SetToken:           storeSetToken,
+		DeleteToken:        storeDeleteToken,
+		GetStorageBackend:  storeBackendLabel,
+		StdinReadAll:       readAllStdin,
 		ExchangeAuthCode:   auth.ExchangeAuthCode,
 		GetOAuthConfig:     auth.GetOAuthConfig,
 		GmailVerify: func(ctx context.Context) (string, error) {
@@ -173,6 +188,59 @@ func defaultDeps() initDeps {
 		GetConfigPath: config.GetConfigPath,
 		Prompter:      huhPrompter{},
 	}
+}
+
+// storeHasToken / storeSetToken / storeDeleteToken / storeBackendLabel back
+// the wizard's token-storage deps via credstore. init is ingress; the
+// one-time §1.8 migration runs on the first authenticated use (config test /
+// gro me / any API command), not mid-wizard — so these use the non-migrating
+// open paths to stay deterministic.
+func storeHasToken() bool {
+	st, err := keychain.OpenNoMigrate()
+	if err != nil {
+		return false
+	}
+	defer func() { _ = st.Close() }()
+	return st.HasToken()
+}
+
+func storeSetToken(t *oauth2.Token) error {
+	st, err := keychain.OpenRef("") // default ref, runMigration=false
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	return st.SetToken(t)
+}
+
+func storeDeleteToken() error {
+	st, err := keychain.OpenNoMigrate()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	return st.DeleteToken()
+}
+
+func storeBackendLabel() string {
+	st, err := keychain.OpenNoMigrate()
+	if err != nil {
+		return "keyring"
+	}
+	defer func() { _ = st.Close() }()
+	b, _ := st.Backend()
+	if b == "" {
+		return "keyring"
+	}
+	return string(b)
+}
+
+func readAllStdin() (string, error) {
+	b, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 // runWith is the testable entry point for the wizard. NewCommand wraps it.
@@ -216,7 +284,7 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	}
 
 	authURL := auth.GetAuthURL(oauthCfg)
-	if !opts.noBrowser {
+	if !opts.authCodeStdin && !opts.noBrowser {
 		open, err := d.Prompter.ConfirmOpenBrowser()
 		if err != nil {
 			return err
@@ -232,7 +300,15 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	d.View.Println("  " + authURL)
 	d.View.Println("")
 
-	codeInput, err := d.Prompter.PasteRedirectURL()
+	// Two-phase install: --auth-code-stdin reads the code/redirect URL from
+	// stdin (the installer pauses between "open URL" and "feed code back")
+	// instead of the interactive prompt. The value is never echoed.
+	var codeInput string
+	if opts.authCodeStdin {
+		codeInput, err = d.StdinReadAll()
+	} else {
+		codeInput, err = d.Prompter.PasteRedirectURL()
+	}
 	if err != nil {
 		return err
 	}

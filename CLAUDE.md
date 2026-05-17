@@ -59,12 +59,24 @@ Tests use `internal/testutil/` for assertions (`testutil.Equal`, `testutil.NoErr
 
 ## OAuth2 Configuration
 
-Credentials: `~/.config/google-readonly/credentials.json` (from Google Cloud Console)
+Per the Open CLI Collective Secret-Handling Standard §2.3:
 
-Tokens stored securely per platform:
-- **macOS**: System Keychain (via `security` CLI)
-- **Linux**: libsecret (via `secret-tool`) if available, otherwise config file
-- **Fallback**: `~/.config/google-readonly/token.json` with 0600 permissions
+- **OAuth client JSON** (from Google Cloud Console) is *deployment material*,
+  not a secret: a plain file `~/.config/google-readonly/oauth_client.json`
+  (override with `oauth_client_path` in `config.yml`). The legacy
+  `credentials.json` is auto-migrated to it on first run.
+- **OAuth token** (the per-user access secret) lives **only** in the OS
+  keyring via `cli-common/credstore` — macOS Keychain, Linux Secret Service,
+  Windows Credential Manager, or an opt-in encrypted file
+  (`keyring.backend: file` + `GOOGLE_READONLY_KEYRING_PASSPHRASE`). No
+  `security`/`secret-tool` shell-out, no `token.json` fallback. A legacy
+  `token.json` (or old `security`/`secret-tool` item) is migrated into the
+  keyring once (§1.8), then removed; a legacy-vs-keyring conflict fails loud.
+- **Non-secret config**: `~/.config/google-readonly/config.yml`
+  (`credential_ref`, `oauth_client_path`, `cache_ttl_hours`,
+  `granted_scopes`). A legacy `config.json` is read transparently once.
+- Ingress is only `gro init` (browser flow; `--auth-code-stdin` for two-phase
+  installs) or `gro set-credential --key oauth_token --stdin|--from-env`.
 
 ## Error Conventions
 
@@ -89,9 +101,11 @@ Use conventional commits: `type(scope): description`
 - `github.com/spf13/cobra` - CLI framework
 - `golang.org/x/oauth2` - OAuth2 client
 - `google.golang.org/api/*` - Google API clients (Gmail, Calendar, People, Drive)
+- `github.com/open-cli-collective/cli-common` - shared `credstore` (OS keyring)
+- `gopkg.in/yaml.v3` - `config.yml`
 
 ## Common Issues
 
-**"Unable to read credentials file"**: Run `gro init` and follow the OAuth setup wizard.
+**"unable to read OAuth client JSON"**: Run `gro init` and follow the OAuth setup wizard (it writes `oauth_client.json`).
 
 **"Token has been expired or revoked"**: Run `gro config clear && gro init`.
