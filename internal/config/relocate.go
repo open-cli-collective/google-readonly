@@ -124,6 +124,14 @@ func detectRelocation(newDir string) (SharedRelocation, error) {
 	case !oldPresent && !newPresent:
 		return SharedRelocation{Kind: relocNone, OldPath: oldDir, NewPath: newDir}, nil
 	case oldPresent && !newPresent:
+		// Validate old-only parses cleanly BEFORE signaling CopyNeeded —
+		// otherwise init's ApplyConfigRelocation would propagate a malformed
+		// legacy file into the new dir, then LoadConfig would die parsing it
+		// post-relocation. §3.2 malformed-old: fail loud, mutate nothing.
+		if _, oerr := loadConfigFromFile(oldPath); oerr != nil {
+			return SharedRelocation{Kind: relocBothDivergent, OldPath: oldDir, NewPath: newDir},
+				fmt.Errorf("%w: old %s is malformed: %w", ErrRelocationConflict, oldPath, oerr)
+		}
 		return SharedRelocation{Kind: relocOldOnly, OldPath: oldDir, NewPath: newDir, CopyNeeded: true}, nil
 	case !oldPresent && newPresent:
 		return SharedRelocation{Kind: relocNone, OldPath: oldDir, NewPath: newDir}, nil

@@ -304,6 +304,47 @@ func TestRelocate_OldOnlyConfigJSON_TriggersCopy(t *testing.T) {
 	}
 }
 
+func TestRelocate_OldOnlyMalformedYAML_FailLoud_MutatesNothing(t *testing.T) {
+	oldDir, newDir := reloctest(t)
+	if err := os.MkdirAll(oldDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldDir, ConfigFileYAML), []byte("not-valid-yaml: : :\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := detectAt(t, oldDir, newDir)
+	if !errors.Is(err, ErrRelocationConflict) {
+		t.Fatalf("malformed old-only must fail loud, got %v", err)
+	}
+	if r.CopyNeeded {
+		t.Errorf("CopyNeeded must be false on malformed old-only (mutates nothing)")
+	}
+	// New dir must NOT have been created by detection.
+	if _, e := os.Stat(newDir); !os.IsNotExist(e) {
+		t.Errorf("new dir must not exist after malformed-old detect: stat err=%v", e)
+	}
+}
+
+func TestRelocate_OldOnlyMalformedJSON_FailLoud_MutatesNothing(t *testing.T) {
+	oldDir, newDir := reloctest(t)
+	if err := os.MkdirAll(oldDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldDir, ConfigFile), []byte("{not valid json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := detectAt(t, oldDir, newDir)
+	if !errors.Is(err, ErrRelocationConflict) {
+		t.Fatalf("malformed old-only JSON must fail loud, got %v", err)
+	}
+	if r.CopyNeeded {
+		t.Errorf("CopyNeeded must be false on malformed old-only JSON")
+	}
+	if _, e := os.Stat(newDir); !os.IsNotExist(e) {
+		t.Errorf("new dir must not exist after malformed-old detect: stat err=%v", e)
+	}
+}
+
 func TestRelocate_LinuxOldEqualsNew_ShortCircuits(t *testing.T) {
 	// When old path resolves identical to new path (the Linux steady state),
 	// detect must short-circuit to relocNone without inspecting contents.
