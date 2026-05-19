@@ -73,6 +73,20 @@ func OldHandRolledTokenPath() (string, error) {
 	return filepath.Join(dir, TokenFile), nil
 }
 
+// OldHandRolledLegacyCacheDir is the pre-B2b cache subdir under the pre-
+// MON-5371 hand-rolled config dir (a real artifact on macOS/Windows installs
+// that pre-date both B2b and MON-5371). cli-common does NOT resolve here,
+// so internal/cache's migrator probes both this path and the in-resolver
+// LegacyCacheDir, byte-carrying whichever is present. On Linux this resolves
+// identical to LegacyCacheDir and dedupes inside the migrator.
+func OldHandRolledLegacyCacheDir() (string, error) {
+	dir, err := oldHandRolledConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, legacyCacheSubdir), nil
+}
+
 // DetectConfigRelocation classifies the old/new pair without touching disk
 // beyond stats and reads. Never copies, never writes. On Linux (old==new) it
 // short-circuits to relocNone. On macOS/Windows it returns one of the four
@@ -100,10 +114,12 @@ func detectRelocation(newDir string) (SharedRelocation, error) {
 		return SharedRelocation{Kind: relocNone, OldPath: oldDir, NewPath: newDir}, nil
 	}
 
-	oldYML := filepath.Join(oldDir, ConfigFileYAML)
-	newYML := filepath.Join(newDir, ConfigFileYAML)
-	oldPresent := fileExists(oldYML)
-	newPresent := fileExists(newYML)
+	// Both .yml and the legacy .json count as a present config. A
+	// pre-MON-5371 macOS/Windows user could be on either form; the wholesale
+	// copy at init carries either over, and the per-file migrator
+	// (promoteLegacyConfigJSON) takes it from there.
+	oldPath, oldPresent := firstExistingConfig(oldDir)
+	newPath, newPresent := firstExistingConfig(newDir)
 	switch {
 	case !oldPresent && !newPresent:
 		return SharedRelocation{Kind: relocNone, OldPath: oldDir, NewPath: newDir}, nil
@@ -114,22 +130,22 @@ func detectRelocation(newDir string) (SharedRelocation, error) {
 	}
 
 	// Both present — load and compare comparable subset.
-	oldCfg, oerr := loadConfigFromFile(oldYML)
-	newCfg, nerr := loadConfigFromFile(newYML)
+	oldCfg, oerr := loadConfigFromFile(oldPath)
+	newCfg, nerr := loadConfigFromFile(newPath)
 	if oerr != nil {
 		return SharedRelocation{Kind: relocBothDivergent, OldPath: oldDir, NewPath: newDir},
-			fmt.Errorf("%w: old %s unreadable: %w", ErrRelocationConflict, oldYML, oerr)
+			fmt.Errorf("%w: old %s unreadable: %w", ErrRelocationConflict, oldPath, oerr)
 	}
 	if nerr != nil {
 		return SharedRelocation{Kind: relocBothDivergent, OldPath: oldDir, NewPath: newDir},
-			fmt.Errorf("%w: new %s unreadable: %w", ErrRelocationConflict, newYML, nerr)
+			fmt.Errorf("%w: new %s unreadable: %w", ErrRelocationConflict, newPath, nerr)
 	}
-	if configsMaterialEqual(oldCfg, newCfg) {
+	if configsMaterialEqual(oldCfg, newCfg, oldDir, newDir) {
 		return SharedRelocation{Kind: relocBothEqual, OldPath: oldDir, NewPath: newDir}, nil
 	}
 	return SharedRelocation{Kind: relocBothDivergent, OldPath: oldDir, NewPath: newDir},
 		fmt.Errorf("%w: old %s and new %s have different settings; reconcile (or delete one) before running gro init",
-			ErrRelocationConflict, oldYML, newYML)
+			ErrRelocationConflict, oldPath, newPath)
 }
 
 // loadConfigFromFile parses a single config file (yaml or, by extension, the
@@ -155,12 +171,14 @@ func loadConfigFromFile(path string) (Config, error) {
 }
 
 // configsMaterialEqual compares the user-meaningful subset of two Configs.
-// OAuthClientPath is intentionally excluded: it is location-dependent (each
-// path defaults to <thatdir>/oauth_client.json), so two otherwise-identical
-// configs from old and new dirs will differ only by this field, which is not
-// a real divergence. CredentialRef, GrantedScopes, Keyring.Backend — these
-// are the real user settings post-MON-5371.
-func configsMaterialEqual(a, b Config) bool {
+// CredentialRef / GrantedScopes / Keyring.Backend are real user settings and
+// any difference is a divergence. OAuthClientPath is canonicalized through
+// oauthClientPathEquiv so that two configs whose paths happen to be each
+// dir's default (`<configdir>/oauth_client.json`) are treated as equal —
+// that's a location artifact, not a user choice — while an explicit
+// non-default path that differs between the two sides is a real divergence
+// and must fail loud (an org override the user set deliberately).
+func configsMaterialEqual(a, b Config, oldDir, newDir string) bool {
 	if a.CredentialRef != b.CredentialRef {
 		return false
 	}
@@ -170,7 +188,24 @@ func configsMaterialEqual(a, b Config) bool {
 	if !slicesEqualSorted(a.GrantedScopes, b.GrantedScopes) {
 		return false
 	}
+	if !oauthClientPathEquiv(a.OAuthClientPath, b.OAuthClientPath, oldDir, newDir) {
+		return false
+	}
 	return true
+}
+
+// oauthClientPathEquiv treats "both empty", "both equal to their own dir's
+// default oauth_client.json", and "both literally equal" as equivalent. Any
+// other combination — including one side at its default and the other at a
+// non-default explicit path — is a divergence the user set deliberately and
+// must surface.
+func oauthClientPathEquiv(aPath, bPath, aDir, bDir string) bool {
+	if aPath == bPath {
+		return true
+	}
+	aIsDefault := aPath == "" || aPath == filepath.Join(aDir, OAuthClientFile)
+	bIsDefault := bPath == "" || bPath == filepath.Join(bDir, OAuthClientFile)
+	return aIsDefault && bIsDefault
 }
 
 func slicesEqualSorted(a, b []string) bool {
@@ -260,6 +295,19 @@ func copyFileAtomic(src, dst string) error {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// firstExistingConfig returns (<dir>/config.yml, true) if the YAML is present,
+// else (<dir>/config.json, true) if only the legacy JSON is present, else
+// ("", false). Mirrors LoadConfig's read-priority (YAML wins).
+func firstExistingConfig(dir string) (string, bool) {
+	if p := filepath.Join(dir, ConfigFileYAML); fileExists(p) {
+		return p, true
+	}
+	if p := filepath.Join(dir, ConfigFile); fileExists(p) {
+		return p, true
+	}
+	return "", false
 }
 
 // LoadConfigForRuntime is the soft-conflict variant of LoadConfig for non-init

@@ -260,6 +260,8 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 	if !read && reloc.Kind == relocOldOnly && reloc.OldPath != "" {
+		// Try old/config.yml first; fall back to old/config.json (a
+		// pre-MON-5371 macOS/Windows user may be on either form).
 		oldYML := filepath.Join(reloc.OldPath, ConfigFileYAML)
 		if data, err := os.ReadFile(oldYML); err == nil { //nolint:gosec // path from hand-rolled legacy dir
 			if uerr := yaml.Unmarshal(data, cfg); uerr != nil {
@@ -268,6 +270,17 @@ func LoadConfig() (*Config, error) {
 			read = true
 		} else if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("read config %s: %w", oldYML, err)
+		}
+		if !read {
+			oldJSON := filepath.Join(reloc.OldPath, ConfigFile)
+			if data, err := os.ReadFile(oldJSON); err == nil { //nolint:gosec // path from hand-rolled legacy dir
+				if jerr := json.Unmarshal(data, cfg); jerr != nil {
+					return nil, fmt.Errorf("parse legacy config %s: %w", oldJSON, jerr)
+				}
+				read = true
+			} else if !os.IsNotExist(err) {
+				return nil, fmt.Errorf("read config %s: %w", oldJSON, err)
+			}
 		}
 	}
 	if !read {

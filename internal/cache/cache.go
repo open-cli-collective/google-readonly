@@ -73,22 +73,40 @@ func New() (*Cache, error) {
 // because cli-common/cache's identity/version check + this package's
 // parse-error-mapped-to-miss demote it on the next read.
 func migrateLegacyCacheDir(newDir string) {
-	legacy, err := config.LegacyCacheDir()
-	if err != nil {
-		return
+	// Two possible legacy locations on macOS/Windows: (a) the pre-B2b
+	// "cache" subdir under the NEW (statedir-resolved) config dir — what a
+	// user reached if they already ran post-port code once — and (b) the
+	// same subdir under the OLD hand-rolled config dir, which is where a
+	// pure pre-MON-5371 install lived. Both are byte-carried best-effort;
+	// any failure abandons the migration without touching New's result. On
+	// Linux the two paths collapse, so the second probe is a stat-only no-op.
+	probes := []func() (string, error){
+		config.LegacyCacheDir,
+		config.OldHandRolledLegacyCacheDir,
 	}
+	tried := map[string]bool{}
+	for _, p := range probes {
+		legacy, err := p()
+		if err != nil || tried[legacy] {
+			continue
+		}
+		tried[legacy] = true
+		tryCarryLegacyCache(legacy, newDir)
+	}
+}
+
+func tryCarryLegacyCache(legacy, newDir string) {
 	if _, err := os.Stat(legacy); err != nil {
 		return
 	}
 
 	legacyDrives := filepath.Join(legacy, DrivesFile)
-	// New cache lives at <newDir>/<instanceKey>/drives.json now.
 	newDrives := filepath.Join(newDir, instanceKey, DrivesFile)
 	switch _, serr := os.Stat(newDrives); {
 	case serr == nil:
 		// New cache already present: nothing to carry, safe to drop legacy.
 	case os.IsNotExist(serr):
-		data, rerr := os.ReadFile(legacyDrives) //nolint:gosec // path from config dir
+		data, rerr := os.ReadFile(legacyDrives) //nolint:gosec // path from legacy config dir
 		switch {
 		case rerr == nil:
 			if mkErr := os.MkdirAll(filepath.Dir(newDrives), 0o700); mkErr != nil {

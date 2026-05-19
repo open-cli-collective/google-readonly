@@ -227,6 +227,83 @@ func TestRelocate_Neither_PathResolvedNotCreated(t *testing.T) {
 	}
 }
 
+func TestRelocate_OAuthClientPath_DefaultDefaultIsEqual(t *testing.T) {
+	// Both sides reference their respective dir's default oauth_client.json
+	// — that's a location artifact, not a user choice. Equal.
+	oldDir, newDir := reloctest(t)
+	for _, d := range []string{oldDir, newDir} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldCfg := "credential_ref: google-readonly/same\noauth_client_path: " + filepath.Join(oldDir, OAuthClientFile) + "\n"
+	newCfg := "credential_ref: google-readonly/same\noauth_client_path: " + filepath.Join(newDir, OAuthClientFile) + "\n"
+	if err := os.WriteFile(filepath.Join(oldDir, ConfigFileYAML), []byte(oldCfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, ConfigFileYAML), []byte(newCfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := detectAt(t, oldDir, newDir)
+	if err != nil {
+		t.Fatalf("detect: %v", err)
+	}
+	if r.Kind != relocBothEqual {
+		t.Errorf("kind=%v, want relocBothEqual (defaults differ only by dir prefix)", r.Kind)
+	}
+}
+
+func TestRelocate_OAuthClientPath_ExplicitNonDefaultDivergence_FailsLoud(t *testing.T) {
+	// User explicitly set oauth_client_path to a non-default location on
+	// one side. That's a deliberate org override and must surface.
+	oldDir, newDir := reloctest(t)
+	for _, d := range []string{oldDir, newDir} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldCfg := "credential_ref: google-readonly/same\noauth_client_path: /opt/myorg/oauth_client.json\n"
+	newCfg := "credential_ref: google-readonly/same\noauth_client_path: " + filepath.Join(newDir, OAuthClientFile) + "\n"
+	if err := os.WriteFile(filepath.Join(oldDir, ConfigFileYAML), []byte(oldCfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, ConfigFileYAML), []byte(newCfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := detectAt(t, oldDir, newDir)
+	if !errors.Is(err, ErrRelocationConflict) {
+		t.Fatalf("explicit oauth_client_path divergence must fail loud, got %v", err)
+	}
+}
+
+func TestRelocate_OldOnlyConfigJSON_TriggersCopy(t *testing.T) {
+	// A pre-MON-5371 install on macOS may have only legacy config.json (not
+	// yet promoted to config.yml). Detection must still classify as
+	// relocOldOnly so init copies the JSON into the new dir, where the
+	// existing promoteLegacyConfigJSON migrator picks it up.
+	oldDir, newDir := reloctest(t)
+	if err := os.MkdirAll(oldDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldDir, ConfigFile), []byte(`{"credential_ref":"google-readonly/from-old-json"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := detectAt(t, oldDir, newDir)
+	if err != nil {
+		t.Fatalf("detect: %v", err)
+	}
+	if r.Kind != relocOldOnly || !r.CopyNeeded {
+		t.Fatalf("kind=%v copy=%v, want relocOldOnly w/ copy (legacy config.json present in old)",
+			r.Kind, r.CopyNeeded)
+	}
+	if err := ApplyConfigRelocation(r); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(newDir, ConfigFile)); err != nil {
+		t.Errorf("legacy config.json must be copied into new dir: %v", err)
+	}
+}
+
 func TestRelocate_LinuxOldEqualsNew_ShortCircuits(t *testing.T) {
 	// When old path resolves identical to new path (the Linux steady state),
 	// detect must short-circuit to relocNone without inspecting contents.
@@ -280,7 +357,46 @@ func TestApplyConfigRelocation_IdempotentSkipsExistingNew(t *testing.T) {
 	}
 }
 
-func TestLoadConfigForRuntime_SoftConflict(t *testing.T) {
+// loadConfigForRuntimeAt is the testable seam for the runtime soft-conflict
+// wrapper. It wires both detectRelocation and the YAML load through an
+// injected newDir + oldDir, which is the only way to exercise the divergent
+// branch on a platform where os.UserConfigDir == $XDG_CONFIG_HOME (Linux).
+// Production code paths use LoadConfigForRuntime via the real resolver.
+func loadConfigForRuntimeAt(t *testing.T, oldDir, newDir string) (*Config, error) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Dir(oldDir))
+	// Reset the warn-once before the test so a previous test's flag doesn't
+	// suppress the warning we want to verify.
+	reloConflictOnce = sync.Once{}
+	r, err := detectRelocation(newDir)
+	if err != nil && !errors.Is(err, ErrRelocationConflict) {
+		return nil, err
+	}
+	cfg := &Config{}
+	if newPath, ok := firstExistingConfig(r.NewPath); ok {
+		c, lerr := loadConfigFromFile(newPath)
+		if lerr != nil {
+			return nil, lerr
+		}
+		cfg = &c
+	} else if r.Kind == relocOldOnly {
+		if oldPath, ok := firstExistingConfig(r.OldPath); ok {
+			c, lerr := loadConfigFromFile(oldPath)
+			if lerr != nil {
+				return nil, lerr
+			}
+			cfg = &c
+		}
+	}
+	cfg.applyDefaults()
+	if errors.Is(err, ErrRelocationConflict) {
+		warnReloConflictOnce(err)
+		return cfg, nil
+	}
+	return cfg, err
+}
+
+func TestLoadConfigForRuntime_SoftConflict_ReturnsCanonical(t *testing.T) {
 	oldDir, newDir := reloctest(t)
 	for _, p := range []struct{ dir, content string }{
 		{oldDir, "credential_ref: google-readonly/old\n"},
@@ -293,28 +409,29 @@ func TestLoadConfigForRuntime_SoftConflict(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Make the resolver pick newDir. On Linux XDG_CONFIG_HOME drives both old
-	// (hand-rolled) and new (statedir → os.UserConfigDir → XDG_CONFIG_HOME),
-	// which would collapse to old==new. To force divergence on Linux too,
-	// point them at distinct subtrees: XDG_CONFIG_HOME at oldDir's parent,
-	// HOME at newDir's parent (os.UserConfigDir on darwin/Windows uses HOME
-	// derivatives, on Linux uses XDG — covered above by the byte-snapshot
-	// divergent test, so here we focus on the soft-conflict semantic).
-	t.Setenv("XDG_CONFIG_HOME", filepath.Dir(oldDir))
-	t.Setenv("HOME", filepath.Dir(newDir))
-
-	// Override LoadConfig's resolver to use our injected pair so the test is
-	// hermetic across OSes. Done by calling detectRelocation directly and
-	// asserting LoadConfig's documented contract via the public wrapper.
-	// Reset the once-warn so the test can verify it fires.
-	reloConflictOnce = onceReset()
-
-	// On Linux this won't actually diverge unless paths differ — skip there.
-	if old, _ := oldHandRolledConfigDir(); old == newDir {
-		t.Skip("path-identity short-circuit; covered by other tests")
+	cfg, err := loadConfigForRuntimeAt(t, oldDir, newDir)
+	if err != nil {
+		t.Fatalf("soft-conflict must return nil error, got %v", err)
+	}
+	// Returns the canonical (new-dir) cfg.
+	if cfg.CredentialRef != "google-readonly/new" {
+		t.Errorf("soft-conflict must return new-dir cfg, got CredentialRef=%q", cfg.CredentialRef)
 	}
 }
 
-// onceReset returns a fresh sync.Once for tests that need to re-arm
-// reloConflictOnce. Tests must reset before relying on a fire.
-func onceReset() (o sync.Once) { return }
+func TestLoadConfigForRuntime_NoConflict_PassesThrough(t *testing.T) {
+	oldDir, newDir := reloctest(t)
+	if err := os.MkdirAll(newDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDir, ConfigFileYAML), []byte("credential_ref: google-readonly/only-new\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := loadConfigForRuntimeAt(t, oldDir, newDir)
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if cfg.CredentialRef != "google-readonly/only-new" {
+		t.Errorf("got %q, want google-readonly/only-new", cfg.CredentialRef)
+	}
+}
