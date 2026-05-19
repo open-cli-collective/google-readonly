@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-cli-collective/google-readonly/internal/cache"
-	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 )
 
@@ -39,8 +38,7 @@ Examples:
 			}
 
 			// Initialize cache
-			ttl := config.GetCacheTTLHours()
-			c, err := cache.New(ttl)
+			c, err := cache.New()
 			if err != nil {
 				return fmt.Errorf("initializing cache: %w", err)
 			}
@@ -141,8 +139,7 @@ func resolveDriveScope(ctx context.Context, client DriveClient, myDrive bool, dr
 	}
 
 	// Try to resolve name via cache
-	ttl := config.GetCacheTTLHours()
-	c, err := cache.New(ttl)
+	c, err := cache.New()
 	if err != nil {
 		return drive.DriveScope{}, fmt.Errorf("initializing cache: %w", err)
 	}

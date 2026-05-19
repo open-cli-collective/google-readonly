@@ -28,7 +28,6 @@ func NewCommand() *cobra.Command {
 	cmd.AddCommand(newShowCommand())
 	cmd.AddCommand(newTestCommand())
 	cmd.AddCommand(newClearCommand())
-	cmd.AddCommand(newCacheCommand())
 	return cmd
 }
 
@@ -97,7 +96,7 @@ type showStatus struct {
 }
 
 func runShow(jsonOut, verbose bool) error {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfigForRuntime()
 	if err != nil {
 		return err
 	}

@@ -53,11 +53,8 @@ const clientJSON = `{"installed":{"client_id":"123.apps.googleusercontent.com","
 // values are the canaries, and returns the config dir.
 func seed(t *testing.T) string {
 	t.Helper()
-	tmp := credtest.Setup(t)
-	dir := filepath.Join(tmp, "xdgconfig", config.DirName)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
+	credtest.Setup(t)
+	dir := credtest.ConfigDir(t)
 	if err := os.WriteFile(filepath.Join(dir, config.OAuthClientFile), []byte(clientJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -202,9 +199,8 @@ func TestMigrationSignal_TextFlushesToStderrOnce(t *testing.T) {
 // via config test, which runs keychain.Open() — migrating a planted legacy
 // token — then fails creating the Gmail client with no network).
 func TestMigrationSignal_SurvivesDownstreamError(t *testing.T) {
-	tmp := credtest.Setup(t)
-	dir := filepath.Join(tmp, "xdgconfig", config.DirName)
-	_ = os.MkdirAll(dir, 0o700)
+	credtest.Setup(t)
+	dir := credtest.ConfigDir(t)
 	_ = os.WriteFile(filepath.Join(dir, config.OAuthClientFile), []byte(clientJSON), 0o644)
 	if err := os.WriteFile(filepath.Join(dir, "token.json"),
 		[]byte(`{"access_token":"`+access+`","refresh_token":"`+refresh+`","token_type":"Bearer"}`), 0o600); err != nil {

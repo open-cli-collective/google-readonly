@@ -138,8 +138,8 @@ func TestStoreRoundTripAndDelete(t *testing.T) {
 // ---- token migration matrix (file token.json) ----------------------------
 
 func TestMigrateTokenFileAndIdempotent(t *testing.T) {
-	tmp := credtest.Setup(t)
-	tokenPath := filepath.Join(tmp, "xdgconfig", config.DirName, "token.json")
+	credtest.Setup(t)
+	tokenPath := filepath.Join(credtest.ConfigDir(t), "token.json")
 	if err := os.MkdirAll(filepath.Dir(tokenPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestMigrateTokenFileAndIdempotent(t *testing.T) {
 }
 
 func TestMigrateConflictFailsLoudWithoutLeaking(t *testing.T) {
-	tmp := credtest.Setup(t)
+	credtest.Setup(t)
 	pre, err := openWith(testCfg(), false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +182,7 @@ func TestMigrateConflictFailsLoudWithoutLeaking(t *testing.T) {
 	}
 	_ = pre.Close()
 
-	tokenPath := filepath.Join(tmp, "xdgconfig", config.DirName, "token.json")
+	tokenPath := filepath.Join(credtest.ConfigDir(t), "token.json")
 	_ = os.MkdirAll(filepath.Dir(tokenPath), 0o700)
 	if err := os.WriteFile(tokenPath, []byte(tokenB), 0o600); err != nil { // differs from keyring
 		t.Fatal(err)
@@ -213,8 +213,8 @@ func TestMigrateConflictFailsLoudWithoutLeaking(t *testing.T) {
 
 func TestMigrateOAuthClientJSON(t *testing.T) {
 	t.Run("copy-only when target absent", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		if err := os.WriteFile(legacy, []byte(validClientJSONFixture), 0o600); err != nil {
@@ -237,8 +237,8 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 	})
 
 	t.Run("target valid present: legacy removed", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		target := filepath.Join(dir, "oauth_client.json")
@@ -254,8 +254,8 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 	})
 
 	t.Run("legacy valid, target invalid: target rewritten from legacy", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		target := filepath.Join(dir, "oauth_client.json")
@@ -274,8 +274,8 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 	})
 
 	t.Run("both invalid: nothing deleted, error names paths+fingerprints", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		target := filepath.Join(dir, "oauth_client.json")

@@ -143,7 +143,6 @@ type stubPrompter struct {
 	openBrowser bool
 	redirectURL string
 	reauth      bool
-	ttl         int
 
 	pasteJSONErr error
 	filePathErr  error
@@ -182,13 +181,6 @@ func (s *stubPrompter) PasteRedirectURL() (string, error) {
 func (s *stubPrompter) ConfirmReauth() (bool, error) {
 	s.calls = append(s.calls, "reauth")
 	return s.reauth, nil
-}
-func (s *stubPrompter) AskCacheTTL(d int) (int, error) {
-	s.calls = append(s.calls, "ttl")
-	if s.ttl == 0 {
-		return d, nil
-	}
-	return s.ttl, nil
 }
 
 // fakeFS captures filesystem interactions across writeCredentials and Stat.
@@ -537,7 +529,10 @@ func TestEnsureCredentialsTightensPermsOnOverwrite(t *testing.T) {
 	}
 }
 
-func TestRunWithFreshSetupSavesScopesAndAsksTTL(t *testing.T) {
+func TestRunWithFreshSetupSavesScopesNoTTLPrompt(t *testing.T) {
+	// MON-5371: TTL is hard-coded per resource (§4.4); the AskCacheTTL prompt
+	// is gone. Init still saves granted scopes — exactly once now (no second
+	// save for TTL).
 	t.Parallel()
 	fs := newFakeFS()
 	d := baseDeps(t, fs)
@@ -552,24 +547,18 @@ func TestRunWithFreshSetupSavesScopesAndAsksTTL(t *testing.T) {
 		cfgSeen = append(cfgSeen, &cp)
 		return nil
 	}
-	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC", ttl: 12}
+	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC"}
 	d.Prompter = stub
 
 	if err := runWith(context.Background(), d, &initOptions{credentialsFile: src}); err != nil {
 		t.Fatalf("runWith: %v", err)
 	}
 
-	// The TTL prompt should have been called even though we save scopes
-	// (which creates config.json in real life). The snapshot-before-save
-	// fix means it is gated on the pre-run state, not the live one.
-	if !contains(stub.calls, "ttl") {
-		t.Errorf("expected TTL prompt, calls=%v", stub.calls)
+	if contains(stub.calls, "ttl") {
+		t.Errorf("TTL prompt must not be called post-MON-5371, calls=%v", stub.calls)
 	}
-	if len(cfgSeen) < 2 {
-		t.Fatalf("expected at least two config saves (scopes, then TTL), got %d", len(cfgSeen))
-	}
-	if cfgSeen[len(cfgSeen)-1].CacheTTLHours != 12 {
-		t.Errorf("expected CacheTTLHours=12, got %d", cfgSeen[len(cfgSeen)-1].CacheTTLHours)
+	if len(cfgSeen) < 1 {
+		t.Fatalf("expected at least one config save (scopes), got %d", len(cfgSeen))
 	}
 }
 
@@ -595,7 +584,7 @@ func TestRunWithExpiredTokenPromptsReauth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC", reauth: true, ttl: 6}
+	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC", reauth: true}
 	d.Prompter = stub
 
 	if err := runWith(context.Background(), d, &initOptions{credentialsFile: src}); err != nil {
@@ -627,7 +616,6 @@ func TestRunWithConfirmOpenBrowserTrueInvokesOpener(t *testing.T) {
 		pasteJSON:   validOAuthJSON,
 		openBrowser: true,
 		redirectURL: "http://localhost/?code=ABC",
-		ttl:         24,
 	}
 	d.Prompter = stub
 
@@ -675,7 +663,6 @@ func TestRunWithRecordedStaleScopesReauths(t *testing.T) {
 	// Recorded scopes are deliberately incomplete — only gmail.modify.
 	d.LoadConfig = func() (*config.Config, error) {
 		return &config.Config{
-			CacheTTLHours: 24,
 			GrantedScopes: []string{"https://www.googleapis.com/auth/gmail.modify"},
 		}, nil
 	}
@@ -697,7 +684,7 @@ func TestRunWithRecordedStaleScopesReauths(t *testing.T) {
 		return &oauth2.Token{AccessToken: "tok"}, nil
 	}
 
-	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true, ttl: 24}
+	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true}
 	d.Prompter = stub
 
 	if err := runWith(context.Background(), d, &initOptions{}); err != nil {
@@ -711,10 +698,9 @@ func TestRunWithRecordedStaleScopesReauths(t *testing.T) {
 	if !contains(stub.calls, "redirect") {
 		t.Errorf("expected fresh OAuth flow after re-auth, calls=%v", stub.calls)
 	}
-	// Fresh OAuth should also re-ask for TTL on first-run (config didn't
-	// exist before — we used the override which doesn't actually write).
-	if !contains(stub.calls, "ttl") {
-		t.Errorf("expected TTL prompt after fresh OAuth, calls=%v", stub.calls)
+	// MON-5371: AskCacheTTL prompt is gone (TTL hard-coded per resource).
+	if contains(stub.calls, "ttl") {
+		t.Errorf("TTL prompt must not be called post-MON-5371, calls=%v", stub.calls)
 	}
 }
 
@@ -782,14 +768,13 @@ func TestRunWithExistingTokenNoVerifyStillCatchesStaleScopes(t *testing.T) {
 	d.HasStoredToken = func() bool { return true }
 	d.LoadConfig = func() (*config.Config, error) {
 		return &config.Config{
-			CacheTTLHours: 24,
 			GrantedScopes: []string{"https://www.googleapis.com/auth/gmail.modify"},
 		}, nil
 	}
 	deleteCalled := false
 	d.DeleteToken = func() error { deleteCalled = true; return nil }
 
-	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true, ttl: 24}
+	stub := &stubPrompter{redirectURL: "http://localhost/?code=ABC", reauth: true}
 	d.Prompter = stub
 
 	if err := runWith(context.Background(), d, &initOptions{noVerify: true}); err != nil {
@@ -844,7 +829,7 @@ func TestRunWithFreshSetupPeopleFailureIsFatal(t *testing.T) {
 	d.PeopleGetMe = func(_ context.Context) (*people.Profile, error) {
 		return nil, &googleapi.Error{Code: 403, Message: "People API has not been used in project before"}
 	}
-	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC", ttl: 12}
+	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC"}
 	d.Prompter = stub
 
 	err := runWith(context.Background(), d, &initOptions{credentialsFile: src})
@@ -896,6 +881,67 @@ func TestRunWith_AuthCodeStdin(t *testing.T) {
 	}
 	if contains(stub.calls, "redirect") || contains(stub.calls, "browser") {
 		t.Fatalf("--auth-code-stdin must not prompt for redirect/browser, calls=%v", stub.calls)
+	}
+}
+
+// TestRunWith_RelocationGateRunsBeforeMigrate proves the MON-5371 ordering
+// invariant: DetectConfigRelocation runs ahead of EnsureMigrated, so a
+// divergent old/new config aborts init before any keyring migration / token
+// write / SaveConfig can paper over the conflict.
+func TestRunWith_RelocationGateRunsBeforeMigrate(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	order := []string{}
+	d.DetectConfigRelocation = func() (config.SharedRelocation, error) {
+		order = append(order, "detect")
+		return config.SharedRelocation{}, errors.New("old/new diverge")
+	}
+	d.EnsureMigrated = func() error { order = append(order, "migrate"); return nil }
+	d.SetToken = func(_ *oauth2.Token) error { order = append(order, "set"); return nil }
+	d.SaveConfig = func(_ *config.Config) error { order = append(order, "save"); return nil }
+
+	err := runWith(context.Background(), d, &initOptions{noVerify: true})
+	if err == nil || !strings.Contains(err.Error(), "detecting config relocation") {
+		t.Fatalf("init must abort on relocation divergence, got %v", err)
+	}
+	if len(order) != 1 || order[0] != "detect" {
+		t.Fatalf("detect must run first; nothing else should run on conflict; order=%v", order)
+	}
+}
+
+// TestRunWith_RelocationGate_CopyNeededTriggersApply proves that on relocOldOnly
+// the init wizard calls ApplyConfigRelocation before EnsureMigrated.
+func TestRunWith_RelocationGate_CopyNeededTriggersApply(t *testing.T) {
+	t.Parallel()
+	fs := newFakeFS()
+	d := baseDeps(t, fs)
+	srcDir := t.TempDir()
+	src := filepath.Join(srcDir, "downloaded.json")
+	if err := os.WriteFile(src, []byte(validOAuthJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+	order := []string{}
+	d.DetectConfigRelocation = func() (config.SharedRelocation, error) {
+		order = append(order, "detect")
+		return config.SharedRelocation{Kind: 1, OldPath: "/old", NewPath: "/new", CopyNeeded: true}, nil
+	}
+	d.ApplyConfigRelocation = func(_ config.SharedRelocation) error {
+		order = append(order, "apply")
+		return nil
+	}
+	originalMigrated := d.EnsureMigrated
+	d.EnsureMigrated = func() error { order = append(order, "migrate"); return originalMigrated() }
+	stub := &stubPrompter{credChoice: "paste", pasteJSON: validOAuthJSON, redirectURL: "http://localhost/?code=ABC"}
+	d.Prompter = stub
+
+	if err := runWith(context.Background(), d, &initOptions{credentialsFile: src, noVerify: true}); err != nil {
+		t.Fatalf("runWith: %v", err)
+	}
+
+	// detect → apply → migrate, in that exact order.
+	if len(order) < 3 || order[0] != "detect" || order[1] != "apply" || order[2] != "migrate" {
+		t.Fatalf("expected detect → apply → migrate, got %v", order)
 	}
 }
 

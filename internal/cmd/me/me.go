@@ -68,7 +68,7 @@ Data comes from the People API people/me endpoint.`,
 
 func run(ctx context.Context, out, errOut io.Writer, idOnly, extended, jsonOutput bool) error {
 	// Loud-and-early stale-scope check (only fires when scopes were recorded).
-	if cfg, err := config.LoadConfig(); err == nil {
+	if cfg, err := config.LoadConfigForRuntime(); err == nil {
 		if msg := auth.CheckScopesMigration(cfg.GrantedScopes); msg != "" {
 			_, _ = fmt.Fprintln(errOut, msg)
 			return errReauth
@@ -123,7 +123,7 @@ func run(ctx context.Context, out, errOut io.Writer, idOnly, extended, jsonOutpu
 // (no config file, or empty list) we return nil — claiming auth.AllScopes
 // would overstate what an older token actually consented to.
 func grantedScopes() []string {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfigForRuntime()
 	if err != nil {
 		return nil
 	}
