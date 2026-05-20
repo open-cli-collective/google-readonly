@@ -242,15 +242,6 @@ gro config test
 # Clear stored OAuth token
 gro config clear
 
-# View cache status
-gro config cache show
-
-# Clear cached data
-gro config cache clear
-
-# Set cache TTL (in hours)
-gro config cache ttl 12
-
 # Show version
 gro --version
 
@@ -549,33 +540,6 @@ removed without removing anything.
 
 ```
 Usage: gro config clear [--all] [--dry-run]
-```
-
-### gro config cache show
-
-Display cache status including location, TTL, and cached data status.
-
-```
-Usage: gro config cache show [flags]
-
-Flags:
-  -j, --json       Output as JSON
-```
-
-### gro config cache clear
-
-Remove all cached data. Cache will be repopulated on next use.
-
-```
-Usage: gro config cache clear
-```
-
-### gro config cache ttl
-
-Set the cache time-to-live in hours.
-
-```
-Usage: gro config cache ttl <hours>
 ```
 
 ### gro mail search
@@ -1247,30 +1211,21 @@ Configuration files are stored in `~/.config/google-readonly/`:
 |------|-------------|
 | `oauth_client.json` | OAuth client JSON — deployment material, not a secret (from Google Cloud Console; legacy `credentials.json` is auto-migrated) |
 | OS keyring (`google-readonly/default` → `oauth_token`) | OAuth access/refresh token — the only place the token is stored (legacy `token.json` is migrated in once, then removed) |
-| `config.yml` | Non-secret config: `credential_ref`, `oauth_client_path`, `cache_ttl_hours`, `granted_scopes` (legacy `config.json` read once) |
+| `config.yml` | Non-secret config: `credential_ref`, `oauth_client_path`, `granted_scopes` (legacy `config.json` and the pre-MON-5371 `cache_ttl_hours` field are read once and ignored — cache TTL is now hard-coded per resource) |
 | `cache/` | Cached API metadata for faster repeated lookups |
 
 ### Cache Settings
 
-gro caches Drive metadata (like shared drive lists) to speed up repeated commands. The cache TTL is configured during `gro init` (default: 24 hours).
-
-```bash
-# View cache status
-gro config cache show
-
-# Clear cache
-gro config cache clear
-
-# Change cache TTL
-gro config cache ttl 12    # Set to 12 hours
-```
+gro caches Drive metadata (like shared drive lists) to speed up repeated
+commands. The cache TTL is hard-coded per resource (24 hours for the Drive
+list) and is no longer user-configurable.
 
 The cache lives in the OS cache directory — `$XDG_CACHE_HOME/google-readonly`
 (or `~/.cache/google-readonly`) on Linux, `~/Library/Caches/google-readonly`
 on macOS, `%LocalAppData%\google-readonly` on Windows — kept separate from
 your config. A cache left by an older gro version (inside the config dir) is
-relocated automatically on first use; `gro config clear --all` also clears the
-Drive metadata cache.
+relocated automatically on first use; `gro config clear --all` clears the
+Drive metadata cache alongside config.
 
 The cache is automatically repopulated when stale or after being cleared.
 
