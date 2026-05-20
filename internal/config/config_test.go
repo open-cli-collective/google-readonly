@@ -5,23 +5,36 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/open-cli-collective/cli-common/statedirtest"
 )
 
+// hermeticConfig isolates the §3.1 7-var env set so os.UserConfigDir /
+// os.UserCacheDir never resolve to the developer's real dirs. Helper-local so
+// these in-package tests stay independent of the credtest leaf used by tests
+// in sibling packages.
+func hermeticConfig(t *testing.T) string {
+	t.Helper()
+	return statedirtest.Hermetic(t)
+}
+
 func TestGetConfigDir(t *testing.T) {
-	t.Run("uses XDG_CONFIG_HOME if set", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	t.Run("creates the resolved config dir", func(t *testing.T) {
+		hermeticConfig(t)
+		base, err := os.UserConfigDir()
+		if err != nil {
+			t.Fatalf("UserConfigDir: %v", err)
+		}
+		want := filepath.Join(base, DirName)
 
 		dir, err := GetConfigDir()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if dir != filepath.Join(tmpDir, DirName) {
-			t.Errorf("got %v, want %v", dir, filepath.Join(tmpDir, DirName))
+		if dir != want {
+			t.Errorf("got %v, want %v", dir, want)
 		}
 
-		// Verify directory was created
 		info, err := os.Stat(dir)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -31,24 +44,8 @@ func TestGetConfigDir(t *testing.T) {
 		}
 	})
 
-	t.Run("uses ~/.config if XDG_CONFIG_HOME not set", func(t *testing.T) {
-		t.Setenv("XDG_CONFIG_HOME", "")
-
-		dir, err := GetConfigDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		home, _ := os.UserHomeDir()
-		expected := filepath.Join(home, ".config", DirName)
-		if dir != expected {
-			t.Errorf("got %v, want %v", dir, expected)
-		}
-	})
-
 	t.Run("creates directory with correct permissions", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		hermeticConfig(t)
 
 		dir, err := GetConfigDir()
 		if err != nil {
@@ -66,28 +63,30 @@ func TestGetConfigDir(t *testing.T) {
 }
 
 func TestGetCredentialsPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	hermeticConfig(t)
+	base, _ := os.UserConfigDir()
 
 	path, err := GetCredentialsPath()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if path != filepath.Join(tmpDir, DirName, CredentialsFile) {
-		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, CredentialsFile))
+	want := filepath.Join(base, DirName, CredentialsFile)
+	if path != want {
+		t.Errorf("got %v, want %v", path, want)
 	}
 }
 
 func TestGetTokenPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	hermeticConfig(t)
+	base, _ := os.UserConfigDir()
 
 	path, err := GetTokenPath()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if path != filepath.Join(tmpDir, DirName, TokenFile) {
-		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, TokenFile))
+	want := filepath.Join(base, DirName, TokenFile)
+	if path != want {
+		t.Errorf("got %v, want %v", path, want)
 	}
 }
 
@@ -155,72 +154,65 @@ func TestConstants(t *testing.T) {
 	if ConfigFile != "config.json" {
 		t.Errorf("got %v, want %v", ConfigFile, "config.json")
 	}
-	if DefaultCacheTTLHours != 24 {
-		t.Errorf("got %v, want %v", DefaultCacheTTLHours, 24)
-	}
 }
 
 func TestGetConfigPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	hermeticConfig(t)
+	base, _ := os.UserConfigDir()
 
 	path, err := GetConfigPath()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if path != filepath.Join(tmpDir, DirName, ConfigFileYAML) {
-		t.Errorf("got %v, want %v", path, filepath.Join(tmpDir, DirName, ConfigFileYAML))
+	want := filepath.Join(base, DirName, ConfigFileYAML)
+	if path != want {
+		t.Errorf("got %v, want %v", path, want)
 	}
 }
 
 func TestLoadConfig(t *testing.T) {
 	t.Run("returns default config when file does not exist", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		hermeticConfig(t)
 
 		cfg, err := LoadConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.CacheTTLHours != DefaultCacheTTLHours {
-			t.Errorf("got %v, want %v", cfg.CacheTTLHours, DefaultCacheTTLHours)
+		if cfg.CredentialRef != DefaultCredentialRef {
+			t.Errorf("got %v, want %v", cfg.CredentialRef, DefaultCredentialRef)
 		}
 	})
 
 	t.Run("config.yml wins over legacy config.json when both present", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-		dir := filepath.Join(tmpDir, DirName)
-		if err := os.MkdirAll(dir, DirPerm); err != nil {
+		hermeticConfig(t)
+		dir, err := GetConfigDir()
+		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, ConfigFile), []byte(`{"cache_ttl_hours": 99}`), TokenPerm); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, ConfigFile), []byte(`{"credential_ref":"google-readonly/legacy"}`), TokenPerm); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, ConfigFileYAML), []byte("cache_ttl_hours: 7\n"), TokenPerm); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, ConfigFileYAML), []byte("credential_ref: google-readonly/yml\n"), TokenPerm); err != nil {
 			t.Fatal(err)
 		}
 		cfg, err := LoadConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.CacheTTLHours != 7 {
-			t.Errorf("config.yml must win: got %v, want 7", cfg.CacheTTLHours)
+		if cfg.CredentialRef != "google-readonly/yml" {
+			t.Errorf("config.yml must win: got %v, want google-readonly/yml", cfg.CredentialRef)
 		}
 	})
 
-	t.Run("loads config from file", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		// Create config directory and file
-		configDir := filepath.Join(tmpDir, DirName)
-		if err := os.MkdirAll(configDir, DirPerm); err != nil {
-			t.Fatalf("unexpected error: %v", err)
+	t.Run("loads config from legacy JSON", func(t *testing.T) {
+		hermeticConfig(t)
+		dir, err := GetConfigDir()
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		configData := `{"cache_ttl_hours": 48}`
-		if err := os.WriteFile(filepath.Join(configDir, ConfigFile), []byte(configData), TokenPerm); err != nil {
+		configData := `{"credential_ref":"google-readonly/from-json"}`
+		if err := os.WriteFile(filepath.Join(dir, ConfigFile), []byte(configData), TokenPerm); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -228,48 +220,23 @@ func TestLoadConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.CacheTTLHours != 48 {
-			t.Errorf("got %v, want %v", cfg.CacheTTLHours, 48)
-		}
-	})
-
-	t.Run("applies default for zero or negative TTL", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		configDir := filepath.Join(tmpDir, DirName)
-		if err := os.MkdirAll(configDir, DirPerm); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		configData := `{"cache_ttl_hours": 0}`
-		if err := os.WriteFile(filepath.Join(configDir, ConfigFile), []byte(configData), TokenPerm); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		cfg, err := LoadConfig()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if cfg.CacheTTLHours != DefaultCacheTTLHours {
-			t.Errorf("got %v, want %v", cfg.CacheTTLHours, DefaultCacheTTLHours)
+		if cfg.CredentialRef != "google-readonly/from-json" {
+			t.Errorf("got %v, want google-readonly/from-json", cfg.CredentialRef)
 		}
 	})
 
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		hermeticConfig(t)
+		dir, err := GetConfigDir()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-		configDir := filepath.Join(tmpDir, DirName)
-		if err := os.MkdirAll(configDir, DirPerm); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, ConfigFile), []byte("not json"), TokenPerm); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if err := os.WriteFile(filepath.Join(configDir, ConfigFile), []byte("not json"), TokenPerm); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		_, err := LoadConfig()
+		_, err = LoadConfig()
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -278,124 +245,77 @@ func TestLoadConfig(t *testing.T) {
 
 func TestSaveConfig(t *testing.T) {
 	t.Run("saves config to file", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		hermeticConfig(t)
 
-		cfg := &Config{CacheTTLHours: 12}
+		cfg := &Config{CredentialRef: "google-readonly/test"}
 		err := SaveConfig(cfg)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Verify file was created
 		path, _ := GetConfigPath()
 		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !strings.Contains(string(data), "cache_ttl_hours: 12") {
-			t.Errorf("expected %q to contain %q", string(data), "cache_ttl_hours: 12")
+		if !strings.Contains(string(data), "credential_ref: google-readonly/test") {
+			t.Errorf("expected %q to contain credential_ref", string(data))
 		}
 	})
 
 	t.Run("overwrites existing config", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
+		hermeticConfig(t)
 
-		// Save initial config
-		cfg1 := &Config{CacheTTLHours: 12}
+		cfg1 := &Config{CredentialRef: "google-readonly/a"}
 		if err := SaveConfig(cfg1); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Save new config
-		cfg2 := &Config{CacheTTLHours: 36}
+		cfg2 := &Config{CredentialRef: "google-readonly/b"}
 		if err := SaveConfig(cfg2); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Verify new value
 		loaded, err := LoadConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if loaded.CacheTTLHours != 36 {
-			t.Errorf("got %v, want %v", loaded.CacheTTLHours, 36)
-		}
-	})
-}
-
-func TestGetCacheTTL(t *testing.T) {
-	t.Run("returns configured TTL as duration", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		cfg := &Config{CacheTTLHours: 12}
-		if err := SaveConfig(cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		ttl := GetCacheTTL()
-		if ttl != 12*time.Hour {
-			t.Errorf("got %v, want %v", ttl, 12*time.Hour)
+		if loaded.CredentialRef != "google-readonly/b" {
+			t.Errorf("got %v, want google-readonly/b", loaded.CredentialRef)
 		}
 	})
 
-	t.Run("returns default TTL when no config exists", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		ttl := GetCacheTTL()
-		if ttl != time.Duration(DefaultCacheTTLHours)*time.Hour {
-			t.Errorf("got %v, want %v", ttl, time.Duration(DefaultCacheTTLHours)*time.Hour)
+	t.Run("writes atomically with correct perms and no stale tmp", func(t *testing.T) {
+		hermeticConfig(t)
+		if err := SaveConfig(&Config{}); err != nil {
+			t.Fatalf("save: %v", err)
 		}
-	})
-}
-
-func TestGetCacheTTLHours(t *testing.T) {
-	t.Run("returns configured TTL in hours", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		cfg := &Config{CacheTTLHours: 48}
-		if err := SaveConfig(cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
+		final, _ := GetConfigPath()
+		info, err := os.Stat(final)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
 		}
-
-		hours := GetCacheTTLHours()
-		if hours != 48 {
-			t.Errorf("got %v, want %v", hours, 48)
+		if info.Mode().Perm() != TokenPerm {
+			t.Errorf("config file mode = %v, want %v", info.Mode().Perm(), TokenPerm)
 		}
-	})
-
-	t.Run("returns default TTL when no config exists", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", tmpDir)
-
-		hours := GetCacheTTLHours()
-		if hours != DefaultCacheTTLHours {
-			t.Errorf("got %v, want %v", hours, DefaultCacheTTLHours)
+		// No stale *.tmp in the dir after a successful save.
+		dir := filepath.Dir(final)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("readdir: %v", err)
+		}
+		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), ".tmp") {
+				t.Errorf("stale temp file left in %s: %s", dir, e.Name())
+			}
 		}
 	})
 }
 
 func TestCacheDirResolvers(t *testing.T) {
-	// Each subtest gets its OWN hermetic env + fresh temp dir: GetCacheDir is
-	// creating, so a shared env would let one subtest's mkdir defeat
-	// another's "non-creating" assertion.
-	hermeticCfg := func(t *testing.T) string {
-		t.Helper()
-		d := t.TempDir()
-		t.Setenv("HOME", d)
-		t.Setenv("XDG_CACHE_HOME", filepath.Join(d, "xcache"))
-		t.Setenv("LOCALAPPDATA", filepath.Join(d, "localappdata"))
-		t.Setenv("XDG_CONFIG_HOME", filepath.Join(d, "xconfig"))
-		return d
-	}
-
 	t.Run("GetCacheDir is under os.UserCacheDir()/DirName, not the config tree", func(t *testing.T) {
-		hermeticCfg(t)
-		base, err := os.UserCacheDir() // computed in-test — no hard-coded per-OS strings
+		hermeticConfig(t)
+		base, err := os.UserCacheDir()
 		if err != nil {
 			t.Fatalf("UserCacheDir: %v", err)
 		}
@@ -421,7 +341,7 @@ func TestCacheDirResolvers(t *testing.T) {
 	})
 
 	t.Run("CacheDirPath and LegacyCacheDir are non-creating", func(t *testing.T) {
-		d := hermeticCfg(t)
+		hermeticConfig(t)
 		cp, err := CacheDirPath()
 		if err != nil {
 			t.Fatalf("CacheDirPath: %v", err)
@@ -436,7 +356,13 @@ func TestCacheDirResolvers(t *testing.T) {
 		if _, serr := os.Stat(lp); !os.IsNotExist(serr) {
 			t.Errorf("LegacyCacheDir must not create %q (stat err=%v)", lp, serr)
 		}
-		if want := filepath.Join(filepath.Join(d, "xconfig"), DirName, legacyCacheSubdir); lp != want {
+		// Expected legacy cache dir is computed from the resolver — no
+		// hard-coded per-OS paths. LegacyCacheDir = configDirPath() + "/cache".
+		cfgDir, err := configDirPath()
+		if err != nil {
+			t.Fatalf("configDirPath: %v", err)
+		}
+		if want := filepath.Join(cfgDir, legacyCacheSubdir); lp != want {
 			t.Errorf("LegacyCacheDir = %q, want %q", lp, want)
 		}
 
@@ -447,13 +373,13 @@ func TestCacheDirResolvers(t *testing.T) {
 		if _, serr := os.Stat(filepath.Dir(gp)); !os.IsNotExist(serr) {
 			t.Errorf("GetConfigPathNoCreate must not create the config dir %q (stat err=%v)", filepath.Dir(gp), serr)
 		}
-		if want := filepath.Join(filepath.Join(d, "xconfig"), DirName, ConfigFileYAML); gp != want {
+		if want := filepath.Join(cfgDir, ConfigFileYAML); gp != want {
 			t.Errorf("GetConfigPathNoCreate = %q, want %q", gp, want)
 		}
 	})
 
 	t.Run("GetConfigDir still creates", func(t *testing.T) {
-		hermeticCfg(t)
+		hermeticConfig(t)
 		cd, err := GetConfigDir()
 		if err != nil {
 			t.Fatalf("GetConfigDir: %v", err)

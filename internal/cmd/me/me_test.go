@@ -10,6 +10,8 @@ import (
 
 	"google.golang.org/api/googleapi"
 
+	"github.com/open-cli-collective/cli-common/statedirtest"
+
 	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/people"
@@ -250,7 +252,6 @@ func TestRunExtendedJSONEndToEnd(t *testing.T) {
 	// surface reflects the recorded scopes, not auth.AllScopes (which
 	// would overstate consent).
 	if err := config.SaveConfig(&config.Config{
-		CacheTTLHours: 24,
 		GrantedScopes: auth.AllScopes,
 	}); err != nil {
 		t.Fatal(err)
@@ -367,12 +368,16 @@ func TestNewCommandIDExtendedMutuallyExclusive(t *testing.T) {
 	}
 }
 
-// withConfigDir points config.LoadConfig at a clean tempdir so stale-scope
-// state can be injected per-test via real config.json.
+// withConfigDir isolates state-dir resolution (§3.1 7-var set) so config.LoadConfig
+// resolves under a per-test temp root, then returns the resolved config dir
+// (created) — tests plant config.json/yml there.
 func withConfigDir(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
+	statedirtest.Hermetic(t)
+	dir, err := config.GetConfigDir()
+	if err != nil {
+		t.Fatalf("GetConfigDir: %v", err)
+	}
 	return dir
 }
 
@@ -382,7 +387,6 @@ func TestRunStaleRecordedScopesTriggersReauthMessage(t *testing.T) {
 	// Write a config.json with a deliberately incomplete scopes list — only
 	// gmail.modify, missing People/Drive/etc. CheckScopesMigration should fire.
 	cfg := &config.Config{
-		CacheTTLHours: 24,
 		GrantedScopes: []string{"https://www.googleapis.com/auth/gmail.modify"},
 	}
 	if err := config.SaveConfig(cfg); err != nil {
@@ -430,7 +434,7 @@ func TestRunEmptyGrantedScopesDoesNotShortCircuit(t *testing.T) {
 	withConfigDir(t)
 	// Config exists but granted_scopes is explicitly empty — same semantics
 	// as missing-config per CheckScopesMigration's len-0 early return.
-	cfg := &config.Config{CacheTTLHours: 24, GrantedScopes: []string{}}
+	cfg := &config.Config{GrantedScopes: []string{}}
 	if err := config.SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}

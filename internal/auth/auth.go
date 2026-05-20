@@ -88,7 +88,7 @@ func CheckScopesMigration(grantedScopes []string) string {
 // OAuth client JSON referenced by config.yml's oauth_client_path (§1.2 — not
 // a secret; lives on disk, never the keyring), with all scopes.
 func GetOAuthConfig() (*oauth2.Config, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfigForRuntime()
 	if err != nil {
 		return nil, err
 	}

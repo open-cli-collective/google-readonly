@@ -45,11 +45,8 @@ func capture(t *testing.T, f func()) string {
 
 func seedTokenAndClient(t *testing.T) string {
 	t.Helper()
-	tmp := credtest.Setup(t)
-	dir := filepath.Join(tmp, "xdgconfig", appconfig.DirName)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
+	credtest.Setup(t)
+	dir := credtest.ConfigDir(t)
 	if err := os.WriteFile(filepath.Join(dir, appconfig.OAuthClientFile), []byte(clientJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +162,7 @@ func TestRunClearSemantics(t *testing.T) {
 		// Seed both: a real new cache and a legacy dir whose drives.json is
 		// itself a directory (a state the migration shim refuses to carry).
 		// --all must remove BOTH directly (no cache.New / no migration).
-		c, err := cache.New(24)
+		c, err := cache.New()
 		if err != nil {
 			t.Fatalf("cache.New: %v", err)
 		}

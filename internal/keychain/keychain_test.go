@@ -138,8 +138,8 @@ func TestStoreRoundTripAndDelete(t *testing.T) {
 // ---- token migration matrix (file token.json) ----------------------------
 
 func TestMigrateTokenFileAndIdempotent(t *testing.T) {
-	tmp := credtest.Setup(t)
-	tokenPath := filepath.Join(tmp, "xdgconfig", config.DirName, "token.json")
+	credtest.Setup(t)
+	tokenPath := filepath.Join(credtest.ConfigDir(t), "token.json")
 	if err := os.MkdirAll(filepath.Dir(tokenPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestMigrateTokenFileAndIdempotent(t *testing.T) {
 }
 
 func TestMigrateConflictFailsLoudWithoutLeaking(t *testing.T) {
-	tmp := credtest.Setup(t)
+	credtest.Setup(t)
 	pre, err := openWith(testCfg(), false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +182,7 @@ func TestMigrateConflictFailsLoudWithoutLeaking(t *testing.T) {
 	}
 	_ = pre.Close()
 
-	tokenPath := filepath.Join(tmp, "xdgconfig", config.DirName, "token.json")
+	tokenPath := filepath.Join(credtest.ConfigDir(t), "token.json")
 	_ = os.MkdirAll(filepath.Dir(tokenPath), 0o700)
 	if err := os.WriteFile(tokenPath, []byte(tokenB), 0o600); err != nil { // differs from keyring
 		t.Fatal(err)
@@ -209,12 +209,85 @@ func TestMigrateConflictFailsLoudWithoutLeaking(t *testing.T) {
 	}
 }
 
+// TestMigrateTokenFile_OldHandRolledPath covers the MON-5371 token-source
+// enumeration extension: a pre-MON-5371 macOS/Windows install can have a
+// token.json at the OLD hand-rolled config dir (not the new statedir-
+// resolved dir). The migrator must find it and migrate it just like a
+// new-dir token.
+func TestMigrateTokenFile_OldHandRolledPath(t *testing.T) {
+	credtest.Setup(t)
+	oldTokenPath, err := config.OldHandRolledTokenPath()
+	if err != nil {
+		t.Fatalf("OldHandRolledTokenPath: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(oldTokenPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldTokenPath, []byte(tokenA), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := openWith(testCfg(), false, true) // runMigration
+	if err != nil {
+		t.Fatalf("migrate open: %v", err)
+	}
+	tok, err := st.Token()
+	if err != nil || tok.AccessToken != "AAA" {
+		t.Fatalf("token at OLD path not migrated into keyring: %+v err=%v", tok, err)
+	}
+	_ = st.Close()
+	if _, statErr := os.Stat(oldTokenPath); !os.IsNotExist(statErr) {
+		t.Fatal("old-path token.json must be removed after migration (no stale plaintext)")
+	}
+}
+
+// TestMigrateTokenFile_OldAndNewDivergent covers the §1.8 invariant: if both
+// old/token.json and new/token.json exist with different bytes, the migrator
+// must fail loud and mutate nothing.
+func TestMigrateTokenFile_OldAndNewDivergent(t *testing.T) {
+	credtest.Setup(t)
+	oldTokenPath, err := config.OldHandRolledTokenPath()
+	if err != nil {
+		t.Fatalf("OldHandRolledTokenPath: %v", err)
+	}
+	newTokenPath, err := config.GetTokenPath()
+	if err != nil {
+		t.Fatalf("GetTokenPath: %v", err)
+	}
+	if oldTokenPath == newTokenPath {
+		t.Skip("Linux: old and new paths identical — dedup makes divergence impossible")
+	}
+	if err := os.MkdirAll(filepath.Dir(oldTokenPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(newTokenPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldTokenPath, []byte(tokenA), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newTokenPath, []byte(tokenB), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = openWith(testCfg(), false, true)
+	if err == nil {
+		t.Fatal("divergent old/new token.json must fail loud, got nil")
+	}
+	if _, e := os.Stat(oldTokenPath); e != nil {
+		t.Errorf("old token.json must remain on conflict: %v", e)
+	}
+	if _, e := os.Stat(newTokenPath); e != nil {
+		t.Errorf("new token.json must remain on conflict: %v", e)
+	}
+}
+
 // ---- deployment-material migration (credentials.json -> oauth_client.json) -
 
 func TestMigrateOAuthClientJSON(t *testing.T) {
 	t.Run("copy-only when target absent", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		if err := os.WriteFile(legacy, []byte(validClientJSONFixture), 0o600); err != nil {
@@ -237,8 +310,8 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 	})
 
 	t.Run("target valid present: legacy removed", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		target := filepath.Join(dir, "oauth_client.json")
@@ -254,8 +327,8 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 	})
 
 	t.Run("legacy valid, target invalid: target rewritten from legacy", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		target := filepath.Join(dir, "oauth_client.json")
@@ -274,8 +347,8 @@ func TestMigrateOAuthClientJSON(t *testing.T) {
 	})
 
 	t.Run("both invalid: nothing deleted, error names paths+fingerprints", func(t *testing.T) {
-		tmp := credtest.Setup(t)
-		dir := filepath.Join(tmp, "xdgconfig", config.DirName)
+		credtest.Setup(t)
+		dir := credtest.ConfigDir(t)
 		_ = os.MkdirAll(dir, 0o700)
 		legacy := filepath.Join(dir, "credentials.json")
 		target := filepath.Join(dir, "oauth_client.json")

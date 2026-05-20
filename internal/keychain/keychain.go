@@ -68,7 +68,7 @@ func OpenForMigrationOverwrite() (*Store, error) { return open(true, true) }
 func OpenNoMigrate() (*Store, error) { return open(false, false) }
 
 func open(overwrite, runMigration bool) (*Store, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfigForRuntime()
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func open(overwrite, runMigration bool) (*Store, error) {
 // discover the default ref's legacy data and could write it under the wrong
 // service/profile).
 func OpenRef(ref string) (*Store, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfigForRuntime()
 	if err != nil {
 		return nil, err
 	}

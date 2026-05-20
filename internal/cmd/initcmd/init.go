@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -99,6 +98,14 @@ type initDeps struct {
 	// Browser opener.
 	OpenBrowser func(url string) error
 
+	// DetectConfigRelocation / ApplyConfigRelocation are the MON-5371 init
+	// relocation gate. Injected so parallel tests (which cannot t.Setenv the
+	// hermetic env) can stub them to a no-op; production wires them to the
+	// real config functions. Strict semantics: divergent old/new aborts init
+	// before any mutation.
+	DetectConfigRelocation func() (config.SharedRelocation, error)
+	ApplyConfigRelocation  func(config.SharedRelocation) error
+
 	// EnsureMigrated runs/resolves the one-time §1.8 migration up front (a
 	// legacy-vs-keyring conflict aborts init loudly).
 	EnsureMigrated func() error
@@ -139,7 +146,6 @@ type prompter interface {
 	ConfirmOpenBrowser() (bool, error)
 	PasteRedirectURL() (string, error)
 	ConfirmReauth() (bool, error)
-	AskCacheTTL(defaultHours int) (int, error)
 }
 
 // defaultDeps wires up production collaborators.
@@ -149,27 +155,29 @@ func defaultDeps() initDeps {
 		// The OAuth client JSON is deployment material (§1.2): the wizard
 		// writes it to oauth_client_path, not the legacy credentials.json.
 		GetCredentialsPath: func() (string, error) {
-			cfg, err := config.LoadConfig()
+			cfg, err := config.LoadConfigForRuntime()
 			if err != nil {
 				return "", err
 			}
 			return config.ExpandPath(cfg.OAuthClientPath), nil
 		},
-		ReadFile:           os.ReadFile,
-		WriteFile:          os.WriteFile,
-		Chmod:              os.Chmod,
-		Stat:               os.Stat,
-		ClipboardSupported: func() bool { return !clipboard.Unsupported },
-		ClipboardReadAll:   clipboard.ReadAll,
-		OpenBrowser:        browser.OpenURL,
-		EnsureMigrated:     ensureMigrated,
-		HasStoredToken:     storeHasToken,
-		SetToken:           storeSetToken,
-		DeleteToken:        storeDeleteToken,
-		GetStorageBackend:  storeBackendLabel,
-		StdinReadAll:       readAllStdin,
-		ExchangeAuthCode:   auth.ExchangeAuthCode,
-		GetOAuthConfig:     auth.GetOAuthConfig,
+		ReadFile:               os.ReadFile,
+		WriteFile:              os.WriteFile,
+		Chmod:                  os.Chmod,
+		Stat:                   os.Stat,
+		ClipboardSupported:     func() bool { return !clipboard.Unsupported },
+		ClipboardReadAll:       clipboard.ReadAll,
+		OpenBrowser:            browser.OpenURL,
+		DetectConfigRelocation: config.DetectConfigRelocation,
+		ApplyConfigRelocation:  config.ApplyConfigRelocation,
+		EnsureMigrated:         ensureMigrated,
+		HasStoredToken:         storeHasToken,
+		SetToken:               storeSetToken,
+		DeleteToken:            storeDeleteToken,
+		GetStorageBackend:      storeBackendLabel,
+		StdinReadAll:           readAllStdin,
+		ExchangeAuthCode:       auth.ExchangeAuthCode,
+		GetOAuthConfig:         auth.GetOAuthConfig,
 		GmailVerify: func(ctx context.Context) (string, error) {
 			c, err := gmail.NewClient(ctx)
 			if err != nil {
@@ -188,7 +196,7 @@ func defaultDeps() initDeps {
 			}
 			return c.GetMe(ctx)
 		},
-		LoadConfig:    config.LoadConfig,
+		LoadConfig:    config.LoadConfigForRuntime,
 		SaveConfig:    config.SaveConfig,
 		GetConfigPath: config.GetConfigPath,
 		Prompter:      huhPrompter{},
@@ -272,6 +280,25 @@ func readAllStdin() (string, error) {
 
 // runWith is the testable entry point for the wizard. NewCommand wraps it.
 func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
+	// Step -1 (must precede the §1.8 migration): the MON-5371 config-dir
+	// relocation gate. If the old hand-rolled dir and the new statedir-
+	// resolved dir both exist with divergent settings, abort BEFORE
+	// EnsureMigrated runs — otherwise that path would soft-read one side via
+	// the runtime wrapper, migrate, then SaveConfig, papering over the
+	// conflict. On only-old we copy old→new (atomic per-file, skipping
+	// token.json which the §1.8 migrator handles).
+	if d.DetectConfigRelocation != nil {
+		reloc, err := d.DetectConfigRelocation()
+		if err != nil {
+			return fmt.Errorf("detecting config relocation: %w", err)
+		}
+		if reloc.CopyNeeded && d.ApplyConfigRelocation != nil {
+			if err := d.ApplyConfigRelocation(reloc); err != nil {
+				return fmt.Errorf("relocating config from %s to %s: %w", reloc.OldPath, reloc.NewPath, err)
+			}
+		}
+	}
+
 	// Step 0: run/resolve the one-time §1.8 migration up front. A legacy
 	// token is migrated into the keyring (its original removed) before the
 	// wizard decides anything; a legacy-vs-keyring conflict aborts loudly
@@ -293,21 +320,8 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 		return err
 	}
 
-	// Step 2: snapshot config.json existence BEFORE we save granted scopes.
-	// We use this snapshot to gate the cache-TTL prompt: if config existed
-	// already, we don't re-ask. Today's code samples this AFTER scope save,
-	// which made the prompt unreachable on first runs.
-	configPath, err := d.GetConfigPath()
-	if err != nil {
-		return fmt.Errorf("getting config path: %w", err)
-	}
-	configExistedBefore := false
-	if _, err := d.Stat(configPath); err == nil {
-		configExistedBefore = true
-	}
-
 	// Step 3: token resolution.
-	handled, err := tryExistingToken(ctx, d, opts, configExistedBefore)
+	handled, err := tryExistingToken(ctx, d, opts)
 	if err != nil {
 		return err
 	}
@@ -367,23 +381,11 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	// Step 5: persist granted scopes (creates config.json if missing).
 	cfg, cfgErr := d.LoadConfig()
 	if cfgErr != nil {
-		cfg = &config.Config{CacheTTLHours: config.DefaultCacheTTLHours}
+		cfg = &config.Config{}
 	}
 	cfg.GrantedScopes = auth.AllScopes
 	if saveErr := d.SaveConfig(cfg); saveErr != nil {
 		d.View.Error("Warning: saving granted scopes: %v", saveErr)
-	}
-
-	// Step 6: cache TTL prompt (only on first-run, per the snapshot).
-	if !configExistedBefore {
-		ttl, err := d.Prompter.AskCacheTTL(config.DefaultCacheTTLHours)
-		if err != nil {
-			return err
-		}
-		cfg.CacheTTLHours = ttl
-		if saveErr := d.SaveConfig(cfg); saveErr != nil {
-			d.View.Error("Warning: saving cache TTL: %v", saveErr)
-		}
 	}
 
 	// Step 7: verify + render `gro me` one-liner. People failure is fatal —
@@ -418,7 +420,7 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 // but People-insufficient token (typical of users who upgraded gro) must
 // trigger re-auth here, otherwise `gro me`'s "run gro init" message
 // produces an infinite remediation loop.
-func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, configExistedBefore bool) (bool, error) {
+func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions) (bool, error) {
 	if !d.HasStoredToken() {
 		return false, nil
 	}
@@ -441,7 +443,7 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 	// for everything past the recorded-scope check above.
 	if opts.noVerify {
 		d.View.Success("Existing token accepted (--no-verify; API not called)")
-		return true, finishExisting(d, configExistedBefore, nil /* no profile */)
+		return true, finishExisting(d, nil /* no profile */)
 	}
 
 	email, err := d.GmailVerify(ctx)
@@ -472,7 +474,7 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 		return false, fmt.Errorf("verifying People API: %w", err)
 	}
 
-	return true, finishExisting(d, configExistedBefore, profile)
+	return true, finishExisting(d, profile)
 }
 
 // promptAndDeleteForReauth asks the user whether to re-auth and clears the
@@ -502,26 +504,10 @@ func promptAndDeleteForReauth(d initDeps) error {
 // granted scopes are an unknown to this run, and writing auth.AllScopes
 // would falsely claim the token is current. Only a fresh OAuth flow knows
 // what was just granted.
-func finishExisting(d initDeps, configExistedBefore bool, profile *people.Profile) error {
+func finishExisting(d initDeps, profile *people.Profile) error {
 	if profile != nil {
 		d.View.Println("")
 		mecmd.RenderOneLiner(d.View.Out, profile)
-	}
-
-	if !configExistedBefore {
-		// Edge case: token in keychain but no config file. Ask for TTL only.
-		ttl, err := d.Prompter.AskCacheTTL(config.DefaultCacheTTLHours)
-		if err != nil {
-			return err
-		}
-		cfg, cfgErr := d.LoadConfig()
-		if cfgErr != nil {
-			cfg = &config.Config{}
-		}
-		cfg.CacheTTLHours = ttl
-		if saveErr := d.SaveConfig(cfg); saveErr != nil {
-			d.View.Error("Warning: saving config: %v", saveErr)
-		}
 	}
 	return nil
 }
@@ -804,34 +790,6 @@ func (huhPrompter) ConfirmReauth() (bool, error) {
 		Value(&ok).
 		Run()
 	return ok, err
-}
-
-func (huhPrompter) AskCacheTTL(defaultHours int) (int, error) {
-	var s string
-	err := huh.NewInput().
-		Title("Cache TTL for Drive metadata (hours)").
-		Placeholder(strconv.Itoa(defaultHours)).
-		Value(&s).
-		Validate(func(in string) error {
-			in = strings.TrimSpace(in)
-			if in == "" {
-				return nil
-			}
-			n, err := strconv.Atoi(in)
-			if err != nil || n <= 0 {
-				return errors.New("must be a positive integer")
-			}
-			return nil
-		}).
-		Run()
-	if err != nil {
-		return 0, err
-	}
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return defaultHours, nil
-	}
-	return strconv.Atoi(s)
 }
 
 // validateOAuthJSON is exposed so tests can poke it directly.

@@ -12,11 +12,12 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/open-cli-collective/cli-common/statedir"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,9 +44,6 @@ const (
 	// credential_ref. Callers still resolve it via credstore.ParseRef — the
 	// service/profile are never assumed structurally (§1.3).
 	DefaultCredentialRef = "google-readonly/default"
-
-	// DefaultCacheTTLHours is the default cache TTL in hours.
-	DefaultCacheTTLHours = 24
 )
 
 // File and directory permission constants for consistent security settings.
@@ -66,6 +64,12 @@ const (
 // Config is google-readonly's config.yml. Everything here is safe for an org
 // to ship via MDM (§1.2); none of it is an access secret. JSON tags are
 // retained so a legacy config.json is read transparently for one upgrade.
+//
+// The pre-MON-5371 `cache_ttl_hours` field is gone — cache TTL is now
+// hard-coded per resource per cli-common/docs/working-with-state.md §4.4. An
+// older config.yml that still contains `cache_ttl_hours: N` continues to
+// load cleanly (yaml.v3 silently ignores unknown fields); the value is just
+// inert post-port.
 type Config struct {
 	// CredentialRef is the authoritative <service>/<profile> keyring ref
 	// (§1.3). Resolved via credstore.ParseRef; never hard-coded.
@@ -74,8 +78,6 @@ type Config struct {
 	// (deployment material). Stored expanded + absolute; `~` is display-only
 	// via ShortenPath. An org may override the default location here.
 	OAuthClientPath string `yaml:"oauth_client_path" json:"oauth_client_path,omitempty"`
-	// CacheTTLHours is preserved pre-existing tuning (not a secret).
-	CacheTTLHours int `yaml:"cache_ttl_hours" json:"cache_ttl_hours"`
 	// GrantedScopes is preserved: detects when a token's scopes drift from
 	// what init granted. Not a secret.
 	GrantedScopes []string `yaml:"granted_scopes,omitempty" json:"granted_scopes,omitempty"`
@@ -96,32 +98,23 @@ type KeyringConfig struct {
 // internal/cache.
 const legacyCacheSubdir = "cache"
 
+// configScope is the cli-common state-scope for gro's config dir. The scope
+// name is gro's `DirName`; the resolver returns the native per-OS user config
+// dir (Linux $XDG_CONFIG_HOME or ~/.config; macOS ~/Library/Application
+// Support; Windows %APPDATA%) plus that scope. A relative $XDG_CONFIG_HOME on
+// Linux now yields an error (intentional tightening per
+// cli-common/docs/working-with-state.md §1.1).
+var configScope = statedir.Scope{Name: DirName}
+
 // configDirPath resolves the configuration directory WITHOUT creating it.
-// Uses $XDG_CONFIG_HOME if set, else ~/.config/google-readonly. Identical on
-// Linux, macOS, and Windows — matches the released layout (no %APPDATA%
-// branch), so config.yml sits beside the legacy files it supersedes.
+// Delegated to cli-common/statedir so the per-OS dir is native everywhere.
 func configDirPath() (string, error) {
-	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		configHome = filepath.Join(home, ".config")
-	}
-	return filepath.Join(configHome, DirName), nil
+	return configScope.ConfigDir()
 }
 
 // GetConfigDir returns the configuration directory, creating it if needed.
 func GetConfigDir() (string, error) {
-	configDir, err := configDirPath()
-	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(configDir, DirPerm); err != nil { //nolint:gosec // not user-controlled
-		return "", err
-	}
-	return configDir, nil
+	return configScope.ConfigDirEnsured()
 }
 
 // CacheDirPath resolves the OS-designated cache directory WITHOUT creating it
@@ -226,33 +219,109 @@ func ShortenPath(path string) string {
 	return path
 }
 
-// LoadConfig loads config.yml. If config.yml is absent but a legacy
-// config.json exists, it is read transparently (the user keeps working); the
-// one-time migration rewrites it as config.yml and removes the JSON. An
-// absent config entirely yields defaults. Defaults are always applied.
+// LoadConfig loads config.yml. The strict variant — used by `gro init`'s
+// relocation gate and by tests. Returns ErrRelocationConflict (with a wrapped
+// detail message) when both the old hand-rolled and new statedir-resolved
+// dirs contain materially-different config.yml files; on conflict, the
+// canonical new-dir config is still returned alongside the error so callers
+// can choose to soft-degrade. Runtime call sites should use
+// LoadConfigForRuntime instead — see relocate.go.
+//
+// If new/config.yml is absent but old-only is present (the MON-5371
+// macOS/Windows pre-init steady state), the old file is transparently read.
+// If neither YAML is present, a legacy config.json is read once at the new
+// dir (post-init); if that is also absent, defaults are returned.
+//
+// Defaults are always applied to the returned *Config.
 func LoadConfig() (*Config, error) {
-	cfg := &Config{}
-
-	ymlPath, err := GetConfigPath()
-	if err != nil {
-		return nil, err
+	relErr := error(nil)
+	reloc, derr := DetectConfigRelocation()
+	if derr != nil && errors.Is(derr, ErrRelocationConflict) {
+		// Both-present-divergent — still return the canonical new-dir cfg so
+		// callers can soft-degrade via LoadConfigForRuntime.
+		relErr = derr
+	} else if derr != nil && !errors.Is(derr, ErrRelocationConflict) {
+		return nil, derr
 	}
-	data, err := os.ReadFile(ymlPath) //nolint:gosec // path from config dir
-	switch {
-	case err == nil:
-		if uerr := yaml.Unmarshal(data, cfg); uerr != nil {
-			return nil, fmt.Errorf("parse config %s: %w", ymlPath, uerr)
+
+	// Priority: new/config.yml → old/config.yml (only if new is absent) →
+	// legacy config.json at the new dir. We attempt the new-dir read even
+	// when relErr is set (a detect-time ErrRelocationConflict) so callers
+	// soft-degrading via LoadConfigForRuntime actually get the user's new-
+	// dir settings (non-default OAuthClientPath, recorded GrantedScopes,
+	// etc.) — returning all-defaults instead would silently mask issues
+	// like a re-auth requirement or break OAuth client resolution. On a
+	// parse error while relErr is set we DON'T re-surface the bare parse
+	// error: the wrapped conflict already names both paths and the cause,
+	// and a hard-fail here would defeat the soft-degrade contract.
+	cfg := &Config{}
+	read := false
+	if reloc.NewPath != "" {
+		newYML := filepath.Join(reloc.NewPath, ConfigFileYAML)
+		if data, err := os.ReadFile(newYML); err == nil { //nolint:gosec // path from validated dir
+			if uerr := yaml.Unmarshal(data, cfg); uerr != nil {
+				if relErr != nil {
+					// Already returning a conflict; keep cfg empty for this side
+					// rather than propagate a parse error LoadConfigForRuntime
+					// can't soft-degrade.
+					cfg = &Config{}
+				} else {
+					return nil, fmt.Errorf("parse config %s: %w", newYML, uerr)
+				}
+			} else {
+				read = true
+			}
+		} else if !os.IsNotExist(err) {
+			if relErr != nil {
+				cfg = &Config{}
+			} else {
+				return nil, fmt.Errorf("read config %s: %w", newYML, err)
+			}
 		}
-	case os.IsNotExist(err):
+	}
+	if !read && reloc.Kind == relocOldOnly && reloc.OldPath != "" {
+		// Try old/config.yml first; fall back to old/config.json (a
+		// pre-MON-5371 macOS/Windows user may be on either form).
+		oldYML := filepath.Join(reloc.OldPath, ConfigFileYAML)
+		if data, err := os.ReadFile(oldYML); err == nil { //nolint:gosec // path from hand-rolled legacy dir
+			if uerr := yaml.Unmarshal(data, cfg); uerr != nil {
+				return nil, fmt.Errorf("parse config %s: %w", oldYML, uerr)
+			}
+			read = true
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("read config %s: %w", oldYML, err)
+		}
+		if !read {
+			oldJSON := filepath.Join(reloc.OldPath, ConfigFile)
+			if data, err := os.ReadFile(oldJSON); err == nil { //nolint:gosec // path from hand-rolled legacy dir
+				if jerr := json.Unmarshal(data, cfg); jerr != nil {
+					return nil, fmt.Errorf("parse legacy config %s: %w", oldJSON, jerr)
+				}
+				read = true
+			} else if !os.IsNotExist(err) {
+				return nil, fmt.Errorf("read config %s: %w", oldJSON, err)
+			}
+		}
+	}
+	if !read && relErr == nil {
 		if jerr := loadLegacyJSON(cfg); jerr != nil {
 			return nil, jerr
 		}
-	default:
-		return nil, fmt.Errorf("read config %s: %w", ymlPath, err)
+		read = true // loadLegacyJSON either populated cfg or left it empty (fresh install)
+	}
+
+	// If a relocation conflict happened AND we could not actually read the
+	// canonical config (e.g. malformed YAML in new, or malformed legacy
+	// JSON), soft-degrade is unsafe — the runtime command would silently
+	// fall back to default settings (e.g. swap credential_ref back to the
+	// default) and mask a real problem. Return nil cfg so
+	// LoadConfigForRuntime hard-fails instead of warning-and-defaulting.
+	if !read && relErr != nil {
+		return nil, relErr
 	}
 
 	cfg.applyDefaults()
-	return cfg, nil
+	return cfg, relErr
 }
 
 // loadLegacyJSON reads a pre-migration config.json if present (absent is not
@@ -286,13 +355,14 @@ func (c *Config) applyDefaults() {
 	} else {
 		c.OAuthClientPath = ExpandPath(c.OAuthClientPath)
 	}
-	if c.CacheTTLHours <= 0 {
-		c.CacheTTLHours = DefaultCacheTTLHours
-	}
 }
 
-// SaveConfig writes config.yml at 0600 under a 0700 directory. OAuthClientPath
-// is persisted expanded + absolute so os.ReadFile never sees a literal ~.
+// SaveConfig writes config.yml at 0600 under a 0700 directory using an atomic
+// temp-file-in-same-dir → chmod 0600 → rename (§3 standard). The unique temp
+// name from os.CreateTemp means a same-process concurrent save and a
+// crash-leftover from a prior run can never collide; a hard-crash orphan tmp
+// is harmless (never read as config). OAuthClientPath is persisted expanded +
+// absolute so os.ReadFile never sees a literal ~.
 func SaveConfig(cfg *Config) error {
 	dir, err := GetConfigDir()
 	if err != nil {
@@ -309,23 +379,29 @@ func SaveConfig(cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, ConfigFileYAML), data, TokenPerm)
-}
 
-// GetCacheTTL returns the configured cache TTL duration.
-func GetCacheTTL() time.Duration {
-	cfg, err := LoadConfig()
+	final := filepath.Join(dir, ConfigFileYAML)
+	tmp, err := os.CreateTemp(dir, "config-*.yml.tmp")
 	if err != nil {
-		return time.Duration(DefaultCacheTTLHours) * time.Hour
+		return fmt.Errorf("creating temp config file: %w", err)
 	}
-	return time.Duration(cfg.CacheTTLHours) * time.Hour
-}
-
-// GetCacheTTLHours returns the configured cache TTL in hours.
-func GetCacheTTLHours() int {
-	cfg, err := LoadConfig()
-	if err != nil {
-		return DefaultCacheTTLHours
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("writing temp config file: %w", err)
 	}
-	return cfg.CacheTTLHours
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("closing temp config file: %w", err)
+	}
+	if err := os.Chmod(tmpPath, TokenPerm); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("setting config file mode: %w", err)
+	}
+	if err := os.Rename(tmpPath, final); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("finalizing config file: %w", err)
+	}
+	return nil
 }

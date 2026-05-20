@@ -225,6 +225,7 @@ func discover() []candidate {
 		}
 	}
 
+	// New (statedir-resolved) token.json. This is the post-MON-5371 location.
 	if path, err := config.GetTokenPath(); err == nil {
 		if v, ok := readLegacyTokenFile(path); ok {
 			out = append(out, candidate{
@@ -232,6 +233,22 @@ func discover() []candidate {
 				value:    v,
 				deleter:  func() error { return secureDelete(path) },
 			})
+		}
+	}
+	// Old hand-rolled token.json (pre-MON-5371): $XDG_CONFIG_HOME else
+	// ~/.config/google-readonly/token.json on every OS. On Linux this is the
+	// same path as the new resolver, so we dedupe to avoid emitting two
+	// candidates with identical bytes (which planMigration would correctly
+	// treat as equal/non-conflicting, but enumerating twice is just noise).
+	if oldPath, err := config.OldHandRolledTokenPath(); err == nil {
+		if newPath, nerr := config.GetTokenPath(); nerr != nil || newPath != oldPath {
+			if v, ok := readLegacyTokenFile(oldPath); ok {
+				out = append(out, candidate{
+					location: fmt.Sprintf("file:%s", oldPath),
+					value:    v,
+					deleter:  func() error { return secureDelete(oldPath) },
+				})
+			}
 		}
 	}
 	return out
