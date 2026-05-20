@@ -245,10 +245,15 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Priority: new/config.yml → old/config.yml (only if new is absent) →
-	// legacy config.json at the new dir.
+	// legacy config.json at the new dir. When relErr is already set (a
+	// detect-time ErrRelocationConflict — including a malformed-new wrapped
+	// inside it), we do not re-surface a bare parse error here: the wrapped
+	// conflict error already names both paths and the underlying cause, and
+	// returning the bare parse error instead would make LoadConfigForRuntime
+	// hard-fail instead of soft-degrading. Skip the re-parse on conflict.
 	cfg := &Config{}
 	read := false
-	if reloc.NewPath != "" {
+	if reloc.NewPath != "" && relErr == nil {
 		newYML := filepath.Join(reloc.NewPath, ConfigFileYAML)
 		if data, err := os.ReadFile(newYML); err == nil { //nolint:gosec // path from validated dir
 			if uerr := yaml.Unmarshal(data, cfg); uerr != nil {
@@ -283,7 +288,7 @@ func LoadConfig() (*Config, error) {
 			}
 		}
 	}
-	if !read {
+	if !read && relErr == nil {
 		if jerr := loadLegacyJSON(cfg); jerr != nil {
 			return nil, jerr
 		}

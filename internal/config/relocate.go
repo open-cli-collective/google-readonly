@@ -190,7 +190,11 @@ func configsMaterialEqual(a, b Config, oldDir, newDir string) bool {
 	if a.CredentialRef != b.CredentialRef {
 		return false
 	}
-	if a.Keyring.Backend != b.Keyring.Backend {
+	// reflect.DeepEqual on the whole Keyring sub-struct: a new field added
+	// to KeyringConfig (e.g. a passphrase env-var name) must not silently
+	// classify as "same" just because the old code path only knew about
+	// Backend.
+	if !reflect.DeepEqual(a.Keyring, b.Keyring) {
 		return false
 	}
 	if !slicesEqualSorted(a.GrantedScopes, b.GrantedScopes) {

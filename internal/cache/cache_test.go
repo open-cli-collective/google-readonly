@@ -236,4 +236,27 @@ func TestMigrateLegacyCacheDir(t *testing.T) {
 		defer c.Clear()
 	})
 
+	t.Run("old-hand-rolled legacy cache subdir is carried (pre-MON-5371 install)", func(t *testing.T) {
+		hermetic(t)
+		oldLegacy, err := config.OldHandRolledLegacyCacheDir()
+		testutil.NoError(t, err)
+		newDir, err := config.CacheDirPath()
+		testutil.NoError(t, err)
+		// On Linux this is the same path as LegacyCacheDir — dedup handles it.
+		// On macOS/Windows this is the path a pure pre-MON-5371 install lived
+		// at and is what the dual-probe needs to find.
+		testutil.NoError(t, os.MkdirAll(oldLegacy, 0o700))
+		testutil.NoError(t, os.WriteFile(filepath.Join(oldLegacy, DrivesFile),
+			[]byte(`{"cached_at":"2026-01-01T00:00:00Z","ttl_hours":24,"drives":[{"id":"hand","name":"R"}]}`), 0o600))
+
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		got, err := os.ReadFile(filepath.Join(newDir, c.loc.InstanceKey, DrivesFile))
+		testutil.NoError(t, err)
+		testutil.Contains(t, string(got), `"hand"`)
+		_, statErr := os.Stat(oldLegacy)
+		testutil.True(t, os.IsNotExist(statErr))
+	})
 }

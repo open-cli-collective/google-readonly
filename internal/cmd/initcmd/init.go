@@ -320,21 +320,8 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 		return err
 	}
 
-	// Step 2: snapshot config.json existence BEFORE we save granted scopes.
-	// We use this snapshot to gate the cache-TTL prompt: if config existed
-	// already, we don't re-ask. Today's code samples this AFTER scope save,
-	// which made the prompt unreachable on first runs.
-	configPath, err := d.GetConfigPath()
-	if err != nil {
-		return fmt.Errorf("getting config path: %w", err)
-	}
-	configExistedBefore := false
-	if _, err := d.Stat(configPath); err == nil {
-		configExistedBefore = true
-	}
-
 	// Step 3: token resolution.
-	handled, err := tryExistingToken(ctx, d, opts, configExistedBefore)
+	handled, err := tryExistingToken(ctx, d, opts)
 	if err != nil {
 		return err
 	}
@@ -400,7 +387,6 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 	if saveErr := d.SaveConfig(cfg); saveErr != nil {
 		d.View.Error("Warning: saving granted scopes: %v", saveErr)
 	}
-	_ = configExistedBefore // pre-MON-5371 snapshot-before-save gate for the AskCacheTTL prompt; the prompt is gone (TTL is hard-coded per resource, §4.4) so the snapshot has no remaining consumer.
 
 	// Step 7: verify + render `gro me` one-liner. People failure is fatal —
 	// init's success contract is that you can immediately run `gro me`.
@@ -434,7 +420,7 @@ func runWith(ctx context.Context, d initDeps, opts *initOptions) error {
 // but People-insufficient token (typical of users who upgraded gro) must
 // trigger re-auth here, otherwise `gro me`'s "run gro init" message
 // produces an infinite remediation loop.
-func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, configExistedBefore bool) (bool, error) {
+func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions) (bool, error) {
 	if !d.HasStoredToken() {
 		return false, nil
 	}
@@ -457,7 +443,7 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 	// for everything past the recorded-scope check above.
 	if opts.noVerify {
 		d.View.Success("Existing token accepted (--no-verify; API not called)")
-		return true, finishExisting(d, configExistedBefore, nil /* no profile */)
+		return true, finishExisting(d, nil /* no profile */)
 	}
 
 	email, err := d.GmailVerify(ctx)
@@ -488,7 +474,7 @@ func tryExistingToken(ctx context.Context, d initDeps, opts *initOptions, config
 		return false, fmt.Errorf("verifying People API: %w", err)
 	}
 
-	return true, finishExisting(d, configExistedBefore, profile)
+	return true, finishExisting(d, profile)
 }
 
 // promptAndDeleteForReauth asks the user whether to re-auth and clears the
@@ -518,13 +504,11 @@ func promptAndDeleteForReauth(d initDeps) error {
 // granted scopes are an unknown to this run, and writing auth.AllScopes
 // would falsely claim the token is current. Only a fresh OAuth flow knows
 // what was just granted.
-func finishExisting(d initDeps, configExistedBefore bool, profile *people.Profile) error {
+func finishExisting(d initDeps, profile *people.Profile) error {
 	if profile != nil {
 		d.View.Println("")
 		mecmd.RenderOneLiner(d.View.Out, profile)
 	}
-
-	_ = configExistedBefore // pre-MON-5371 TTL prompt gate (now gone).
 	return nil
 }
 
