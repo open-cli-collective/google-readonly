@@ -330,11 +330,15 @@ func firstExistingConfig(dir string) (string, bool) {
 
 // LoadConfigForRuntime is the soft-conflict variant of LoadConfig for non-init
 // callers. On ErrRelocationConflict it prints a one-shot stderr warning, then
-// returns the canonical (new-dir) config so the command can keep working.
-// Init uses strict LoadConfig (fail-loud) at its relocation gate.
+// returns the canonical (new-dir) config so the command can keep working —
+// BUT only when a canonical config was actually read. If LoadConfig couldn't
+// populate cfg (e.g. malformed YAML/JSON on the canonical side), the runtime
+// must hard-fail instead of warning-and-defaulting, otherwise it would
+// silently swap CredentialRef etc. back to defaults and mask the corrupt
+// file. Init uses strict LoadConfig (fail-loud) at its relocation gate.
 func LoadConfigForRuntime() (*Config, error) {
 	cfg, err := LoadConfig()
-	if err != nil && errors.Is(err, ErrRelocationConflict) {
+	if err != nil && errors.Is(err, ErrRelocationConflict) && cfg != nil {
 		warnReloConflictOnce(err)
 		return cfg, nil
 	}

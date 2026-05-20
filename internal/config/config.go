@@ -307,6 +307,17 @@ func LoadConfig() (*Config, error) {
 		if jerr := loadLegacyJSON(cfg); jerr != nil {
 			return nil, jerr
 		}
+		read = true // loadLegacyJSON either populated cfg or left it empty (fresh install)
+	}
+
+	// If a relocation conflict happened AND we could not actually read the
+	// canonical config (e.g. malformed YAML in new, or malformed legacy
+	// JSON), soft-degrade is unsafe — the runtime command would silently
+	// fall back to default settings (e.g. swap credential_ref back to the
+	// default) and mask a real problem. Return nil cfg so
+	// LoadConfigForRuntime hard-fails instead of warning-and-defaulting.
+	if !read && relErr != nil {
+		return nil, relErr
 	}
 
 	cfg.applyDefaults()

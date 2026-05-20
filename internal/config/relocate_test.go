@@ -399,42 +399,71 @@ func TestApplyConfigRelocation_IdempotentSkipsExistingNew(t *testing.T) {
 }
 
 // loadConfigForRuntimeAt is the testable seam for the runtime soft-conflict
-// wrapper. It wires both detectRelocation and the YAML load through an
-// injected newDir + oldDir, which is the only way to exercise the divergent
-// branch on a platform where os.UserConfigDir == $XDG_CONFIG_HOME (Linux).
-// Production code paths use LoadConfigForRuntime via the real resolver.
+// wrapper. It mirrors LoadConfig + LoadConfigForRuntime against an injected
+// newDir + oldDir so the divergent and malformed-canonical branches can be
+// exercised on a platform where os.UserConfigDir == $XDG_CONFIG_HOME
+// (Linux). Production code paths use LoadConfigForRuntime via the real
+// resolver.
 func loadConfigForRuntimeAt(t *testing.T, oldDir, newDir string) (*Config, error) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Dir(oldDir))
 	// Reset the warn-once before the test so a previous test's flag doesn't
 	// suppress the warning we want to verify.
 	reloConflictOnce = sync.Once{}
-	r, err := detectRelocation(newDir)
-	if err != nil && !errors.Is(err, ErrRelocationConflict) {
-		return nil, err
+
+	r, derr := detectRelocation(newDir)
+	relErr := error(nil)
+	if derr != nil && errors.Is(derr, ErrRelocationConflict) {
+		relErr = derr
+	} else if derr != nil {
+		return nil, derr
 	}
+
 	cfg := &Config{}
-	if newPath, ok := firstExistingConfig(r.NewPath); ok {
-		c, lerr := loadConfigFromFile(newPath)
-		if lerr != nil {
-			return nil, lerr
+	read := false
+	// Attempt the new-dir read unconditionally so callers soft-degrading
+	// get the user's actual settings alongside relErr.
+	if r.NewPath != "" {
+		if newPath, ok := firstExistingConfig(r.NewPath); ok {
+			c, lerr := loadConfigFromFile(newPath)
+			if lerr != nil {
+				if relErr == nil {
+					return nil, lerr
+				}
+				// Suppress parse-error propagation under conflict so the
+				// caller can still soft-degrade — IF a config was readable.
+			} else {
+				cfg = &c
+				read = true
+			}
 		}
-		cfg = &c
-	} else if r.Kind == relocOldOnly {
+	}
+	if !read && r.Kind == relocOldOnly && r.OldPath != "" {
 		if oldPath, ok := firstExistingConfig(r.OldPath); ok {
 			c, lerr := loadConfigFromFile(oldPath)
 			if lerr != nil {
-				return nil, lerr
+				if relErr == nil {
+					return nil, lerr
+				}
+			} else {
+				cfg = &c
+				read = true
 			}
-			cfg = &c
 		}
 	}
+	// Mirror LoadConfig's malformed-under-conflict hard-fail: if we couldn't
+	// read the canonical config, soft-degrade would silently swap defaults.
+	if !read && relErr != nil {
+		return nil, relErr
+	}
 	cfg.applyDefaults()
-	if errors.Is(err, ErrRelocationConflict) {
-		warnReloConflictOnce(err)
+
+	// LoadConfigForRuntime soft-degrade.
+	if relErr != nil {
+		warnReloConflictOnce(relErr)
 		return cfg, nil
 	}
-	return cfg, err
+	return cfg, nil
 }
 
 func TestLoadConfigForRuntime_SoftConflict_ReturnsCanonical(t *testing.T) {
@@ -457,6 +486,35 @@ func TestLoadConfigForRuntime_SoftConflict_ReturnsCanonical(t *testing.T) {
 	// Returns the canonical (new-dir) cfg.
 	if cfg.CredentialRef != "google-readonly/new" {
 		t.Errorf("soft-conflict must return new-dir cfg, got CredentialRef=%q", cfg.CredentialRef)
+	}
+}
+
+func TestLoadConfigForRuntime_MalformedCanonicalUnderConflict_HardFails(t *testing.T) {
+	// Both old and new present; new is malformed. detectRelocation returns
+	// ErrRelocationConflict; LoadConfig cannot read the canonical config;
+	// LoadConfigForRuntime must hard-fail instead of returning all-defaults
+	// (which would silently swap CredentialRef back to the default).
+	oldDir, newDir := reloctest(t)
+	for _, p := range []struct{ dir, content string }{
+		{oldDir, "credential_ref: google-readonly/old\n"},
+		{newDir, "not-valid-yaml: : :\n"},
+	} {
+		if err := os.MkdirAll(p.dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(p.dir, ConfigFileYAML), []byte(p.content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err := loadConfigForRuntimeAt(t, oldDir, newDir)
+	if err == nil {
+		t.Fatalf("malformed canonical config under conflict must hard-fail, got cfg=%+v err=nil", cfg)
+	}
+	if !errors.Is(err, ErrRelocationConflict) {
+		t.Errorf("error must wrap ErrRelocationConflict, got %v", err)
+	}
+	if cfg != nil {
+		t.Errorf("cfg must be nil on hard-fail, got %+v", cfg)
 	}
 }
 
