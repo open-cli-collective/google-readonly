@@ -72,9 +72,14 @@ Per the Open CLI Collective Secret-Handling Standard §2.3:
   `security`/`secret-tool` shell-out, no `token.json` fallback. A legacy
   `token.json` (or old `security`/`secret-tool` item) is migrated into the
   keyring once (§1.8), then removed; a legacy-vs-keyring conflict fails loud.
-- **Non-secret config**: `~/.config/google-readonly/config.yml`
-  (`credential_ref`, `oauth_client_path`, `cache_ttl_hours`,
-  `granted_scopes`). A legacy `config.json` is read transparently once.
+- **Non-secret config**: OS-native config dir via `cli-common/statedir`
+  (`~/Library/Application Support/google-readonly/config.yml` on macOS,
+  `%APPDATA%\google-readonly\config.yml` on Windows, `~/.config/
+  google-readonly/config.yml` on Linux). Fields: `credential_ref`,
+  `oauth_client_path`, `granted_scopes`. A legacy `config.json` and the
+  pre-MON-5371 `cache_ttl_hours` field are read transparently once (TTL
+  is now hard-coded per resource per working-with-state.md §4.4; the
+  field is ignored on load).
 - Ingress is only `gro init` (browser flow; `--auth-code-stdin` for two-phase
   installs) or `gro set-credential --key oauth_token --stdin|--from-env`.
 
