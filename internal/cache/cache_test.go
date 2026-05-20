@@ -138,7 +138,8 @@ func TestCache_Clear(t *testing.T) {
 	testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "test", Name: "Test"}}))
 
 	testutil.NoError(t, c.Clear())
-	_, err = os.Stat(c.loc.Root)
+	// Clear scoped to <Root>/<InstanceKey>, not the tool-level Root.
+	_, err = os.Stat(filepath.Join(c.loc.Root, c.loc.InstanceKey))
 	testutil.True(t, os.IsNotExist(err))
 }
 

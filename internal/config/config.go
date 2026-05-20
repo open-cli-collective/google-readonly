@@ -245,23 +245,38 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Priority: new/config.yml → old/config.yml (only if new is absent) →
-	// legacy config.json at the new dir. When relErr is already set (a
-	// detect-time ErrRelocationConflict — including a malformed-new wrapped
-	// inside it), we do not re-surface a bare parse error here: the wrapped
-	// conflict error already names both paths and the underlying cause, and
-	// returning the bare parse error instead would make LoadConfigForRuntime
-	// hard-fail instead of soft-degrading. Skip the re-parse on conflict.
+	// legacy config.json at the new dir. We attempt the new-dir read even
+	// when relErr is set (a detect-time ErrRelocationConflict) so callers
+	// soft-degrading via LoadConfigForRuntime actually get the user's new-
+	// dir settings (non-default OAuthClientPath, recorded GrantedScopes,
+	// etc.) — returning all-defaults instead would silently mask issues
+	// like a re-auth requirement or break OAuth client resolution. On a
+	// parse error while relErr is set we DON'T re-surface the bare parse
+	// error: the wrapped conflict already names both paths and the cause,
+	// and a hard-fail here would defeat the soft-degrade contract.
 	cfg := &Config{}
 	read := false
-	if reloc.NewPath != "" && relErr == nil {
+	if reloc.NewPath != "" {
 		newYML := filepath.Join(reloc.NewPath, ConfigFileYAML)
 		if data, err := os.ReadFile(newYML); err == nil { //nolint:gosec // path from validated dir
 			if uerr := yaml.Unmarshal(data, cfg); uerr != nil {
-				return nil, fmt.Errorf("parse config %s: %w", newYML, uerr)
+				if relErr != nil {
+					// Already returning a conflict; keep cfg empty for this side
+					// rather than propagate a parse error LoadConfigForRuntime
+					// can't soft-degrade.
+					cfg = &Config{}
+				} else {
+					return nil, fmt.Errorf("parse config %s: %w", newYML, uerr)
+				}
+			} else {
+				read = true
 			}
-			read = true
 		} else if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("read config %s: %w", newYML, err)
+			if relErr != nil {
+				cfg = &Config{}
+			} else {
+				return nil, fmt.Errorf("read config %s: %w", newYML, err)
+			}
 		}
 	}
 	if !read && reloc.Kind == relocOldOnly && reloc.OldPath != "" {

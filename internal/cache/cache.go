@@ -158,9 +158,12 @@ func (c *Cache) SetDrives(drives []*CachedDrive) error {
 	return nil
 }
 
-// Clear removes all cached data.
+// Clear removes all cached data for this instance. Scoped to
+// <Root>/<InstanceKey> rather than the tool-level Root so a future move to a
+// multi-instance Locator can't have one instance's Clear() silently evict
+// every other instance's cache.
 func (c *Cache) Clear() error {
-	return os.RemoveAll(c.loc.Root)
+	return os.RemoveAll(filepath.Join(c.loc.Root, c.loc.InstanceKey))
 }
 
 // GetDir returns the cache directory path.

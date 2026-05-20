@@ -212,6 +212,12 @@ func configsMaterialEqual(a, b Config, oldDir, newDir string) bool {
 // non-default explicit path — is a divergence the user set deliberately and
 // must surface.
 func oauthClientPathEquiv(aPath, bPath, aDir, bDir string) bool {
+	// Normalize tilde and relative components on both sides before comparing
+	// (loadConfigFromFile deliberately skips applyDefaults / ExpandPath so
+	// that we compare user-authored bytes — but a `~/oauth_client.json` and
+	// the same path fully expanded should not look divergent).
+	aPath = ExpandPath(aPath)
+	bPath = ExpandPath(bPath)
 	if aPath == bPath {
 		return true
 	}
