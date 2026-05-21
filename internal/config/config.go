@@ -117,6 +117,13 @@ func GetConfigDir() (string, error) {
 	return configScope.ConfigDirEnsured()
 }
 
+// GetConfigDirNoCreate resolves the configuration directory WITHOUT creating
+// it — for side-effect-free callers such as `config clear --all` (incl.
+// `--dry-run`). Symmetric with GetConfigPathNoCreate.
+func GetConfigDirNoCreate() (string, error) {
+	return configDirPath()
+}
+
 // CacheDirPath resolves the OS-designated cache directory WITHOUT creating it
 // (used by `config clear --all --dry-run` and tests). os.UserCacheDir gives
 // the canonical per-OS root: Linux $XDG_CACHE_HOME or ~/.cache, macOS

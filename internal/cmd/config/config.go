@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -17,6 +18,45 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
 	"github.com/open-cli-collective/google-readonly/internal/output"
 )
+
+// configFilesForClear returns the config files `clear --all` should remove,
+// deduped by path-identity (Linux collapses old==new). Symmetric with the
+// cache side's CacheDirPath + LegacyCacheDir treatment. Both forms
+// (config.yml and the legacy config.json) are listed at both the canonical
+// and old hand-rolled dirs because LoadConfig still reads new-dir
+// config.json when YAML is absent, and the relocation gate can still copy
+// either form forward from the old dir. The OAuth client JSON is
+// intentionally excluded (deployment material, per the existing trailing
+// note in runClear). Resolves WITHOUT creating directories.
+func configFilesForClear() ([]string, error) {
+	newDir, err := config.GetConfigDirNoCreate()
+	if err != nil {
+		return nil, err
+	}
+	oldDir, _ := config.OldHandRolledConfigDir() // best-effort: no HOME → skip legacy
+
+	var paths []string
+	seen := map[string]struct{}{}
+	add := func(p string) {
+		if _, dup := seen[p]; dup {
+			return
+		}
+		seen[p] = struct{}{}
+		paths = append(paths, p)
+	}
+	add(filepath.Join(newDir, config.ConfigFileYAML))
+	add(filepath.Join(newDir, config.ConfigFile))
+	if oldDir != "" {
+		add(filepath.Join(oldDir, config.ConfigFileYAML))
+		add(filepath.Join(oldDir, config.ConfigFile))
+	}
+	return paths, nil
+}
+
+// configFilesForClearFn is the package-var test seam: tests inject a
+// synthetic distinct-old/new path list so Linux CI can exercise the
+// macOS/Windows "old != new" branch without OS-specific paths.
+var configFilesForClearFn = configFilesForClear
 
 // NewCommand returns the config command with subcommands.
 func NewCommand() *cobra.Command {
@@ -210,33 +250,52 @@ func runTest(cmd *cobra.Command, _ []string) error {
 }
 
 func runClear(all, dryRun bool) error {
+	// Resolve scrub targets BEFORE opening the keyring (§6.6 pattern 7):
+	// `--all` is the user's primary recovery path and must not itself be
+	// blocked by the broken state it exists to wipe. Path resolution is
+	// side-effect-free; failure here is fatal regardless of --all.
+	cfgPaths, err := configFilesForClearFn()
+	if err != nil {
+		return fmt.Errorf("resolving config paths: %w", err)
+	}
+
 	// OpenNoMigrate: clear is a §1.8 remediation path ("clear the conflicting
-	// entry, then re-run") — running migration first would block it.
+	// entry, then re-run") — running migration first would block it. Under
+	// --all an open failure (e.g. invalid keyring.backend in a malformed
+	// canonical config) is soft-degraded so the file scrub still runs.
 	st, err := keychain.OpenNoMigrate()
 	if err != nil {
-		return err
+		if !all {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "warning: could not open keyring (%v) — proceeding with file scrub only\n", err)
+		st = nil
 	}
-	defer func() { _ = st.Close() }()
+	if st != nil {
+		defer func() { _ = st.Close() }()
+	}
 
-	hasTok, err := st.HasToken()
-	if err != nil {
-		return fmt.Errorf("checking stored token: %w", err)
-	}
-	// NoCreate: clear (incl. --dry-run) must not create the config dir as a
-	// side-effect. os.Remove below tolerates an absent dir/file.
-	cfgPath, err := config.GetConfigPathNoCreate()
-	if err != nil {
-		return fmt.Errorf("resolving config path: %w", err)
+	hasTok := false
+	if st != nil {
+		hasTok, err = st.HasToken()
+		if err != nil {
+			return fmt.Errorf("checking stored token: %w", err)
+		}
 	}
 
 	if dryRun {
-		if hasTok {
+		switch {
+		case st == nil:
+			fmt.Println("Would remove: (keyring unavailable — token state unknown)")
+		case hasTok:
 			fmt.Printf("Would remove: OAuth token at %s\n", st.Ref())
-		} else {
+		default:
 			fmt.Println("Would remove: (no OAuth token present)")
 		}
 		if all {
-			fmt.Printf("Would remove: %s\n", config.ShortenPath(cfgPath))
+			for _, p := range cfgPaths {
+				fmt.Printf("Would remove: %s\n", config.ShortenPath(p))
+			}
 			// Non-creating resolver: --dry-run must not create or migrate.
 			if cacheDir, cerr := config.CacheDirPath(); cerr == nil {
 				fmt.Printf("Would remove: Drive metadata cache at %s\n", config.ShortenPath(cacheDir))
@@ -247,23 +306,28 @@ func runClear(all, dryRun bool) error {
 		return nil
 	}
 
-	if hasTok {
+	switch {
+	case st == nil:
+		// Already warned above; skip token cleanup.
+	case hasTok:
 		if err := st.DeleteToken(); err != nil {
 			return fmt.Errorf("clearing token: %w", err)
 		}
 		fmt.Printf("Cleared OAuth token from %s.\n", st.Ref())
-	} else {
+	default:
 		fmt.Println("No OAuth token found to clear.")
 	}
 
 	if all {
-		switch err := os.Remove(cfgPath); {
-		case err == nil:
-			fmt.Printf("Removed %s.\n", config.ShortenPath(cfgPath))
-		case os.IsNotExist(err):
-			fmt.Printf("No %s to remove.\n", config.ShortenPath(cfgPath))
-		default:
-			return fmt.Errorf("removing %s: %w", config.ShortenPath(cfgPath), err)
+		for _, p := range cfgPaths {
+			switch err := os.Remove(p); {
+			case err == nil:
+				fmt.Printf("Removed %s.\n", config.ShortenPath(p))
+			case os.IsNotExist(err):
+				// not present — fine
+			default:
+				return fmt.Errorf("removing %s: %w", config.ShortenPath(p), err)
+			}
 		}
 
 		// Drive metadata cache: an explicit full reset removes BOTH the
