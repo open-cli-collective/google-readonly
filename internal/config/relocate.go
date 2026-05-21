@@ -60,6 +60,15 @@ func oldHandRolledConfigDir() (string, error) {
 	return filepath.Join(configHome, DirName), nil
 }
 
+// OldHandRolledConfigDir is the pre-MON-5371 hand-rolled config directory
+// (~/.config/google-readonly on macOS/Windows; identical to the canonical
+// dir on Linux). Exposed so cleanup commands can scrub legacy config files
+// at this location — symmetric with LegacyCacheDir on the cache side.
+// Non-creating. Returns ("", error) if HOME is unresolvable.
+func OldHandRolledConfigDir() (string, error) {
+	return oldHandRolledConfigDir()
+}
+
 // OldHandRolledTokenPath is the pre-MON-5371 legacy token.json location.
 // Exported so keychain.migrate's token-source enumeration can probe it with
 // full §1.8 conflict semantics (per the MON-5371 plan: token.json is excluded
