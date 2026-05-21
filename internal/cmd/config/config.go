@@ -271,15 +271,30 @@ func runClear(all, dryRun bool) error {
 		fmt.Fprintf(os.Stderr, "warning: could not open keyring (%v) — proceeding with file scrub only\n", err)
 		st = nil
 	}
-	if st != nil {
-		defer func() { _ = st.Close() }()
-	}
+	// Nil-guard the deferred close: a later HasToken soft-degrade may set
+	// st = nil after closing it eagerly. Closing nil would panic.
+	defer func() {
+		if st != nil {
+			_ = st.Close()
+		}
+	}()
 
 	hasTok := false
 	if st != nil {
-		hasTok, err = st.HasToken()
-		if err != nil {
-			return fmt.Errorf("checking stored token: %w", err)
+		h, herr := st.HasToken()
+		switch {
+		case herr == nil:
+			hasTok = h
+		case all:
+			// Symmetric with the OpenNoMigrate soft-degrade: a HasToken
+			// failure (e.g. partial backend corruption) under --all must
+			// not block the file scrub. Surface a warning, drop the
+			// store reference so token branches below skip cleanly.
+			fmt.Fprintf(os.Stderr, "warning: could not check stored token (%v) — proceeding with file scrub only\n", herr)
+			_ = st.Close()
+			st = nil
+		default:
+			return fmt.Errorf("checking stored token: %w", herr)
 		}
 	}
 

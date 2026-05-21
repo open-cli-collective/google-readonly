@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	appconfig "github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/credtest"
 )
 
@@ -70,7 +71,7 @@ func TestConfigClearAll_DryRunReportsAllCandidates(t *testing.T) {
 	})
 
 	for _, p := range []string{newYML, oldJSON} {
-		if !strings.Contains(out, p) && !strings.Contains(out, shortened(t, p)) {
+		if !strings.Contains(out, p) && !strings.Contains(out, appconfig.ShortenPath(p)) {
 			t.Errorf("--dry-run --all should name %q in output, got:\n%s", p, out)
 		}
 		if _, err := os.Stat(p); err != nil {
@@ -140,34 +141,66 @@ func TestConfigFilesForClear_PathIdentityDedup(t *testing.T) {
 	}
 }
 
-func TestConfigClearAll_MalformedCanonicalConfig_StillScrubsFiles(t *testing.T) {
+func TestConfigClearAll_BrokenKeyringOpen_StillScrubsFiles(t *testing.T) {
 	credtest.Setup(t)
 	tmp := t.TempDir()
 	newYML := filepath.Join(tmp, "new", "config.yml")
-	// File contents are irrelevant for scrub-completion; the failure mode
-	// being pinned is "keyring open fails / config malformed → file scrub
-	// still completes". We force the keyring side via an unknown backend
-	// env value, which credstore.Open() must reject.
+	// Force keychain.OpenNoMigrate to fail via an unknown backend value.
 	seedFile(t, newYML, "credential_ref: foo/bar\n")
 	t.Setenv("GOOGLE_READONLY_KEYRING_BACKEND", "this-backend-does-not-exist")
 	withSyntheticConfigCandidates(t, []string{newYML})
 
 	out := capture(t, func() {
-		// We expect runClear to NOT return an error under --all even though
-		// the keyring open fails — that is the recovery contract.
 		if err := runClear(true, false); err != nil {
-			t.Fatalf("runClear under --all must soft-degrade on keyring failure, got: %v", err)
+			t.Fatalf("runClear under --all must soft-degrade on keyring open failure, got: %v", err)
 		}
 	})
 
 	if _, err := os.Stat(newYML); !os.IsNotExist(err) {
 		t.Errorf("--all must scrub %s even when keyring open fails (stat err=%v)", newYML, err)
 	}
-	// We don't assert exact warning wording, only that a Removed line was
-	// emitted for the candidate (cheap visibility into "did we actually
-	// reach the scrub").
-	if !strings.Contains(out, newYML) && !strings.Contains(out, shortened(t, newYML)) {
+	if !strings.Contains(out, newYML) && !strings.Contains(out, appconfig.ShortenPath(newYML)) {
 		t.Errorf("expected runClear to print Removed line for %s, got:\n%s", newYML, out)
+	}
+}
+
+// TestConfigClearAll_MalformedCanonicalConfig_StillScrubsFiles pins that a
+// genuinely malformed config.yml on disk does NOT block --all. The fix
+// removed LoadConfig from the runClear path entirely (paths come from the
+// candidate helper, not from a parsed Config), so this should be trivially
+// true — the test pins it against regression.
+func TestConfigClearAll_MalformedCanonicalConfig_StillScrubsFiles(t *testing.T) {
+	credtest.Setup(t)
+	tmp := t.TempDir()
+	newYML := filepath.Join(tmp, "new", "config.yml")
+	// Genuinely malformed YAML (matches the relocate_test.go fixture shape).
+	seedFile(t, newYML, "[unclosed_array: yes\n")
+	withSyntheticConfigCandidates(t, []string{newYML})
+
+	_ = capture(t, func() {
+		if err := runClear(true, false); err != nil {
+			t.Fatalf("--all must tolerate malformed canonical YAML, got: %v", err)
+		}
+	})
+
+	if _, err := os.Stat(newYML); !os.IsNotExist(err) {
+		t.Errorf("--all must scrub malformed %s (stat err=%v)", newYML, err)
+	}
+}
+
+// TestConfigFilesForClear_ExcludesOAuthClientJSON pins the deployment-
+// material exclusion: clear --all must never list oauth_client.json
+// among the files it removes.
+func TestConfigFilesForClear_ExcludesOAuthClientJSON(t *testing.T) {
+	credtest.Setup(t)
+	paths, err := configFilesForClear()
+	if err != nil {
+		t.Fatalf("configFilesForClear: %v", err)
+	}
+	for _, p := range paths {
+		if filepath.Base(p) == appconfig.OAuthClientFile {
+			t.Errorf("clear --all must NOT remove the OAuth client JSON (deployment material); got %s in %v", p, paths)
+		}
 	}
 }
 
@@ -181,22 +214,6 @@ func TestConfigClear_PlainStillHardFailsOnBrokenKeyring(t *testing.T) {
 			t.Fatal("plain `clear` (no --all) must surface a keyring open failure; got nil")
 		}
 	})
-}
-
-// shortened returns config.ShortenPath(p) via a callback-style indirection
-// that avoids importing internal/config in the test file just for one call.
-// Production code already prints the shortened form, so the test must match
-// whichever form appears.
-func shortened(t *testing.T, p string) string {
-	t.Helper()
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return p
-	}
-	if strings.HasPrefix(p, home) {
-		return "~" + strings.TrimPrefix(p, home)
-	}
-	return p
 }
 
 // newDirFor returns the canonical config dir as configFilesForClear would
