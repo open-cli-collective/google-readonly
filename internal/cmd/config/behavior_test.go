@@ -107,6 +107,69 @@ func TestRunShowReportsState(t *testing.T) {
 	}
 }
 
+// TestRunShowReportsKeyringBackendSelector seeds a non-empty
+// cfg.Keyring.Backend and asserts both the text output and the JSON
+// status carry the selector value — proving the new `keyring.backend:
+// ...` line and `showStatus.KeyringBackend` field are wired through
+// runShow (the changes that addressed the PR review comment).
+func TestRunShowReportsKeyringBackendSelector(t *testing.T) {
+	seedTokenAndClient(t)
+	if err := appconfig.SaveConfig(&appconfig.Config{
+		CredentialRef: appconfig.DefaultCredentialRef,
+		Keyring:       appconfig.KeyringConfig{Backend: "file"},
+	}); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+
+	out := capture(t, func() {
+		if err := runShow(false, false); err != nil {
+			t.Errorf("runShow: %v", err)
+		}
+	})
+	if !strings.Contains(out, "keyring.backend:") || !strings.Contains(out, "file (config.yml)") {
+		t.Errorf("text show missing keyring.backend selector line:\n%s", out)
+	}
+
+	jsonOut := capture(t, func() {
+		if err := runShow(true, false); err != nil {
+			t.Errorf("runShow json: %v", err)
+		}
+	})
+	var st showStatus
+	if err := json.Unmarshal([]byte(jsonOut), &st); err != nil {
+		t.Fatalf("json: %v\n%s", err, jsonOut)
+	}
+	if st.KeyringBackend != "file" {
+		t.Errorf("KeyringBackend = %q, want %q", st.KeyringBackend, "file")
+	}
+}
+
+// TestRunShowOmitsKeyringBackendWhenUnset proves the omitempty path:
+// no config.yml selector → no `keyring.backend:` line in text and no
+// `keyring_backend` key in JSON.
+func TestRunShowOmitsKeyringBackendWhenUnset(t *testing.T) {
+	seedTokenAndClient(t)
+	// Do NOT call SaveConfig with Keyring set; default config has it empty.
+
+	out := capture(t, func() {
+		if err := runShow(false, false); err != nil {
+			t.Errorf("runShow: %v", err)
+		}
+	})
+	if strings.Contains(out, "keyring.backend:") {
+		t.Errorf("text show must not emit keyring.backend line when unset:\n%s", out)
+	}
+
+	jsonOut := capture(t, func() {
+		if err := runShow(true, false); err != nil {
+			t.Errorf("runShow json: %v", err)
+		}
+	})
+	if strings.Contains(jsonOut, `"keyring_backend"`) {
+		t.Errorf("json show must omit keyring_backend when unset: %s", jsonOut)
+	}
+}
+
 func TestRunClearSemantics(t *testing.T) {
 	t.Run("dry-run removes nothing", func(t *testing.T) {
 		seedTokenAndClient(t)
