@@ -162,7 +162,7 @@ The wizard will:
 
 4. **Set the cache TTL** (first-run only). The wizard asks how many hours to cache Drive metadata. Press Enter to accept the default (24h).
 
-The token is saved only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file when `keyring.backend: file` is set with `GOOGLE_READONLY_KEYRING_PASSPHRASE`). There is no plaintext `token.json` fallback.
+The token is saved only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file). Backend selection has three user-configurable knobs that fall back to auto-detect, in precedence order: `--backend <name>` flag > `GOOGLE_READONLY_KEYRING_BACKEND` env var > `keyring.backend` in `config.yml` > auto-detect. Supported names: `keychain`, `wincred`, `secret-service`, `file`, `memory`. The `file` backend additionally requires `GOOGLE_READONLY_KEYRING_PASSPHRASE`. There is no plaintext `token.json` fallback.
 
 When init succeeds, it prints the same `gro me` one-liner as its proof-of-life. You can re-run `gro me` any time after.
 
@@ -207,8 +207,9 @@ Flags:
 | `--from-env NAME` | Read the token JSON from the named environment variable. |
 | `--ref SERVICE/PROFILE` | Target credential ref. Defaults to `config.yml`'s `credential_ref`. |
 
-The token lands in the same OS keyring as `gro init` (or the
-`keyring.backend: file` encrypted file). With the default ref, `set-credential`
+The token lands in whichever backend the standard precedence resolves
+(`--backend` flag > `GOOGLE_READONLY_KEYRING_BACKEND` > `keyring.backend`
+config > auto). With the default ref, `set-credential`
 runs the one-time legacy migration first so a pre-existing `token.json` cannot
 later collide; an explicit `--ref` never migrates.
 
@@ -1233,7 +1234,7 @@ The cache is automatically repopulated when stale or after being cleared.
 
 - This tool is **non-destructive by design** - no send, delete, or trash operations are possible
 - Organizational operations (archive, label, star, RSVP, color, group management) are the most impactful actions available
-- The OAuth token is stored only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager); the opt-in encrypted-file backend is AES-encrypted with a passphrase from `GOOGLE_READONLY_KEYRING_PASSPHRASE`
+- The OAuth token is stored only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager); the opt-in encrypted-file backend is AES-encrypted with a passphrase from `GOOGLE_READONLY_KEYRING_PASSPHRASE`. Backend selection precedence: `--backend <name>` flag > `GOOGLE_READONLY_KEYRING_BACKEND` env var > `keyring.backend` config key > auto-detect
 - The OAuth client JSON is deployment material (not a secret) and is never written to the keyring
 - Credentials never leave your machine
 - Zip extraction includes security safeguards (size limits, path traversal prevention)

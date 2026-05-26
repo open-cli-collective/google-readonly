@@ -127,6 +127,7 @@ type showStatus struct {
 	CredentialRef          string `json:"credential_ref"`
 	Backend                string `json:"backend"`
 	BackendSource          string `json:"backend_source"`
+	KeyringBackend         string `json:"keyring_backend,omitempty"` // selector from config.yml (keyring.backend)
 	PassphraseSource       string `json:"passphrase_source,omitempty"`
 	OAuthTokenPresent      bool   `json:"oauth_token_present"`
 	OAuthClientPath        string `json:"oauth_client_path"`
@@ -159,6 +160,7 @@ func runShow(jsonOut, verbose bool) error {
 		CredentialRef:      st.Ref(),
 		Backend:            string(backend),
 		BackendSource:      string(src),
+		KeyringBackend:     cfg.Keyring.Backend, // selector value from config.yml; "" if unset
 		OAuthTokenPresent:  hasTok,
 		OAuthClientPath:    config.ShortenPath(cfg.OAuthClientPath),
 		OAuthClientPresent: false,
@@ -180,6 +182,9 @@ func runShow(jsonOut, verbose bool) error {
 
 	fmt.Printf("Credential ref:      %s\n", status.CredentialRef)
 	fmt.Printf("Backend:             %s (%s)\n", status.Backend, status.BackendSource)
+	if status.KeyringBackend != "" {
+		fmt.Printf("keyring.backend:     %s (config.yml)\n", status.KeyringBackend)
+	}
 	if status.PassphraseSource != "" {
 		fmt.Printf("Passphrase:          %s\n", status.PassphraseSource)
 	}

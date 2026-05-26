@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/open-cli-collective/cli-common/credstore"
 	"golang.org/x/oauth2"
@@ -103,15 +102,22 @@ func openWith(cfg *config.Config, overwrite, runMigration bool) (*Store, error) 
 	}
 
 	opts := &credstore.Options{AllowedKeys: allowedKeys}
-	switch b := strings.TrimSpace(cfg.Keyring.Backend); b {
-	case "":
-		// Auto-select per §1.4 (credstore decides; fail-closed on Linux).
-	case "file":
-		opts.ConfigBackend = credstore.BackendFile
-	default:
-		// Fail closed: an unrecognized backend must not silently degrade to
-		// auto-selection and store credentials somewhere unintended.
-		return nil, fmt.Errorf("invalid keyring.backend %q in config (only \"file\" is supported)", b)
+	// Bind the --backend flag (from the cobra layer, recorded by
+	// root.WireBackendSelection) and cfg.Keyring.Backend together at one
+	// site. Flag-side precedence wins over config; both are validated by
+	// credstore.Open downstream.
+	flagValue, flagSet := GetBackendFlagOverride()
+	if err := credstore.BindBackendFlag(opts, flagValue, flagSet, cfg.Keyring.Backend); err != nil {
+		// Attribute the failure to whichever knob produced an invalid
+		// value. BindBackendFlag only fails on the flag side today
+		// (config-side passes through), so flagSet should be true here —
+		// but if that contract ever broadens, name keyring.backend
+		// explicitly when the flag is absent.
+		source := "--" + credstore.BackendFlagName
+		if !flagSet {
+			source = "keyring.backend"
+		}
+		return nil, fmt.Errorf("%s: %w", source, err)
 	}
 	opts.FilePassphrase = passphraseFunc(service)
 
