@@ -45,10 +45,11 @@ func TestOpenWith_ConfigOnlyMemoryBackend(t *testing.T) {
 }
 
 // TestOpenWith_FlagOverridesConfig proves --backend wins over
-// keyring.backend at the openWith binding site. Sets the override to
-// memory, leaves the config at memory too (so the assertion is solely
-// about the Source attribution), and verifies credstore reports
-// SourceFlag — proving the flag pair flowed through BindBackendFlag.
+// keyring.backend at the openWith binding site. Sets the flag override
+// to memory and the config-side to file (which would normally require
+// a passphrase and fail), and asserts credstore reports the resolved
+// backend as memory with SourceExplicit — proving the flag pair flowed
+// through BindBackendFlag and won precedence over config.
 func TestOpenWith_FlagOverridesConfig(t *testing.T) {
 	resetOverride(t)
 	t.Setenv("GOOGLE_READONLY_KEYRING_BACKEND", "")
