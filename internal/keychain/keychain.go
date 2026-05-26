@@ -108,7 +108,16 @@ func openWith(cfg *config.Config, overwrite, runMigration bool) (*Store, error) 
 	// credstore.Open downstream.
 	flagValue, flagSet := GetBackendFlagOverride()
 	if err := credstore.BindBackendFlag(opts, flagValue, flagSet, cfg.Keyring.Backend); err != nil {
-		return nil, fmt.Errorf("--%s: %w", credstore.BackendFlagName, err)
+		// Attribute the failure to whichever knob produced an invalid
+		// value. BindBackendFlag only fails on the flag side today
+		// (config-side passes through), so flagSet should be true here —
+		// but if that contract ever broadens, name keyring.backend
+		// explicitly when the flag is absent.
+		source := "--" + credstore.BackendFlagName
+		if !flagSet {
+			source = "keyring.backend"
+		}
+		return nil, fmt.Errorf("%s: %w", source, err)
 	}
 	opts.FilePassphrase = passphraseFunc(service)
 

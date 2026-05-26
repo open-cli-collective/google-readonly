@@ -25,7 +25,13 @@ const serviceName = "google-readonly"
 func resetState(t *testing.T) {
 	t.Helper()
 	keychain.SetBackendFlagOverride("", false)
-	t.Cleanup(func() { keychain.SetBackendFlagOverride("", false) })
+	// rootCmd.SetArgs mutates package-level state; if a test panics before
+	// the next test calls SetArgs, a stale slice could bleed in (notably
+	// under `go test -shuffle=on`). Clear it on cleanup.
+	t.Cleanup(func() {
+		keychain.SetBackendFlagOverride("", false)
+		rootCmd.SetArgs(nil)
+	})
 }
 
 // newProbeCmd returns a no-op subcommand used to exercise the root's
