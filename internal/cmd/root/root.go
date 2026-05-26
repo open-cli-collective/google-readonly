@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cccredstore "github.com/open-cli-collective/cli-common/credstore"
+
 	"github.com/open-cli-collective/google-readonly/internal/cmd/calendar"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/config"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/contacts"
@@ -16,6 +18,7 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/cmd/mail"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/me"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/setcred"
+	"github.com/open-cli-collective/google-readonly/internal/keychain"
 	"github.com/open-cli-collective/google-readonly/internal/log"
 	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
 	"github.com/open-cli-collective/google-readonly/internal/version"
@@ -38,9 +41,36 @@ To get started, run:
 
 This will guide you through OAuth setup for Google API access.`,
 	Version: version.Version,
-	PersistentPreRun: func(_ *cobra.Command, _ []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		log.Verbose = verbose
+		return WireBackendSelection(cmd)
 	},
+}
+
+// WireBackendSelection validates the user-supplied --backend flag and
+// records it for the next keychain.Open* call. Cobra-layer only — it
+// does NOT load config; openWith binds the flag pair against
+// cfg.Keyring.Backend at the single credstore.Open call site.
+//
+// Exported so a subcommand that defines its own PersistentPreRunE can
+// call it explicitly: cobra does NOT chain PersistentPreRunE, so a
+// shadowing subcommand silently loses the wiring without this hook.
+// gro has no shadowers today; the regression test guards the pattern.
+//
+// Reads via cmd.Flag() so persistent-flag inheritance works from any
+// subcommand path.
+func WireBackendSelection(cmd *cobra.Command) error {
+	var value string
+	var changed bool
+	if bf := cmd.Flag(cccredstore.BackendFlagName); bf != nil {
+		value = bf.Value.String()
+		changed = bf.Changed
+	}
+	if err := cccredstore.BindBackendFlag(&cccredstore.Options{}, value, changed, ""); err != nil {
+		return fmt.Errorf("--%s: %w", cccredstore.BackendFlagName, err)
+	}
+	keychain.SetBackendFlagOverride(value, changed)
+	return nil
 }
 
 // Execute runs the root command with a background context
@@ -76,6 +106,7 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output for debugging")
+	rootCmd.PersistentFlags().String(cccredstore.BackendFlagName, "", cccredstore.BackendFlagUsage())
 
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())

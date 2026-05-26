@@ -67,11 +67,15 @@ Per the Open CLI Collective Secret-Handling Standard §2.3:
   `credentials.json` is auto-migrated to it on first run.
 - **OAuth token** (the per-user access secret) lives **only** in the OS
   keyring via `cli-common/credstore` — macOS Keychain, Linux Secret Service,
-  Windows Credential Manager, or an opt-in encrypted file
-  (`keyring.backend: file` + `GOOGLE_READONLY_KEYRING_PASSPHRASE`). No
-  `security`/`secret-tool` shell-out, no `token.json` fallback. A legacy
-  `token.json` (or old `security`/`secret-tool` item) is migrated into the
-  keyring once (§1.8), then removed; a legacy-vs-keyring conflict fails loud.
+  Windows Credential Manager, or an opt-in encrypted file. Backend selection
+  has three knobs in precedence order: `--backend <name>` flag >
+  `GOOGLE_READONLY_KEYRING_BACKEND` env var > `keyring.backend` in
+  `config.yml` > auto-detect. Supported names: `keychain`, `wincred`,
+  `secret-service`, `file`, `memory`. The `file` backend additionally needs
+  `GOOGLE_READONLY_KEYRING_PASSPHRASE`. No `security`/`secret-tool`
+  shell-out, no `token.json` fallback. A legacy `token.json` (or old
+  `security`/`secret-tool` item) is migrated into the keyring once (§1.8),
+  then removed; a legacy-vs-keyring conflict fails loud.
 - **Non-secret config**: OS-native config dir via `cli-common/statedir`
   (`~/Library/Application Support/google-readonly/config.yml` on macOS,
   `%APPDATA%\google-readonly\config.yml` on Windows, `~/.config/
