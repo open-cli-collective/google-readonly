@@ -162,7 +162,7 @@ The wizard will:
 
 4. **Set the cache TTL** (first-run only). The wizard asks how many hours to cache Drive metadata. Press Enter to accept the default (24h).
 
-The token is saved only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file). The backend can be selected three ways, in precedence order: `--backend <name>` flag > `GOOGLE_READONLY_KEYRING_BACKEND` env var > `keyring.backend` in `config.yml` > auto-detect. Supported names: `keychain`, `wincred`, `secret-service`, `file`, `memory`. The `file` backend additionally requires `GOOGLE_READONLY_KEYRING_PASSPHRASE`. There is no plaintext `token.json` fallback.
+The token is saved only in the OS keyring via `cli-common/credstore` (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file). Backend selection has three user-configurable knobs that fall back to auto-detect, in precedence order: `--backend <name>` flag > `GOOGLE_READONLY_KEYRING_BACKEND` env var > `keyring.backend` in `config.yml` > auto-detect. Supported names: `keychain`, `wincred`, `secret-service`, `file`, `memory`. The `file` backend additionally requires `GOOGLE_READONLY_KEYRING_PASSPHRASE`. There is no plaintext `token.json` fallback.
 
 When init succeeds, it prints the same `gro me` one-liner as its proof-of-life. You can re-run `gro me` any time after.
 

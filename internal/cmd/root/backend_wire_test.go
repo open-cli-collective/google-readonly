@@ -14,17 +14,18 @@ import (
 
 const serviceName = "google-readonly"
 
-// resetState restores package state across tests so probe/shadow
-// commands and flag overrides don't leak.
+// resetState resets the package-level flag override. Child-command
+// cleanup is the responsibility of each test (via removeChild) because
+// the children added during a test are local to it; resetState has no
+// reference to them and cannot strip them generically. Tests that add
+// children MUST `defer removeChild(t, child)` immediately after
+// AddCommand to keep package-level rootCmd clean for subsequent tests
+// (notably TestWireBackendSelection_RealCommandTreeInheritsFlag, which
+// walks the entire tree).
 func resetState(t *testing.T) {
 	t.Helper()
 	keychain.SetBackendFlagOverride("", false)
-	t.Cleanup(func() {
-		keychain.SetBackendFlagOverride("", false)
-		// rootCmd is package-level; tests append children to it. Strip
-		// anything we may have added so subsequent tests start clean.
-		// Capture the original child set once via the test's setup.
-	})
+	t.Cleanup(func() { keychain.SetBackendFlagOverride("", false) })
 }
 
 // newProbeCmd returns a no-op subcommand used to exercise the root's
