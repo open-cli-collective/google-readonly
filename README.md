@@ -207,8 +207,9 @@ Flags:
 | `--from-env NAME` | Read the token JSON from the named environment variable. |
 | `--ref SERVICE/PROFILE` | Target credential ref. Defaults to `config.yml`'s `credential_ref`. |
 
-The token lands in the same OS keyring as `gro init` (or the
-`keyring.backend: file` encrypted file). With the default ref, `set-credential`
+The token lands in whichever backend the standard precedence resolves
+(`--backend` flag > `GOOGLE_READONLY_KEYRING_BACKEND` > `keyring.backend`
+config > auto). With the default ref, `set-credential`
 runs the one-time legacy migration first so a pre-existing `token.json` cannot
 later collide; an explicit `--ref` never migrates.
 

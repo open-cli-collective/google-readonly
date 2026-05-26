@@ -80,7 +80,8 @@ Per the Open CLI Collective Secret-Handling Standard §2.3:
   (`~/Library/Application Support/google-readonly/config.yml` on macOS,
   `%APPDATA%\google-readonly\config.yml` on Windows, `~/.config/
   google-readonly/config.yml` on Linux). Fields: `credential_ref`,
-  `oauth_client_path`, `granted_scopes`. A legacy `config.json` and the
+  `oauth_client_path`, `granted_scopes`, `keyring.backend`. A legacy
+  `config.json` and the
   pre-MON-5371 `cache_ttl_hours` field are read transparently once (TTL
   is now hard-coded per resource per working-with-state.md §4.4; the
   field is ignored on load).
