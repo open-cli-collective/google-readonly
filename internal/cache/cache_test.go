@@ -130,6 +130,50 @@ func TestCache_CorruptedCache(t *testing.T) {
 	})
 }
 
+func TestCache_DrivesStatus(t *testing.T) {
+	hermetic(t)
+
+	t.Run("uninitialized when no envelope on disk", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		fetchedAt, ttl, status, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.True(t, fetchedAt.IsZero())
+		testutil.Equal(t, ttl, drivesTTL)
+		testutil.Equal(t, status.String(), "uninitialized")
+	})
+
+	t.Run("uninitialized when envelope is malformed JSON (corrupt-as-miss)", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		path := filepath.Join(c.loc.Root, c.loc.InstanceKey, drivesResource+".json")
+		testutil.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		testutil.NoError(t, os.WriteFile(path, []byte("not valid json"), 0o600))
+
+		_, _, status, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.Equal(t, status.String(), "uninitialized")
+	})
+
+	t.Run("fresh after SetDrives", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "d1", Name: "X"}}))
+
+		fetchedAt, ttl, status, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.True(t, !fetchedAt.IsZero())
+		testutil.Equal(t, ttl, drivesTTL)
+		testutil.Equal(t, status.String(), "fresh")
+	})
+}
+
 func TestCache_Clear(t *testing.T) {
 	hermetic(t)
 	c, err := New()
