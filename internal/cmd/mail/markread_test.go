@@ -10,10 +10,6 @@ import (
 func TestMarkReadCommand(t *testing.T) {
 	cmd := newMarkReadCommand()
 
-	t.Run("has json flag", func(t *testing.T) {
-		testutil.NotNil(t, cmd.Flags().Lookup("json"))
-	})
-
 	t.Run("has dry-run flag", func(t *testing.T) {
 		testutil.NotNil(t, cmd.Flags().Lookup("dry-run"))
 	})

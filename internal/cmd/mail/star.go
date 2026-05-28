@@ -10,10 +10,9 @@ import (
 
 func newStarCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -52,18 +51,17 @@ Examples:
 
 			if dryRun {
 				result.Action = "star"
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.ModifyMessages(ctx, ids, []string{"STARRED"}, nil); err != nil {
 				return fmt.Errorf("starring messages: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")
@@ -73,10 +71,9 @@ Examples:
 
 func newUnstarCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -114,18 +111,17 @@ Examples:
 
 			if dryRun {
 				result.Action = "unstar"
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.ModifyMessages(ctx, ids, nil, []string{"STARRED"}); err != nil {
 				return fmt.Errorf("unstarring messages: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")

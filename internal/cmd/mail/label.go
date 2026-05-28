@@ -10,10 +10,9 @@ import (
 
 func newLabelCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -62,18 +61,17 @@ Examples:
 
 			if dryRun {
 				result.Action = fmt.Sprintf("add label '%s' to", labelName)
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.ModifyMessages(ctx, ids, []string{labelID}, nil); err != nil {
 				return fmt.Errorf("adding label: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")
@@ -83,10 +81,9 @@ Examples:
 
 func newUnlabelCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -134,18 +131,17 @@ Examples:
 
 			if dryRun {
 				result.Action = fmt.Sprintf("remove label '%s' from", labelName)
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.ModifyMessages(ctx, ids, nil, []string{labelID}); err != nil {
 				return fmt.Errorf("removing label: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")

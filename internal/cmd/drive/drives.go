@@ -14,10 +14,7 @@ import (
 )
 
 func newDrivesCommand() *cobra.Command {
-	var (
-		jsonOutput bool
-		refresh    bool
-	)
+	var refresh bool
 
 	cmd := &cobra.Command{
 		Use:   "drives",
@@ -28,8 +25,7 @@ Results are cached locally for fast lookups. Use 'gro refresh drives' to
 force a refresh.
 
 Examples:
-  gro drive drives              # List shared drives (uses cache)
-  gro drive drives --json       # Output as JSON`,
+  gro drive drives              # List shared drives (uses cache)`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := newDriveClient(cmd.Context())
@@ -85,16 +81,8 @@ Examples:
 			}
 
 			if len(drives) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				fmt.Println("No shared drives found.")
 				return nil
-			}
-
-			if jsonOutput {
-				return printJSON(drives)
 			}
 
 			printSharedDrives(drives)
@@ -102,7 +90,6 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVar(&refresh, "refresh", false, "Force refresh from API (ignore cache)")
 	_ = cmd.Flags().MarkDeprecated("refresh", "use 'gro refresh drives' instead")
 

@@ -32,7 +32,6 @@ func newDraftCommand() *cobra.Command {
 		plain    bool
 		htmlMode bool
 		attach   []string
-		jsonOut  bool
 		replyTo  string
 		replyAll bool
 		noQuote  bool
@@ -311,10 +310,6 @@ Examples:
 				return fmt.Errorf("creating draft: empty response")
 			}
 
-			// 10. Print result.
-			if jsonOut {
-				return printJSON(result)
-			}
 			fmt.Printf("Draft created: %s\n", result.ID)
 			fmt.Printf("To: %s\n", SanitizeOutput(strings.Join(toAddrs, ", ")))
 			if len(ccAddrs) > 0 {
@@ -345,7 +340,6 @@ Examples:
 	cmd.Flags().BoolVar(&plain, "plain", false, "Treat body as plain text (no markdown rendering)")
 	cmd.Flags().BoolVar(&htmlMode, "html", false, "Treat body as raw HTML (no markdown rendering)")
 	cmd.Flags().StringArrayVarP(&attach, "attach", "a", nil, "File path to attach (repeat for multiple)")
-	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "Output result as JSON")
 	cmd.Flags().StringVar(&replyTo, "reply-to", "", "Source Gmail message ID to reply to (derives To/Subject/threading)")
 	cmd.Flags().BoolVar(&replyAll, "reply-all", false, "Include the source To/Cc as Cc on the reply (requires --reply-to)")
 	cmd.Flags().BoolVar(&noQuote, "no-quote", false, "Reply without quoting the source message (requires --reply-to)")

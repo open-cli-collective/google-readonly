@@ -2,7 +2,6 @@ package contacts
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -59,55 +58,6 @@ func TestAddToGroupCommand_DryRun(t *testing.T) {
 		testutil.Contains(t, output, "[dry-run]")
 		testutil.Contains(t, output, "add to group 'Friends'")
 		testutil.Contains(t, output, "1 contact(s)")
-	})
-}
-
-func TestAddToGroupCommand_DryRunJSON(t *testing.T) {
-	mock := &MockContactsClient{
-		ResolveGroupNameFunc: func(_ context.Context, _ string) (string, error) {
-			return "contactGroups/abc123", nil
-		},
-	}
-
-	cmd := newAddToGroupCommand()
-	cmd.SetArgs([]string{"Friends", "people/c111", "--dry-run", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["dryRun"].(bool), true)
-	})
-}
-
-func TestAddToGroupCommand_JSON(t *testing.T) {
-	mock := &MockContactsClient{
-		ResolveGroupNameFunc: func(_ context.Context, _ string) (string, error) {
-			return "contactGroups/abc123", nil
-		},
-		AddToGroupFunc: func(_ context.Context, _ string, _ []string) error {
-			return nil
-		},
-	}
-
-	cmd := newAddToGroupCommand()
-	cmd.SetArgs([]string{"Friends", "people/c111", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["count"].(float64), float64(1))
 	})
 }
 

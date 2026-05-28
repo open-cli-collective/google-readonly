@@ -2,13 +2,11 @@ package calendar
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"google.golang.org/api/calendar/v3"
 
-	calendarapi "github.com/open-cli-collective/google-readonly/internal/calendar"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
@@ -47,29 +45,6 @@ func TestListCommand_Success(t *testing.T) {
 	})
 }
 
-func TestListCommand_JSONOutput(t *testing.T) {
-	mock := &MockCalendarClient{
-		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
-			return testutil.SampleCalendars(), nil
-		},
-	}
-
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var calendars []*calendarapi.CalendarInfo
-		err := json.Unmarshal([]byte(output), &calendars)
-		testutil.NoError(t, err)
-		testutil.Len(t, calendars, 2)
-	})
-}
-
 func TestListCommand_Empty(t *testing.T) {
 	mock := &MockCalendarClient{
 		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
@@ -86,29 +61,6 @@ func TestListCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No calendars found")
-	})
-}
-
-func TestListCommand_Empty_JSON(t *testing.T) {
-	mock := &MockCalendarClient{
-		ListCalendarsFunc: func(_ context.Context) ([]*calendar.CalendarListEntry, error) {
-			return []*calendar.CalendarListEntry{}, nil
-		},
-	}
-
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var calendars []any
-		err := json.Unmarshal([]byte(output), &calendars)
-		testutil.NoError(t, err)
-		testutil.Len(t, calendars, 0)
 	})
 }
 
@@ -185,52 +137,6 @@ func TestEventsCommand_WithDateRange(t *testing.T) {
 	})
 }
 
-func TestEventsCommand_JSONOutput(t *testing.T) {
-	mock := &MockCalendarClient{
-		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
-			return []*calendar.Event{testutil.SampleEvent("event1")}, nil
-		},
-	}
-
-	cmd := newEventsCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var events []*calendarapi.Event
-		err := json.Unmarshal([]byte(output), &events)
-		testutil.NoError(t, err)
-		testutil.Len(t, events, 1)
-	})
-}
-
-func TestEventsCommand_Empty_JSON(t *testing.T) {
-	mock := &MockCalendarClient{
-		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
-			return []*calendar.Event{}, nil
-		},
-	}
-
-	cmd := newEventsCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var events []any
-		err := json.Unmarshal([]byte(output), &events)
-		testutil.NoError(t, err)
-		testutil.Len(t, events, 0)
-	})
-}
-
 func TestEventsCommand_InvalidFromDate(t *testing.T) {
 	cmd := newEventsCommand()
 	cmd.SetArgs([]string{"--from", "invalid-date"})
@@ -277,29 +183,6 @@ func TestGetCommand_Success(t *testing.T) {
 	})
 }
 
-func TestGetCommand_JSONOutput(t *testing.T) {
-	mock := &MockCalendarClient{
-		GetEventFunc: func(_ context.Context, _, _ string) (*calendar.Event, error) {
-			return testutil.SampleEvent("event123"), nil
-		},
-	}
-
-	cmd := newGetCommand()
-	cmd.SetArgs([]string{"event123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var event calendarapi.Event
-		err := json.Unmarshal([]byte(output), &event)
-		testutil.NoError(t, err)
-		testutil.Equal(t, event.ID, "event123")
-	})
-}
-
 func TestGetCommand_NotFound(t *testing.T) {
 	mock := &MockCalendarClient{
 		GetEventFunc: func(_ context.Context, _, _ string) (*calendar.Event, error) {
@@ -333,29 +216,6 @@ func TestTodayCommand_Success(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "Test Meeting")
-	})
-}
-
-func TestTodayCommand_Empty_JSON(t *testing.T) {
-	mock := &MockCalendarClient{
-		ListEventsFunc: func(_ context.Context, _, _, _ string, _ int64) ([]*calendar.Event, error) {
-			return []*calendar.Event{}, nil
-		},
-	}
-
-	cmd := newTodayCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var events []any
-		err := json.Unmarshal([]byte(output), &events)
-		testutil.NoError(t, err)
-		testutil.Len(t, events, 0)
 	})
 }
 

@@ -10,7 +10,7 @@ A non-destructive command-line interface for Google services. Search, read, and 
 - **Contacts support** - List contacts, search, view details, list groups, star, group management
 - **Drive support** - List files, search, view metadata, download files, folder tree, star/unstar
 - **Bulk operations** - Pipe IDs between commands, use search queries inline, or pass IDs as arguments
-- **JSON output** - Machine-readable output for scripting
+- **Text-first output** - Resource-surface commands emit token-dense text only. JSON is reserved for control-plane envelopes (`gro refresh --json`, `gro config show --json`); see cli-common `docs/output-and-rendering.md` §2. **Breaking change in #144:** per-command `--json` on resource reads/mutations has been removed.
 - **Secure storage** - the OAuth token is stored only in the OS keyring (macOS Keychain, Linux Secret Service, Windows Credential Manager, or an opt-in encrypted file) via the shared `cli-common/credstore`
 - **Single-run guided setup** - `gro init` reads the OAuth client JSON from clipboard / paste / file path (your admin may share one via 1Password) and walks you through OAuth in one shot; `gro me` confirms identity afterwards
 
@@ -230,9 +230,6 @@ gro me --id
 # Adds granted scopes, token expiry, and storage backend
 gro me --extended
 
-# JSON output (combines with --id and --extended; -j is the short form)
-gro me --json
-gro me --extended -j
 
 # Check configuration status
 gro config show
@@ -259,24 +256,19 @@ All Gmail commands are under `gro mail`:
 # Search messages
 gro mail search "is:unread"
 gro mail search "from:someone@example.com" --max 20
-gro mail search "subject:meeting" --json
 gro mail search "is:starred" --ids          # Output IDs only (for piping)
 
 # Read a message
 gro mail read <message-id>
-gro mail read <message-id> --json
 
 # View conversation thread
 gro mail thread <thread-id>
-gro mail thread <message-id> --json
 
 # List labels
 gro mail labels
-gro mail labels --json
 
 # List attachments
 gro mail attachments list <message-id>
-gro mail attachments list <message-id> --json
 
 # Download attachments
 gro mail attachments download <message-id> --all
@@ -340,7 +332,6 @@ All Calendar commands are under `gro calendar` (or `gro cal`):
 ```bash
 # List all calendars
 gro calendar list
-gro cal list --json
 
 # List upcoming events
 gro calendar events
@@ -349,15 +340,12 @@ gro cal events --from 2026-01-01 --to 2026-01-31
 
 # Get event details
 gro calendar get <event-id>
-gro cal get <event-id> --json
 
 # Today's events
 gro calendar today
-gro cal today --json
 
 # This week's events
 gro calendar week
-gro cal week --json
 
 # RSVP to an event
 gro calendar rsvp <event-id> accept
@@ -377,7 +365,6 @@ All Contacts commands are under `gro contacts` (or `gro ppl`):
 # List all contacts
 gro contacts list
 gro ppl list --max 20
-gro contacts list --json
 gro contacts list --ids                     # Output resource names only
 
 # Search contacts
@@ -387,11 +374,9 @@ gro contacts search "John" --ids            # Output resource names only
 
 # Get contact details
 gro contacts get people/c123456789
-gro ppl get people/c123456789 --json
 
 # List contact groups
 gro contacts groups
-gro ppl groups --json
 
 # Star / unstar contacts
 gro contacts star people/c123 people/c456
@@ -423,7 +408,6 @@ gro drive search "budget" --ids             # Output file IDs only
 
 # Get file metadata
 gro drive get <file-id>
-gro files get <file-id> --json
 
 # Download files
 gro drive download <file-id>
@@ -449,7 +433,6 @@ gro supports Google Shared Drives (formerly Team Drives). By default, search inc
 ```bash
 # List available shared drives
 gro drive drives
-gro drive drives --json
 
 # Search all drives (default)
 gro drive search "quarterly report"
@@ -512,10 +495,7 @@ Usage: gro me [flags]
 Flags:
       --id         Print only the primary email (scriptable)
       --extended   Add granted scopes, token expiry, and storage backend
-  -j, --json       Output as JSON
 ```
-
-`--id` and `--extended` can be combined with `--json`.
 
 ### gro config show
 
@@ -553,10 +533,8 @@ Usage: gro mail search <query> [flags]
 Flags:
   -m, --max int    Maximum number of results (default 10)
       --ids        Output only message IDs (one per line, for piping)
-  -j, --json       Output as JSON
 ```
 
-`--ids` and `--json` are mutually exclusive.
 
 ### gro mail read
 
@@ -566,7 +544,6 @@ Read the full content of a Gmail message by its ID.
 Usage: gro mail read <message-id> [flags]
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro mail thread
@@ -577,7 +554,6 @@ Read all messages in a Gmail conversation thread.
 Usage: gro mail thread <id> [flags]
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro mail labels
@@ -588,7 +564,6 @@ List all Gmail labels including user labels and system categories.
 Usage: gro mail labels [flags]
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro mail attachments list
@@ -599,7 +574,6 @@ List all attachments in a Gmail message.
 Usage: gro mail attachments list <message-id> [flags]
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro mail attachments download
@@ -627,7 +601,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail star
@@ -641,7 +614,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail unstar
@@ -655,7 +627,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail mark-read
@@ -669,7 +640,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail mark-unread
@@ -683,7 +653,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail label
@@ -697,7 +666,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail unlabel
@@ -711,7 +679,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail categorize
@@ -725,7 +692,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read message IDs from stdin
       --query string   Search query to resolve message IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro mail draft
@@ -749,7 +715,6 @@ Flags:
       --plain             Send body as plain text (no markdown rendering)
       --html              Send body as raw HTML (no markdown rendering)
   -a, --attach strings    File path to attach (repeat for multiple)
-  -j, --json              Output result as JSON
       --reply-to string   Source Gmail message ID to reply to (derives To/Subject/threading)
       --reply-all         Include the source To/Cc as Cc on the reply (requires --reply-to)
       --no-quote          Reply without quoting the source message (requires --reply-to)
@@ -771,7 +736,6 @@ Usage: gro calendar list [flags]
 Aliases: gro cal list
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro calendar events
@@ -788,7 +752,6 @@ Flags:
   -m, --max int           Maximum number of events (default 10)
       --from string       Start date (YYYY-MM-DD)
       --to string         End date (YYYY-MM-DD)
-  -j, --json              Output as JSON
 ```
 
 ### gro calendar get
@@ -802,7 +765,6 @@ Aliases: gro cal get
 
 Flags:
   -c, --calendar string   Calendar ID containing the event (default "primary")
-  -j, --json              Output as JSON
 ```
 
 ### gro calendar today
@@ -816,7 +778,6 @@ Aliases: gro cal today
 
 Flags:
   -c, --calendar string   Calendar ID to query (default "primary")
-  -j, --json              Output as JSON
 ```
 
 ### gro calendar week
@@ -830,7 +791,6 @@ Aliases: gro cal week
 
 Flags:
   -c, --calendar string   Calendar ID to query (default "primary")
-  -j, --json              Output as JSON
 ```
 
 ### gro calendar rsvp
@@ -845,7 +805,6 @@ Aliases: gro cal rsvp
 Flags:
   -c, --calendar string   Calendar ID containing the event (default "primary")
   -n, --dry-run           Preview without making changes
-  -j, --json              Output as JSON
 ```
 
 ### gro calendar color
@@ -860,7 +819,6 @@ Aliases: gro cal color
 Flags:
   -c, --calendar string   Calendar ID containing the event (default "primary")
   -n, --dry-run           Preview without making changes
-  -j, --json              Output as JSON
 ```
 
 ### gro contacts list
@@ -875,10 +833,8 @@ Aliases: gro ppl list
 Flags:
   -m, --max int    Maximum number of contacts (default 10)
       --ids        Output only resource names (one per line, for piping)
-  -j, --json       Output as JSON
 ```
 
-`--ids` and `--json` are mutually exclusive.
 
 ### gro contacts search
 
@@ -892,10 +848,8 @@ Aliases: gro ppl search
 Flags:
   -m, --max int    Maximum number of results (default 10)
       --ids        Output only resource names (one per line, for piping)
-  -j, --json       Output as JSON
 ```
 
-`--ids` and `--json` are mutually exclusive.
 
 ### gro contacts get
 
@@ -907,7 +861,6 @@ Usage: gro contacts get <resource-name> [flags]
 Aliases: gro ppl get
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro contacts groups
@@ -921,7 +874,6 @@ Aliases: gro ppl groups
 
 Flags:
   -m, --max int    Maximum number of groups (default 30)
-  -j, --json       Output as JSON
 ```
 
 ### gro contacts star
@@ -937,7 +889,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
       --query string   Search query to resolve contact IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro contacts unstar
@@ -953,7 +904,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
       --query string   Search query to resolve contact IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro contacts add-to-group
@@ -969,7 +919,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
       --query string   Search query to resolve contact IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro contacts remove-from-group
@@ -985,7 +934,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read contact IDs from stdin
       --query string   Search query to resolve contact IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro drive list
@@ -1003,10 +951,9 @@ Flags:
       --ids          Output only file IDs (one per line, for piping)
       --my-drive     List from My Drive only
       --drive string List from specific shared drive (name or ID)
-  -j, --json         Output as JSON
 ```
 
-`--ids` and `--json` are mutually exclusive. `--my-drive` and `--drive` are mutually exclusive.
+`--my-drive` and `--drive` are mutually exclusive.
 
 ### gro drive search
 
@@ -1028,10 +975,9 @@ Flags:
       --my-drive               Search only My Drive
       --drive string           Search specific shared drive (name or ID)
   -m, --max int                Maximum results (default 25)
-  -j, --json                   Output as JSON
 ```
 
-`--ids` and `--json` are mutually exclusive. `--my-drive` and `--drive` are mutually exclusive.
+`--my-drive` and `--drive` are mutually exclusive.
 
 ### gro drive get
 
@@ -1043,7 +989,6 @@ Usage: gro drive get <file-id> [flags]
 Aliases: gro files get
 
 Flags:
-  -j, --json       Output as JSON
 ```
 
 ### gro drive download
@@ -1081,7 +1026,6 @@ Flags:
       --files        Include files in addition to folders
       --my-drive     Show My Drive only (default)
       --drive string Show tree from specific shared drive
-  -j, --json         Output as JSON
 ```
 
 ### gro drive drives
@@ -1096,7 +1040,6 @@ Aliases: gro files drives
 
 Flags:
       --refresh    Force refresh from API (deprecated; use 'gro refresh drives')
-  -j, --json       Output as JSON
 ```
 
 ### gro refresh
@@ -1126,7 +1069,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read file IDs from stdin
       --query string   Search query to resolve file IDs
-  -j, --json       Output results as JSON
 ```
 
 ### gro drive unstar
@@ -1142,7 +1084,6 @@ Flags:
   -n, --dry-run    Preview without making changes
       --stdin      Read file IDs from stdin
       --query string   Search query to resolve file IDs
-  -j, --json       Output results as JSON
 ```
 
 ## Search Query Reference

@@ -20,11 +20,10 @@ type TreeNode struct {
 
 func newTreeCommand() *cobra.Command {
 	var (
-		depth      int
-		files      bool
-		jsonOutput bool
-		myDrive    bool
-		driveFlag  string
+		depth     int
+		files     bool
+		myDrive   bool
+		driveFlag string
 	)
 
 	cmd := &cobra.Command{
@@ -40,8 +39,7 @@ Examples:
   gro drive tree <folder-id>            # Show tree from specific folder
   gro drive tree --drive "Engineering"  # Show tree from shared drive root
   gro drive tree --depth 3              # Limit depth
-  gro drive tree --files                # Include files, not just folders
-  gro drive tree --json                 # Output as JSON`,
+  gro drive tree --files                # Include files, not just folders`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Validate mutually exclusive flags
@@ -76,10 +74,6 @@ Examples:
 				return fmt.Errorf("building folder tree: %w", err)
 			}
 
-			if jsonOutput {
-				return printJSON(tree)
-			}
-
 			printTree(tree, "", true)
 			return nil
 		},
@@ -87,7 +81,6 @@ Examples:
 
 	cmd.Flags().IntVarP(&depth, "depth", "d", 2, "Maximum depth to traverse")
 	cmd.Flags().BoolVar(&files, "files", false, "Include files in addition to folders")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVar(&myDrive, "my-drive", false, "Show My Drive only (default)")
 	cmd.Flags().StringVar(&driveFlag, "drive", "", "Show tree from specific shared drive (name or ID)")
 

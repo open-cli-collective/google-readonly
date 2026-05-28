@@ -16,7 +16,6 @@ func newSearchCommand() *cobra.Command {
 		modAfter   string
 		modBefore  string
 		inFolder   string
-		jsonOutput bool
 		idsOutput  bool
 		myDrive    bool
 		driveFlag  string
@@ -41,17 +40,12 @@ Examples:
   gro drive search --owner john@example.com     # Files owned by someone
   gro drive search --modified-after 2024-01-01  # Modified after date
   gro drive search --in-folder <folder-id>      # Search within folder
-  gro drive search "report" --type document --max 20 --json
 
 File types: document, spreadsheet, presentation, folder, pdf, image, video, audio`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Validate mutually exclusive flags
 			if myDrive && driveFlag != "" {
 				return fmt.Errorf("--my-drive and --drive are mutually exclusive")
-			}
-			if idsOutput && jsonOutput {
-				return fmt.Errorf("--ids and --json are mutually exclusive")
 			}
 
 			client, err := newDriveClient(cmd.Context())
@@ -89,20 +83,12 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 			}
 
 			if len(files) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				if query != "" {
 					fmt.Printf("No files found matching \"%s\".\n", query)
 				} else {
 					fmt.Println("No files found.")
 				}
 				return nil
-			}
-
-			if jsonOutput {
-				return printJSON(files)
 			}
 
 			if query != "" {
@@ -122,7 +108,6 @@ File types: document, spreadsheet, presentation, folder, pdf, image, video, audi
 	cmd.Flags().StringVar(&modAfter, "modified-after", "", "Modified after date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&modBefore, "modified-before", "", "Modified before date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&inFolder, "in-folder", "", "Search within specific folder")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVar(&idsOutput, "ids", false, "Output only file IDs (one per line, for piping)")
 	cmd.Flags().BoolVar(&myDrive, "my-drive", false, "Limit search to My Drive only")
 	cmd.Flags().StringVar(&driveFlag, "drive", "", "Search in specific shared drive (name or ID)")

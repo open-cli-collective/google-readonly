@@ -9,7 +9,6 @@ import (
 )
 
 func newGetCommand() *cobra.Command {
-	var jsonOutput bool
 
 	cmd := &cobra.Command{
 		Use:   "get <resource-name>",
@@ -20,8 +19,7 @@ The resource name is in the format "people/c123456789" and can be
 obtained from the list or search commands.
 
 Examples:
-  gro contacts get people/c123456789
-  gro ppl get people/c123456789 --json`,
+  gro contacts get people/c123456789`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resourceName := args[0]
@@ -37,18 +35,11 @@ Examples:
 			}
 
 			contact := contacts.ParseContact(person)
-
-			if jsonOutput {
-				return printJSON(contact)
-			}
-
 			printContact(contact, true)
 
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
 }

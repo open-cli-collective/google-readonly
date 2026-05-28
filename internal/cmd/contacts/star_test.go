@@ -2,7 +2,6 @@ package contacts
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -51,50 +50,6 @@ func TestStarCommand_DryRun(t *testing.T) {
 		testutil.Contains(t, output, "[dry-run]")
 		testutil.Contains(t, output, "star")
 		testutil.Contains(t, output, "1 contact(s)")
-	})
-}
-
-func TestStarCommand_DryRunJSON(t *testing.T) {
-	mock := &MockContactsClient{}
-
-	cmd := newStarCommand()
-	cmd.SetArgs([]string{"people/c111", "--dry-run", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["dryRun"].(bool), true)
-		testutil.Equal(t, result["action"].(string), "star")
-	})
-}
-
-func TestStarCommand_JSON(t *testing.T) {
-	mock := &MockContactsClient{
-		AddToGroupFunc: func(_ context.Context, _ string, _ []string) error {
-			return nil
-		},
-	}
-
-	cmd := newStarCommand()
-	cmd.SetArgs([]string{"people/c111", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["action"].(string), "starred")
-		testutil.Equal(t, result["count"].(float64), float64(1))
 	})
 }
 

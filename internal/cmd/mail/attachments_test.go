@@ -70,11 +70,6 @@ func TestListAttachmentsCommand(t *testing.T) {
 		testutil.NoError(t, err)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 }
 
 func TestDownloadAttachmentsCommand(t *testing.T) {

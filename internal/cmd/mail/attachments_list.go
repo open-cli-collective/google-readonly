@@ -9,8 +9,6 @@ import (
 )
 
 func newListAttachmentsCommand() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "list <message-id>",
 		Short: "List attachments in a message",
@@ -19,8 +17,7 @@ func newListAttachmentsCommand() *cobra.Command {
 Shows filename, MIME type, size, and whether the attachment is inline.
 
 Examples:
-  gro mail attachments list 18abc123def456
-  gro mail attachments list 18abc123def456 --json`,
+  gro mail attachments list 18abc123def456`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newGmailClient(cmd.Context())
@@ -34,16 +31,8 @@ Examples:
 			}
 
 			if len(attachments) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				fmt.Println("No attachments found for message.")
 				return nil
-			}
-
-			if jsonOutput {
-				return printJSON(attachments)
 			}
 
 			fmt.Printf("Found %d attachment(s):\n\n", len(attachments))
@@ -61,8 +50,6 @@ Examples:
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
 }

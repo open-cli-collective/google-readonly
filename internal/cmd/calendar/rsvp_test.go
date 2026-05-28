@@ -2,7 +2,6 @@ package calendar
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -11,12 +10,6 @@ import (
 
 func TestRSVPCommand(t *testing.T) {
 	cmd := newRSVPCommand()
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("dry-run")
@@ -126,49 +119,6 @@ func TestRSVPCommand_DryRun(t *testing.T) {
 			testutil.NoError(t, err)
 		})
 		testutil.Contains(t, output, "[dry-run] Would RSVP 'accepted' to event event123.")
-	})
-}
-
-func TestRSVPCommand_DryRunJSON(t *testing.T) {
-	cmd := newRSVPCommand()
-	cmd.SetArgs([]string{"event123", "decline", "--dry-run", "--json"})
-
-	withMockClient(&MockCalendarClient{}, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["response"], "declined")
-		testutil.Equal(t, result["dryRun"], true)
-	})
-}
-
-func TestRSVPCommand_JSON(t *testing.T) {
-	mock := &MockCalendarClient{
-		RSVPEventFunc: func(_ context.Context, _, _, _ string) error {
-			return nil
-		},
-	}
-
-	cmd := newRSVPCommand()
-	cmd.SetArgs([]string{"event123", "accept", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["response"], "accepted")
-		testutil.Equal(t, result["eventId"], "event123")
-		testutil.Equal(t, result["dryRun"], false)
 	})
 }
 

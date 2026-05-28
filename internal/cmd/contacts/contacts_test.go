@@ -73,13 +73,6 @@ func TestListCommand(t *testing.T) {
 		testutil.Equal(t, flag.DefValue, "10")
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-		testutil.Equal(t, flag.DefValue, "false")
-	})
-
 	t.Run("has ids flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("ids")
 		testutil.NotNil(t, flag)
@@ -119,12 +112,6 @@ func TestSearchCommand(t *testing.T) {
 		testutil.Equal(t, flag.Shorthand, "m")
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
-
 	t.Run("has ids flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("ids")
 		testutil.NotNil(t, flag)
@@ -153,11 +140,6 @@ func TestGetCommand(t *testing.T) {
 		testutil.NotEmpty(t, cmd.Short)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 }
 
 func TestAddToGroupCommand(t *testing.T) {
@@ -178,12 +160,6 @@ func TestAddToGroupCommand(t *testing.T) {
 	t.Run("rejects no arguments", func(t *testing.T) {
 		err := cmd.Args(cmd, []string{})
 		testutil.Error(t, err)
-	})
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
 	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
@@ -215,12 +191,6 @@ func TestRemoveFromGroupCommand(t *testing.T) {
 		testutil.NoError(t, err)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
-
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("dry-run")
 		testutil.NotNil(t, flag)
@@ -232,12 +202,6 @@ func TestStarCommand(t *testing.T) {
 
 	t.Run("has correct use", func(t *testing.T) {
 		testutil.Contains(t, cmd.Use, "star")
-	})
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
 	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
@@ -261,12 +225,6 @@ func TestUnstarCommand(t *testing.T) {
 
 	t.Run("has correct use", func(t *testing.T) {
 		testutil.Contains(t, cmd.Use, "unstar")
-	})
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
 	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
@@ -303,9 +261,4 @@ func TestGroupsCommand(t *testing.T) {
 		testutil.Equal(t, flag.DefValue, "30")
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 }

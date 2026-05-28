@@ -21,8 +21,6 @@ type Label struct {
 }
 
 func newLabelsCommand() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "labels",
 		Short: "List all labels",
@@ -31,8 +29,7 @@ func newLabelsCommand() *cobra.Command {
 Shows label name, type (system/user/category), and message counts.
 
 Examples:
-  gro mail labels
-  gro mail labels --json`,
+  gro mail labels`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := newGmailClient(cmd.Context())
@@ -46,15 +43,10 @@ Examples:
 
 			gmailLabels := client.GetLabels()
 			if len(gmailLabels) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				fmt.Println("No labels found.")
 				return nil
 			}
 
-			// Convert to our Label type and categorize
 			labels := make([]Label, 0, len(gmailLabels))
 			for _, gl := range gmailLabels {
 				label := Label{
@@ -67,7 +59,6 @@ Examples:
 				labels = append(labels, label)
 			}
 
-			// Sort by type then name
 			sort.Slice(labels, func(i, j int) bool {
 				if labels[i].Type != labels[j].Type {
 					return labelTypePriority(labels[i].Type) < labelTypePriority(labels[j].Type)
@@ -75,11 +66,6 @@ Examples:
 				return strings.ToLower(labels[i].Name) < strings.ToLower(labels[j].Name)
 			})
 
-			if jsonOutput {
-				return printJSON(labels)
-			}
-
-			// Text output
 			fmt.Printf("%-30s %-10s %8s %8s\n", "NAME", "TYPE", "TOTAL", "UNREAD")
 			fmt.Println(strings.Repeat("-", 60))
 			for _, label := range labels {
@@ -93,8 +79,6 @@ Examples:
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 
 	return cmd
 }

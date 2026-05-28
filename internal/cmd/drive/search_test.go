@@ -63,12 +63,6 @@ func TestSearchCommand(t *testing.T) {
 		testutil.NotNil(t, flag)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
-
 	t.Run("has short description", func(t *testing.T) {
 		testutil.Contains(t, cmd.Short, "Search")
 	})

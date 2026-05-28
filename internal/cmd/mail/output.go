@@ -8,7 +8,6 @@ import (
 	gmailv1 "google.golang.org/api/gmail/v1"
 
 	"github.com/open-cli-collective/google-readonly/internal/gmail"
-	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // MailClient defines the interface for Gmail client operations used by mail commands.
@@ -38,11 +37,6 @@ var ClientFactory = func(ctx context.Context) (MailClient, error) {
 // newGmailClient creates and returns a new Gmail client
 func newGmailClient(ctx context.Context) (MailClient, error) {
 	return ClientFactory(ctx)
-}
-
-// printJSON encodes data as indented JSON to stdout
-func printJSON(data any) error {
-	return output.JSONStdout(data)
 }
 
 // MessagePrintOptions controls which fields to include in message output

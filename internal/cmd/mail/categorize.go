@@ -31,10 +31,9 @@ func allCategoryLabelIDs() []string {
 
 func newCategorizeCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	validCategories := make([]string, 0, len(categoryLabels))
@@ -93,7 +92,7 @@ Examples:
 
 			if dryRun {
 				result.Action = fmt.Sprintf("recategorize to %s", category)
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			// Remove all category labels and add the target one
@@ -102,11 +101,10 @@ Examples:
 				return fmt.Errorf("recategorizing messages: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")

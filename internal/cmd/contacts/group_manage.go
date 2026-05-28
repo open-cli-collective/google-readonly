@@ -10,10 +10,9 @@ import (
 
 func newAddToGroupCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -71,18 +70,17 @@ Examples:
 
 			if dryRun {
 				result.Action = fmt.Sprintf("add to group '%s'", groupName)
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.AddToGroup(ctx, groupResourceName, ids); err != nil {
 				return fmt.Errorf("adding contacts to group: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read contact IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve contact IDs")
@@ -92,10 +90,9 @@ Examples:
 
 func newRemoveFromGroupCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -152,18 +149,17 @@ Examples:
 
 			if dryRun {
 				result.Action = fmt.Sprintf("remove from group '%s'", groupName)
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.RemoveFromGroup(ctx, groupResourceName, ids); err != nil {
 				return fmt.Errorf("removing contacts from group: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read contact IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve contact IDs")

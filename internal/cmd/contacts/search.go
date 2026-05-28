@@ -11,7 +11,6 @@ import (
 func newSearchCommand() *cobra.Command {
 	var (
 		maxResults int64
-		jsonOutput bool
 		idsOutput  bool
 	)
 
@@ -31,14 +30,9 @@ Examples:
   gro contacts search "John"
   gro contacts search "example.com"
   gro contacts search "+1-555" --max 20
-  gro ppl search "Acme" --json
   gro ppl search "John" --ids | gro contacts add-to-group "Friends" --stdin`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if idsOutput && jsonOutput {
-				return fmt.Errorf("--ids and --json are mutually exclusive")
-			}
-
 			query := args[0]
 
 			client, err := newContactsClient(cmd.Context())
@@ -52,10 +46,6 @@ Examples:
 			}
 
 			if len(resp.Results) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				if !idsOutput {
 					fmt.Printf("No contacts found matching \"%s\".\n", query)
 				}
@@ -71,14 +61,9 @@ Examples:
 				return nil
 			}
 
-			// Convert to our format
 			parsedContacts := make([]*contacts.Contact, len(resp.Results))
 			for i, r := range resp.Results {
 				parsedContacts[i] = contacts.ParseContact(r.Person)
-			}
-
-			if jsonOutput {
-				return printJSON(parsedContacts)
 			}
 
 			fmt.Printf("Found %d contact(s) matching \"%s\":\n\n", len(resp.Results), query)
@@ -91,7 +76,6 @@ Examples:
 	}
 
 	cmd.Flags().Int64VarP(&maxResults, "max", "m", 10, "Maximum number of results")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 	cmd.Flags().BoolVar(&idsOutput, "ids", false, "Output only resource names, one per line")
 
 	return cmd

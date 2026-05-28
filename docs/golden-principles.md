@@ -26,11 +26,11 @@ Parent commands export `NewCommand()` returning `*cobra.Command`. Subcommands us
 
 **Enforced by:** `TestDomainPackagesExportNewCommand`
 
-## 4. --json on every leaf command
+## 4. Text-only resource leaves (no per-command `--json`)
 
-All leaf subcommands (commands with no children) support `--json/-j` for machine-readable output. Download commands that output binary file data are exempt.
+Per cli-common `docs/output-and-rendering.md` §2, resource-surface leaf commands (every leaf under `mail`, `calendar`, `contacts`, `drive`, `me`) emit text output only. JSON is reserved for control-plane envelopes — today that's `gro refresh --json` (§4.6) and `gro config show --json` (diagnostic). Inverted from the pre-#144 "every leaf must have `--json`" rule.
 
-**Enforced by:** `TestAllLeafCommandsHaveJSONFlag`
+**Enforced by:** `TestResourceLeavesHaveNoJSONFlag`
 
 ## 5. Non-destructive only
 

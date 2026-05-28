@@ -25,7 +25,7 @@ This command group provides Calendar functionality:
 Examples:
   gro calendar list
   gro cal events --max 20
-  gro cal today --json
+  gro cal today
   gro calendar get <event-id>
   gro cal rsvp <event-id> accept
   gro cal color <event-id> tomato`,
