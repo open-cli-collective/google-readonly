@@ -463,7 +463,7 @@ gro drive list --drive "Engineering"
 gro drive tree --drive "Marketing"
 ```
 
-The `--my-drive` and `--drive` flags are mutually exclusive. Shared drive names are cached locally for fast lookups. Run `gro drive drives` to refresh the cache.
+The `--my-drive` and `--drive` flags are mutually exclusive. Shared drive names are cached locally for fast lookups. Run `gro refresh drives` to refresh the cache, or `gro refresh --status` to inspect freshness.
 
 ### Bulk Operations
 
@@ -1086,7 +1086,8 @@ Flags:
 
 ### gro drive drives
 
-List all shared drives accessible to you.
+List all shared drives accessible to you. Results are cached locally; use
+`gro refresh drives` to force a refresh.
 
 ```
 Usage: gro drive drives [flags]
@@ -1094,8 +1095,22 @@ Usage: gro drive drives [flags]
 Aliases: gro files drives
 
 Flags:
-      --refresh    Force refresh from API (ignore cache)
+      --refresh    Force refresh from API (deprecated; use 'gro refresh drives')
   -j, --json       Output as JSON
+```
+
+### gro refresh
+
+Refresh gro's local cache. With no arguments, refreshes every cacheable
+resource (today: `drives`). With `--status`, reports freshness without
+fetching. With `--json`, emits a control-plane envelope.
+
+```
+Usage: gro refresh [resources...] [flags]
+
+Flags:
+      --status     Print cache freshness; no network calls
+  -j, --json       Emit a JSON control-plane envelope
 ```
 
 ### gro drive star

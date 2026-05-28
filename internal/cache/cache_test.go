@@ -130,6 +130,84 @@ func TestCache_CorruptedCache(t *testing.T) {
 	})
 }
 
+func TestCache_DrivesStatus(t *testing.T) {
+	hermetic(t)
+
+	t.Run("uninitialized when no envelope on disk", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		fetchedAt, ttl, status, now, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.True(t, fetchedAt.IsZero())
+		testutil.True(t, !now.IsZero())
+		testutil.Equal(t, ttl, drivesTTL)
+		testutil.Equal(t, status.String(), "uninitialized")
+	})
+
+	t.Run("uninitialized when envelope is malformed JSON (corrupt-as-miss)", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		path := filepath.Join(c.loc.Root, c.loc.InstanceKey, drivesResource+".json")
+		testutil.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		testutil.NoError(t, os.WriteFile(path, []byte("not valid json"), 0o600))
+
+		_, _, status, _, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.Equal(t, status.String(), "uninitialized")
+	})
+
+	t.Run("propagates generic I/O errors (envelope not a regular file)", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		// Make the envelope path a directory; cli-common/cache's reader will
+		// fail with a non-syntax I/O error that must propagate from DrivesStatus.
+		path := filepath.Join(c.loc.Root, c.loc.InstanceKey, drivesResource+".json")
+		testutil.NoError(t, os.MkdirAll(path, 0o700))
+
+		_, _, _, _, err = c.DrivesStatus()
+		if err == nil {
+			t.Fatal("expected I/O error to propagate, got nil")
+		}
+	})
+
+	t.Run("fresh after SetDrives", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "d1", Name: "X"}}))
+
+		fetchedAt, ttl, status, _, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.True(t, !fetchedAt.IsZero())
+		testutil.Equal(t, ttl, drivesTTL)
+		testutil.Equal(t, status.String(), "fresh")
+	})
+
+	t.Run("stale when fetchedAt is older than TTL", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "d1", Name: "X"}}))
+
+		// Advance the cache clock past the 24h drives TTL.
+		origNow := nowFn
+		nowFn = func() time.Time { return time.Now().Add(48 * time.Hour) }
+		defer func() { nowFn = origNow }()
+
+		_, _, status, _, err := c.DrivesStatus()
+		testutil.NoError(t, err)
+		testutil.Equal(t, status.String(), "stale")
+	})
+}
+
 func TestCache_Clear(t *testing.T) {
 	hermetic(t)
 	c, err := New()

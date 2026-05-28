@@ -24,11 +24,11 @@ func newDrivesCommand() *cobra.Command {
 		Short: "List shared drives",
 		Long: `List all Google Shared Drives accessible to you.
 
-Results are cached locally for fast lookups. Use --refresh to force a refresh.
+Results are cached locally for fast lookups. Use 'gro refresh drives' to
+force a refresh.
 
 Examples:
   gro drive drives              # List shared drives (uses cache)
-  gro drive drives --refresh    # Force refresh from API
   gro drive drives --json       # Output as JSON`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -104,6 +104,7 @@ Examples:
 
 	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVar(&refresh, "refresh", false, "Force refresh from API (ignore cache)")
+	_ = cmd.Flags().MarkDeprecated("refresh", "use 'gro refresh drives' instead")
 
 	return cmd
 }
