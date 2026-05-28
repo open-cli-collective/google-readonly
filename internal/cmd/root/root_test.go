@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
+	"github.com/spf13/cobra"
 
 	"github.com/open-cli-collective/cli-common/credstore"
 
@@ -137,6 +138,38 @@ func TestPersistentPreRunE_NoColorTrueFlipsToAscii(t *testing.T) {
 
 	if got := lipgloss.DefaultRenderer().ColorProfile(); got != termenv.Ascii {
 		t.Fatalf("expected ColorProfile == Ascii after noColor=true, got %v", got)
+	}
+}
+
+// TestNoColorFlagThroughCobra proves the full wiring: cobra parses
+// --no-color, sets the bound `noColor` package variable, the existing
+// PersistentPreRunE picks it up, and the lipgloss renderer is flipped to
+// Ascii. Unlike the direct PreRunE invocation above, this exercises the
+// real argv → flag binding → PreRunE chain.
+func TestNoColorFlagThroughCobra(t *testing.T) {
+	withRenderer(t, termenv.ANSI)
+
+	probe := &cobra.Command{
+		Use:  "probe-no-color-flag-wiring",
+		RunE: func(_ *cobra.Command, _ []string) error { return nil },
+	}
+	rootCmd.AddCommand(probe)
+	t.Cleanup(func() {
+		rootCmd.RemoveCommand(probe)
+		rootCmd.SetArgs(nil)
+		noColor = false
+	})
+
+	rootCmd.SetArgs([]string{"--no-color", "probe-no-color-flag-wiring"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	if !noColor {
+		t.Fatal("expected cobra to set noColor=true after parsing --no-color")
+	}
+	if got := lipgloss.DefaultRenderer().ColorProfile(); got != termenv.Ascii {
+		t.Fatalf("expected Ascii via real flag-binding path, got %v", got)
 	}
 }
 
