@@ -252,13 +252,13 @@ func TestResourceLeavesHaveNoJSONFlag(t *testing.T) {
 	}
 }
 
-// TestResourceLeaf_RejectsJSON_EndToEnd is the end-to-end complement to
-// TestResourceLeavesHaveNoJSONFlag — instead of inspecting the flag set
-// statically, it dispatches one representative resource leaf with --json
-// through cobra and asserts the user-visible "unknown flag" error.
-// The static guard catches missing flag declarations; this one catches a
-// hypothetical regression where the flag is declared but the structural
-// test's domain set was bypassed.
+// TestResourceLeaf_RejectsJSON_EndToEnd is a spot-check complement to the
+// structural walk in TestResourceLeavesHaveNoJSONFlag. It dispatches one
+// representative resource leaf with --json through cobra and asserts the
+// user-visible "unknown flag" error so the end-to-end contract is exercised,
+// not just the static flag set. Closing the closed-set bypass (a new domain
+// added outside domainPackages) still requires updating that list — neither
+// test compensates for that.
 func TestResourceLeaf_RejectsJSON_EndToEnd(t *testing.T) {
 	t.Parallel()
 	cmd := drivecmd.NewCommand()

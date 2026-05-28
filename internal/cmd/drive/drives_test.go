@@ -27,11 +27,6 @@ func TestDrivesCommand(t *testing.T) {
 		testutil.Error(t, err)
 	})
 
-	t.Run("no json flag (#144 — resource leaves emit text only)", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.Nil(t, flag)
-	})
-
 	t.Run("has refresh flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("refresh")
 		testutil.NotNil(t, flag)

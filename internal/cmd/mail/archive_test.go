@@ -11,11 +11,6 @@ import (
 func TestArchiveCommand(t *testing.T) {
 	cmd := newArchiveCommand()
 
-	t.Run("no json flag (#144 — resource leaves emit text only)", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.Nil(t, flag)
-	})
-
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("dry-run")
 		testutil.NotNil(t, flag)
