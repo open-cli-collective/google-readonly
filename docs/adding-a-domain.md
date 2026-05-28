@@ -51,15 +51,17 @@ Create `internal/cmd/{domain}/` with these files:
 - An exported interface ending in `Client` (e.g., `TasksClient`)
 - A `ClientFactory` variable
 - A `newXClient()` wrapper function
-- A `printJSON()` function
+- Domain-specific text-rendering helpers (e.g., `printTask`, `printTaskSummary`)
+
+> Do **not** add a package-local `printJSON()` helper. Per golden principle §4 (#144), resource-surface leaves emit text only. The `internal/output` package is reserved for control-plane envelopes (`refresh --json`, `config show --json`).
 
 **`{domain}.go`** — [enforced] Must contain:
 - An exported `NewCommand()` function returning `*cobra.Command`
 - `AddCommand()` calls for all subcommands
 
-**Each subcommand file** — [enforced] Each leaf command must have `--json/-j` flag:
+**Each subcommand file** — [enforced] Resource-surface leaves emit text only — they must NOT declare `--json/-j`. The structural test `TestResourceLeavesHaveNoJSONFlag` catches accidental re-introduction. Each leaf file contains:
 - Unexported `new{Sub}Command()` factory
-- `--json/-j` flag for JSON output (exempt for binary download commands)
+- Text rendering via the domain's printers from `output.go`
 
 ### 4. Create test infrastructure
 
