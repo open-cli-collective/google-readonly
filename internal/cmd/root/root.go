@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 
 	cccredstore "github.com/open-cli-collective/cli-common/credstore"
@@ -24,7 +26,10 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/version"
 )
 
-var verbose bool
+var (
+	verbose bool
+	noColor bool
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "gro",
@@ -43,6 +48,9 @@ This will guide you through OAuth setup for Google API access.`,
 	Version: version.Version,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		log.Verbose = verbose
+		if noColor {
+			lipgloss.DefaultRenderer().SetColorProfile(termenv.Ascii)
+		}
 		return WireBackendSelection(cmd)
 	},
 }
@@ -106,6 +114,7 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output for debugging")
+	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().String(cccredstore.BackendFlagName, "", cccredstore.BackendFlagUsage())
 
 	// Register commands

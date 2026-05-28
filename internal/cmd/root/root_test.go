@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+
 	"github.com/open-cli-collective/cli-common/credstore"
 
 	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
@@ -93,5 +96,62 @@ func TestRunRootFlushesMigrationNoticeOnError(t *testing.T) {
 	migrationsink.FlushMigrationNotice(&again)
 	if again.Len() != 0 {
 		t.Fatalf("notice must be consume-once, got %q", again.String())
+	}
+}
+
+func TestNoColorFlagRegistered(t *testing.T) {
+	f := rootCmd.PersistentFlags().Lookup("no-color")
+	if f == nil {
+		t.Fatal("--no-color persistent flag not registered on rootCmd")
+	}
+	if f.Value.Type() != "bool" {
+		t.Fatalf("expected --no-color to be a bool flag, got %s", f.Value.Type())
+	}
+}
+
+// withRenderer swaps the lipgloss default renderer for the duration of the
+// test, restoring the saved renderer on cleanup. Tests using this must not
+// call t.Parallel — the default renderer is process-global.
+func withRenderer(t *testing.T, profile termenv.Profile) {
+	t.Helper()
+	saved := lipgloss.DefaultRenderer()
+	t.Cleanup(func() { lipgloss.SetDefaultRenderer(saved) })
+
+	r := lipgloss.NewRenderer(io.Discard)
+	r.SetColorProfile(profile)
+	lipgloss.SetDefaultRenderer(r)
+}
+
+func TestPersistentPreRunE_NoColorTrueFlipsToAscii(t *testing.T) {
+	// Baseline: force ANSI so the flip is detectable.
+	withRenderer(t, termenv.ANSI)
+
+	// Reset the package-level flag binding on cleanup so subsequent tests
+	// or runs don't see a leaked true.
+	t.Cleanup(func() { noColor = false })
+	noColor = true
+
+	if err := rootCmd.PersistentPreRunE(rootCmd, nil); err != nil {
+		t.Fatalf("PersistentPreRunE returned error: %v", err)
+	}
+
+	if got := lipgloss.DefaultRenderer().ColorProfile(); got != termenv.Ascii {
+		t.Fatalf("expected ColorProfile == Ascii after noColor=true, got %v", got)
+	}
+}
+
+func TestPersistentPreRunE_NoColorFalseLeavesRendererUntouched(t *testing.T) {
+	// Baseline: force ANSI.
+	withRenderer(t, termenv.ANSI)
+
+	t.Cleanup(func() { noColor = false })
+	noColor = false
+
+	// WireBackendSelection may succeed or fail in the test env; we don't
+	// care about its return — we care that the renderer wasn't mutated.
+	_ = rootCmd.PersistentPreRunE(rootCmd, nil)
+
+	if got := lipgloss.DefaultRenderer().ColorProfile(); got != termenv.ANSI {
+		t.Fatalf("expected renderer untouched when noColor=false, got %v", got)
 	}
 }
