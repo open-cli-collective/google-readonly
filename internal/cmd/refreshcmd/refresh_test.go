@@ -3,6 +3,7 @@ package refreshcmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/open-cli-collective/cli-common/statedirtest"
 
 	"github.com/open-cli-collective/google-readonly/internal/cache"
+	"github.com/open-cli-collective/google-readonly/internal/cache/cachetest"
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
@@ -108,9 +110,8 @@ func TestRefresh_Status_Stale(t *testing.T) {
 	testutil.NoError(t, c.SetDrives([]*cache.CachedDrive{{ID: "0A1", Name: "Eng"}}))
 
 	// Advance gro's cache clock past the drives TTL (24h).
-	origNow := cache.NowFnForTest()
-	cache.SetNowFnForTest(func() time.Time { return time.Now().Add(48 * time.Hour) })
-	defer cache.SetNowFnForTest(origNow)
+	restore := cachetest.SwapClock(func() time.Time { return time.Now().Add(48 * time.Hour) })
+	defer restore()
 
 	cmd := newCommandWithDeps((&panickingFactory{}).factory)
 	cmd.SetArgs([]string{"--status"})
@@ -121,6 +122,66 @@ func TestRefresh_Status_Stale(t *testing.T) {
 		t.Fatalf("--status returned error: %v", err)
 	}
 	testutil.Contains(t, out.String(), " | stale")
+}
+
+func TestRefresh_Status_JSONEnvelope(t *testing.T) {
+	statedirtest.Hermetic(t)
+
+	cmd := newCommandWithDeps((&panickingFactory{}).factory)
+	cmd.SetArgs([]string{"--status", "--json"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("--status --json returned error: %v", err)
+	}
+
+	var env struct {
+		Resources []struct {
+			Resource string `json:"resource"`
+			TTL      string `json:"ttl"`
+			Status   string `json:"status"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &env); err != nil {
+		t.Fatalf("unmarshal envelope: %v; body=%q", err, out.String())
+	}
+	if len(env.Resources) != 1 {
+		t.Fatalf("expected 1 resource, got %d", len(env.Resources))
+	}
+	testutil.Equal(t, env.Resources[0].Resource, "drives")
+	testutil.Equal(t, env.Resources[0].Status, "uninitialized")
+}
+
+func TestRefresh_JSONEnvelope_Success(t *testing.T) {
+	statedirtest.Hermetic(t)
+
+	stub := &stubLister{drives: []*drive.SharedDrive{{ID: "0A1", Name: "Eng"}}}
+	cmd := newCommandWithDeps(func(_ context.Context) (DriveLister, error) { return stub, nil })
+	cmd.SetArgs([]string{"--json"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("refresh --json returned error: %v", err)
+	}
+
+	var env struct {
+		Resources []struct {
+			Resource string `json:"resource"`
+			Count    int    `json:"count"`
+			Error    string `json:"error,omitempty"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &env); err != nil {
+		t.Fatalf("unmarshal envelope: %v; body=%q", err, out.String())
+	}
+	if len(env.Resources) != 1 {
+		t.Fatalf("expected 1 resource, got %d", len(env.Resources))
+	}
+	testutil.Equal(t, env.Resources[0].Resource, "drives")
+	testutil.Equal(t, env.Resources[0].Count, 1)
+	testutil.Equal(t, env.Resources[0].Error, "")
 }
 
 func TestRefresh_PositionalArgs(t *testing.T) {

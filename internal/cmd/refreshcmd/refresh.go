@@ -4,7 +4,7 @@ package refreshcmd
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -46,7 +46,10 @@ func NewCommand() *cobra.Command {
 
 // newCommandWithDeps is the test seam.
 func newCommandWithDeps(newClient ClientFactory) *cobra.Command {
-	var statusOnly bool
+	var (
+		statusOnly bool
+		jsonOut    bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "refresh [resources...]",
@@ -64,60 +67,95 @@ Today the only cached resource is "drives" (shared-drive name → ID lookup).`,
   gro refresh drives
 
   # Show freshness without fetching
-  gro refresh --status`,
+  gro refresh --status
+
+  # Control-plane envelope (scripts)
+  gro refresh --status --json`,
 		Args:      cobra.OnlyValidArgs,
 		ValidArgs: validResources,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), cmd.OutOrStdout(), args, statusOnly, newClient)
+			return run(cmd.Context(), cmd.OutOrStdout(), args, statusOnly, jsonOut, newClient)
 		},
 	}
 
 	cmd.Flags().BoolVar(&statusOnly, "status", false, "Print cache freshness; no network calls")
+	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "Emit a JSON control-plane envelope")
 	return cmd
 }
 
-func run(ctx context.Context, stdout io.Writer, args []string, statusOnly bool, newClient ClientFactory) error {
+func run(ctx context.Context, stdout io.Writer, args []string, statusOnly, jsonOut bool, newClient ClientFactory) error {
 	selected := args
 	if len(selected) == 0 {
 		selected = validResources
 	}
 
 	if statusOnly {
-		return runStatus(stdout, selected)
+		return runStatus(stdout, selected, jsonOut)
 	}
-	return runRefresh(ctx, stdout, selected, newClient)
+	return runRefresh(ctx, stdout, selected, jsonOut, newClient)
 }
 
-func runStatus(stdout io.Writer, selected []string) error {
+// statusEntry is the per-resource envelope element for --status --json.
+type statusEntry struct {
+	Resource  string    `json:"resource"`
+	FetchedAt time.Time `json:"fetched_at,omitempty"`
+	TTL       string    `json:"ttl"`
+	Status    string    `json:"status"`
+}
+
+// refreshEntry is the per-resource envelope element for the refresh path.
+type refreshEntry struct {
+	Resource  string    `json:"resource"`
+	Count     int       `json:"count"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	Error     string    `json:"error,omitempty"`
+}
+
+func runStatus(stdout io.Writer, selected []string, jsonOut bool) error {
 	c, err := cache.New()
 	if err != nil {
 		return fmt.Errorf("initializing cache: %w", err)
 	}
 
-	_, _ = fmt.Fprintln(stdout, "RESOURCE | FETCHED_AT | AGE | TTL | STATUS")
-	now := time.Now().UTC()
+	var now time.Time
+	entries := make([]statusEntry, 0, len(selected))
 	for _, name := range selected {
-		switch name {
-		case "drives":
-			fetchedAt, ttl, status, err := c.DrivesStatus()
-			if err != nil {
-				return err
-			}
-			at := "-"
-			age := "-"
-			if !fetchedAt.IsZero() {
-				at = fetchedAt.UTC().Format(time.RFC3339)
-				age = clicache.Age(fetchedAt, now)
-			}
-			_, _ = fmt.Fprintf(stdout, "%s | %s | %s | %s | %s\n", name, at, age, ttl, status)
-		default:
-			return fmt.Errorf("unknown resource: %s", name)
+		// Only "drives" is in validResources today; cobra rejects anything else
+		// before RunE, so there is no need for an in-loop default case.
+		fetchedAt, ttl, status, statusNow, err := c.DrivesStatus()
+		if err != nil {
+			return err
+		}
+		now = statusNow
+		entries = append(entries, statusEntry{
+			Resource:  name,
+			FetchedAt: fetchedAt,
+			TTL:       ttl,
+			Status:    status.String(),
+		})
+	}
+
+	if jsonOut {
+		return writeJSON(stdout, map[string]any{"resources": entries})
+	}
+	if _, err := fmt.Fprintln(stdout, "RESOURCE | FETCHED_AT | AGE | TTL | STATUS"); err != nil {
+		return err
+	}
+	for _, e := range entries {
+		at := "-"
+		age := "-"
+		if !e.FetchedAt.IsZero() {
+			at = e.FetchedAt.UTC().Format(time.RFC3339)
+			age = clicache.Age(e.FetchedAt, now)
+		}
+		if _, err := fmt.Fprintf(stdout, "%s | %s | %s | %s | %s\n", e.Resource, at, age, e.TTL, e.Status); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func runRefresh(ctx context.Context, stdout io.Writer, selected []string, newClient ClientFactory) error {
+func runRefresh(ctx context.Context, stdout io.Writer, selected []string, jsonOut bool, newClient ClientFactory) error {
 	c, err := cache.New()
 	if err != nil {
 		return fmt.Errorf("initializing cache: %w", err)
@@ -128,26 +166,41 @@ func runRefresh(ctx context.Context, stdout io.Writer, selected []string, newCli
 		return err
 	}
 
-	var failures []string
+	entries := make([]refreshEntry, 0, len(selected))
+	var firstErr error
 	for _, name := range selected {
-		switch name {
-		case "drives":
-			count, err := refreshDrives(ctx, client, c)
-			if err != nil {
-				failures = append(failures, fmt.Sprintf("%s: %v", name, err))
+		count, err := refreshDrives(ctx, client, c)
+		entry := refreshEntry{Resource: name, Count: count, UpdatedAt: time.Now().UTC()}
+		if err != nil {
+			entry.Error = err.Error()
+			entry.UpdatedAt = time.Time{}
+			if firstErr == nil {
+				firstErr = fmt.Errorf("refreshing %s: %w", name, err)
+			}
+		}
+		entries = append(entries, entry)
+	}
+
+	if jsonOut {
+		if writeErr := writeJSON(stdout, map[string]any{"resources": entries}); writeErr != nil {
+			return writeErr
+		}
+	} else {
+		for _, e := range entries {
+			if e.Error != "" {
+				if _, err := fmt.Fprintf(stdout, "Refreshing %s failed: %s\n", e.Resource, e.Error); err != nil {
+					return err
+				}
 				continue
 			}
-			_, _ = fmt.Fprintf(stdout, "Refreshing %s... %d entries - cache updated at %s\n",
-				name, count, time.Now().UTC().Format(time.RFC3339))
-		default:
-			return fmt.Errorf("unknown resource: %s", name)
+			if _, err := fmt.Fprintf(stdout, "Refreshing %s... %d entries - cache updated at %s\n",
+				e.Resource, e.Count, e.UpdatedAt.Format(time.RFC3339)); err != nil {
+				return err
+			}
 		}
 	}
 
-	if len(failures) > 0 {
-		return errors.New(joinFailures(failures))
-	}
-	return nil
+	return firstErr
 }
 
 func refreshDrives(ctx context.Context, client DriveLister, c *cache.Cache) (int, error) {
@@ -165,13 +218,8 @@ func refreshDrives(ctx context.Context, client DriveLister, c *cache.Cache) (int
 	return len(drives), nil
 }
 
-func joinFailures(failures []string) string {
-	if len(failures) == 1 {
-		return "refresh failed - " + failures[0]
-	}
-	out := fmt.Sprintf("refresh failed (%d resources):", len(failures))
-	for _, f := range failures {
-		out += "\n  - " + f
-	}
-	return out
+func writeJSON(w io.Writer, v any) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }

@@ -138,9 +138,10 @@ func TestCache_DrivesStatus(t *testing.T) {
 		testutil.NoError(t, err)
 		defer c.Clear()
 
-		fetchedAt, ttl, status, err := c.DrivesStatus()
+		fetchedAt, ttl, status, now, err := c.DrivesStatus()
 		testutil.NoError(t, err)
 		testutil.True(t, fetchedAt.IsZero())
+		testutil.True(t, !now.IsZero())
 		testutil.Equal(t, ttl, drivesTTL)
 		testutil.Equal(t, status.String(), "uninitialized")
 	})
@@ -154,9 +155,25 @@ func TestCache_DrivesStatus(t *testing.T) {
 		testutil.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
 		testutil.NoError(t, os.WriteFile(path, []byte("not valid json"), 0o600))
 
-		_, _, status, err := c.DrivesStatus()
+		_, _, status, _, err := c.DrivesStatus()
 		testutil.NoError(t, err)
 		testutil.Equal(t, status.String(), "uninitialized")
+	})
+
+	t.Run("propagates generic I/O errors (envelope not a regular file)", func(t *testing.T) {
+		c, err := New()
+		testutil.NoError(t, err)
+		defer c.Clear()
+
+		// Make the envelope path a directory; cli-common/cache's reader will
+		// fail with a non-syntax I/O error that must propagate from DrivesStatus.
+		path := filepath.Join(c.loc.Root, c.loc.InstanceKey, drivesResource+".json")
+		testutil.NoError(t, os.MkdirAll(path, 0o700))
+
+		_, _, _, _, err = c.DrivesStatus()
+		if err == nil {
+			t.Fatal("expected I/O error to propagate, got nil")
+		}
 	})
 
 	t.Run("fresh after SetDrives", func(t *testing.T) {
@@ -166,7 +183,7 @@ func TestCache_DrivesStatus(t *testing.T) {
 
 		testutil.NoError(t, c.SetDrives([]*CachedDrive{{ID: "d1", Name: "X"}}))
 
-		fetchedAt, ttl, status, err := c.DrivesStatus()
+		fetchedAt, ttl, status, _, err := c.DrivesStatus()
 		testutil.NoError(t, err)
 		testutil.True(t, !fetchedAt.IsZero())
 		testutil.Equal(t, ttl, drivesTTL)

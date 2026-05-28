@@ -159,24 +159,28 @@ func (c *Cache) SetDrives(drives []*CachedDrive) error {
 }
 
 // DrivesStatus reports the freshness of the cached drives entry without
-// fetching from the API. Returns (fetchedAt, ttl, status). A missing or
-// corrupt envelope returns (time.Time{}, drivesTTL, StatusUninitialized);
-// I/O errors propagate. The TTL string is the hard-coded §4.4 value so the
+// fetching from the API. Returns (fetchedAt, ttl, status, now). A missing
+// or corrupt envelope returns (time.Time{}, drivesTTL, StatusUninitialized,
+// now); I/O errors propagate (in which case `status` is meaningless — callers
+// MUST check err first). The TTL string is the hard-coded §4.4 value so the
 // `refresh --status` table can render it without callers re-deriving it.
-func (c *Cache) DrivesStatus() (time.Time, string, clicache.Status, error) {
+// `now` is the clock used for classification so callers can derive an Age
+// column from the same instant — this matters in tests that swap nowFn.
+func (c *Cache) DrivesStatus() (time.Time, string, clicache.Status, time.Time, error) {
+	now := nowFn()
 	env, err := clicache.ReadResource[[]*CachedDrive](c.loc, drivesResource)
 	switch {
 	case errors.Is(err, clicache.ErrCacheMiss):
-		return time.Time{}, drivesTTL, clicache.StatusUninitialized, nil
+		return time.Time{}, drivesTTL, clicache.StatusUninitialized, now, nil
 	case err != nil:
 		var syn *json.SyntaxError
 		var ute *json.UnmarshalTypeError
 		if errors.As(err, &syn) || errors.As(err, &ute) {
-			return time.Time{}, drivesTTL, clicache.StatusUninitialized, nil
+			return time.Time{}, drivesTTL, clicache.StatusUninitialized, now, nil
 		}
-		return time.Time{}, drivesTTL, clicache.StatusUninitialized, fmt.Errorf("reading drives cache: %w", err)
+		return time.Time{}, drivesTTL, clicache.StatusUninitialized, now, fmt.Errorf("reading drives cache: %w", err)
 	}
-	return env.FetchedAt, drivesTTL, clicache.Classify(env.FetchedAt, env.TTL, nowFn()), nil
+	return env.FetchedAt, drivesTTL, clicache.Classify(env.FetchedAt, env.TTL, now), now, nil
 }
 
 // Clear removes all cached data for this instance. Scoped to
@@ -192,13 +196,20 @@ func (c *Cache) GetDir() string {
 	return c.loc.Root
 }
 
-// nowFn is a testing seam for cache classification.
+// nowFn is the clock used for cache freshness classification. The
+// SwapClockForTest seam (consumed only by internal/cache/cachetest) is the
+// supported cross-package override; in-package tests can mutate nowFn
+// directly.
 var nowFn = func() time.Time { return time.Now() }
 
-// NowFnForTest returns the current nowFn for cross-package test setup
-// (refreshcmd's stale-status test). Production code never uses it.
-func NowFnForTest() func() time.Time { return nowFn }
-
-// SetNowFnForTest swaps the clock used by cache classification. Cross-package
-// test seam only — call with the original to restore.
-func SetNowFnForTest(fn func() time.Time) { nowFn = fn }
+// SwapClockForTest swaps the package-level clock used by Classify and
+// DrivesStatus. INTERNAL TEST SEAM — call only from *_test.go files; the
+// canonical entry point is internal/cache/cachetest.SwapClock so a
+// production caller cannot reach it without an explicit (unusual) import.
+// The function lives in production code because Go's export_test.go
+// mechanism does not span packages.
+func SwapClockForTest(fn func() time.Time) (restore func()) {
+	prev := nowFn
+	nowFn = fn
+	return func() { nowFn = prev }
+}
