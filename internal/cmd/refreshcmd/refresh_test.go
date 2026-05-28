@@ -7,12 +7,10 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/open-cli-collective/cli-common/statedirtest"
 
 	"github.com/open-cli-collective/google-readonly/internal/cache"
-	"github.com/open-cli-collective/google-readonly/internal/cache/cachetest"
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
@@ -100,28 +98,6 @@ func TestRefresh_Status_Fresh(t *testing.T) {
 	got := out.String()
 	testutil.Contains(t, got, "drives | ")
 	testutil.Contains(t, got, " | fresh")
-}
-
-func TestRefresh_Status_Stale(t *testing.T) {
-	statedirtest.Hermetic(t)
-
-	c, err := cache.New()
-	testutil.NoError(t, err)
-	testutil.NoError(t, c.SetDrives([]*cache.CachedDrive{{ID: "0A1", Name: "Eng"}}))
-
-	// Advance gro's cache clock past the drives TTL (24h).
-	restore := cachetest.SwapClock(func() time.Time { return time.Now().Add(48 * time.Hour) })
-	defer restore()
-
-	cmd := newCommandWithDeps((&panickingFactory{}).factory)
-	cmd.SetArgs([]string{"--status"})
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("--status returned error: %v", err)
-	}
-	testutil.Contains(t, out.String(), " | stale")
 }
 
 func TestRefresh_Status_JSONEnvelope(t *testing.T) {

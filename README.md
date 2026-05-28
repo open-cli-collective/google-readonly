@@ -1103,13 +1103,14 @@ Flags:
 
 Refresh gro's local cache. With no arguments, refreshes every cacheable
 resource (today: `drives`). With `--status`, reports freshness without
-fetching.
+fetching. With `--json`, emits a control-plane envelope.
 
 ```
 Usage: gro refresh [resources...] [flags]
 
 Flags:
-      --status   Print cache freshness; no network calls
+      --status     Print cache freshness; no network calls
+  -j, --json       Emit a JSON control-plane envelope
 ```
 
 ### gro drive star

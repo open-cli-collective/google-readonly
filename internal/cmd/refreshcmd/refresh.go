@@ -4,7 +4,6 @@ package refreshcmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/open-cli-collective/google-readonly/internal/cache"
 	"github.com/open-cli-collective/google-readonly/internal/drive"
+	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // validResources is the closed set of resource names the gro cache exposes
@@ -96,19 +96,21 @@ func run(ctx context.Context, stdout io.Writer, args []string, statusOnly, jsonO
 }
 
 // statusEntry is the per-resource envelope element for --status --json.
+// Pointer time fields so the zero value omits cleanly (omitempty does not
+// recognize the time.Time zero value).
 type statusEntry struct {
-	Resource  string    `json:"resource"`
-	FetchedAt time.Time `json:"fetched_at,omitempty"`
-	TTL       string    `json:"ttl"`
-	Status    string    `json:"status"`
+	Resource  string     `json:"resource"`
+	FetchedAt *time.Time `json:"fetched_at,omitempty"`
+	TTL       string     `json:"ttl"`
+	Status    string     `json:"status"`
 }
 
 // refreshEntry is the per-resource envelope element for the refresh path.
 type refreshEntry struct {
-	Resource  string    `json:"resource"`
-	Count     int       `json:"count"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	Error     string    `json:"error,omitempty"`
+	Resource  string     `json:"resource"`
+	Count     int        `json:"count"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	Error     string     `json:"error,omitempty"`
 }
 
 func runStatus(stdout io.Writer, selected []string, jsonOut bool) error {
@@ -127,16 +129,16 @@ func runStatus(stdout io.Writer, selected []string, jsonOut bool) error {
 			return err
 		}
 		now = statusNow
-		entries = append(entries, statusEntry{
-			Resource:  name,
-			FetchedAt: fetchedAt,
-			TTL:       ttl,
-			Status:    status.String(),
-		})
+		entry := statusEntry{Resource: name, TTL: ttl, Status: status.String()}
+		if !fetchedAt.IsZero() {
+			at := fetchedAt.UTC()
+			entry.FetchedAt = &at
+		}
+		entries = append(entries, entry)
 	}
 
 	if jsonOut {
-		return writeJSON(stdout, map[string]any{"resources": entries})
+		return output.JSON(stdout, map[string]any{"resources": entries})
 	}
 	if _, err := fmt.Fprintln(stdout, "RESOURCE | FETCHED_AT | AGE | TTL | STATUS"); err != nil {
 		return err
@@ -144,9 +146,9 @@ func runStatus(stdout io.Writer, selected []string, jsonOut bool) error {
 	for _, e := range entries {
 		at := "-"
 		age := "-"
-		if !e.FetchedAt.IsZero() {
-			at = e.FetchedAt.UTC().Format(time.RFC3339)
-			age = clicache.Age(e.FetchedAt, now)
+		if e.FetchedAt != nil {
+			at = e.FetchedAt.Format(time.RFC3339)
+			age = clicache.Age(*e.FetchedAt, now)
 		}
 		if _, err := fmt.Fprintf(stdout, "%s | %s | %s | %s | %s\n", e.Resource, at, age, e.TTL, e.Status); err != nil {
 			return err
@@ -170,19 +172,21 @@ func runRefresh(ctx context.Context, stdout io.Writer, selected []string, jsonOu
 	var firstErr error
 	for _, name := range selected {
 		count, err := refreshDrives(ctx, client, c)
-		entry := refreshEntry{Resource: name, Count: count, UpdatedAt: time.Now().UTC()}
+		entry := refreshEntry{Resource: name, Count: count}
 		if err != nil {
 			entry.Error = err.Error()
-			entry.UpdatedAt = time.Time{}
 			if firstErr == nil {
 				firstErr = fmt.Errorf("refreshing %s: %w", name, err)
 			}
+		} else {
+			at := time.Now().UTC()
+			entry.UpdatedAt = &at
 		}
 		entries = append(entries, entry)
 	}
 
 	if jsonOut {
-		if writeErr := writeJSON(stdout, map[string]any{"resources": entries}); writeErr != nil {
+		if writeErr := output.JSON(stdout, map[string]any{"resources": entries}); writeErr != nil {
 			return writeErr
 		}
 	} else {
@@ -216,10 +220,4 @@ func refreshDrives(ctx context.Context, client DriveLister, c *cache.Cache) (int
 		return 0, err
 	}
 	return len(drives), nil
-}
-
-func writeJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
 }

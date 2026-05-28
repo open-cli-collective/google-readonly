@@ -196,20 +196,6 @@ func (c *Cache) GetDir() string {
 	return c.loc.Root
 }
 
-// nowFn is the clock used for cache freshness classification. The
-// SwapClockForTest seam (consumed only by internal/cache/cachetest) is the
-// supported cross-package override; in-package tests can mutate nowFn
-// directly.
+// nowFn is the clock used for cache freshness classification; mutated in
+// in-package tests only.
 var nowFn = func() time.Time { return time.Now() }
-
-// SwapClockForTest swaps the package-level clock used by Classify and
-// DrivesStatus. INTERNAL TEST SEAM — call only from *_test.go files; the
-// canonical entry point is internal/cache/cachetest.SwapClock so a
-// production caller cannot reach it without an explicit (unusual) import.
-// The function lives in production code because Go's export_test.go
-// mechanism does not span packages.
-func SwapClockForTest(fn func() time.Time) (restore func()) {
-	prev := nowFn
-	nowFn = fn
-	return func() { nowFn = prev }
-}
