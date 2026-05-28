@@ -118,3 +118,15 @@ func TestErrorUnderAsciiProfileEmitsNoANSI(t *testing.T) {
 		t.Fatalf("expected no ANSI escape under ascii profile, got %q", errw.String())
 	}
 }
+
+func TestInfoUnderAsciiProfileEmitsNoANSI(t *testing.T) {
+	withRenderer(t, termenv.Ascii)
+
+	var out, errw bytes.Buffer
+	v := NewWithWriters(&out, &errw)
+	v.Info("hint")
+
+	if strings.Contains(out.String(), "\x1b[") {
+		t.Fatalf("expected no ANSI escape under ascii profile, got %q", out.String())
+	}
+}
