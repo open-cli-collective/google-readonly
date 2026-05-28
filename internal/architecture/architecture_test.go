@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -248,6 +249,31 @@ func TestResourceLeavesHaveNoJSONFlag(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestResourceLeaf_RejectsJSON_EndToEnd is the end-to-end complement to
+// TestResourceLeavesHaveNoJSONFlag — instead of inspecting the flag set
+// statically, it dispatches one representative resource leaf with --json
+// through cobra and asserts the user-visible "unknown flag" error.
+// The static guard catches missing flag declarations; this one catches a
+// hypothetical regression where the flag is declared but the structural
+// test's domain set was bypassed.
+func TestResourceLeaf_RejectsJSON_EndToEnd(t *testing.T) {
+	t.Parallel()
+	cmd := drivecmd.NewCommand()
+	cmd.SetArgs([]string{"drives", "--json"})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("gro drive drives --json should error, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected 'unknown flag' error, got: %v", err)
 	}
 }
 
