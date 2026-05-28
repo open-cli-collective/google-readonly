@@ -116,9 +116,11 @@ func TestSetCredentialNeverLeaks(t *testing.T) {
 	assertNoLeak(t, "set-credential --stdin [stderr]", []byte(se))
 }
 
-// TestMeNeverLeaks covers the §445 smoke command across text + --json +
-// --extended (which reads token expiry from the keyring via gatherExtras),
-// on both output channels. me's People client is mocked (no network).
+// TestMeNeverLeaks covers the §445 smoke command across text + --extended
+// (which reads token expiry from the keyring via gatherExtras), on both
+// output channels. me's People client is mocked (no network). #144 removed
+// the --json variants from gro me — the surviving JSON surface is
+// `config show --json`, covered above.
 func TestMeNeverLeaks(t *testing.T) {
 	seed(t)
 	orig := mecmd.ClientFactory
@@ -127,7 +129,7 @@ func TestMeNeverLeaks(t *testing.T) {
 	}
 	t.Cleanup(func() { mecmd.ClientFactory = orig })
 
-	for _, args := range [][]string{{}, {"--json"}, {"--extended"}, {"--extended", "--json"}} {
+	for _, args := range [][]string{{}, {"--extended"}} {
 		cmd := mecmd.NewCommand()
 		cmd.SetArgs(args)
 		so, se := captureBoth(t, func() { _ = cmd.Execute() })

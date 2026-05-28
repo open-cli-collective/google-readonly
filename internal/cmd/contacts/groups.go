@@ -11,7 +11,6 @@ import (
 func newGroupsCommand() *cobra.Command {
 	var (
 		maxResults int64
-		jsonOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -23,8 +22,7 @@ Contact groups include both user-created labels and system groups.
 
 Examples:
   gro contacts groups
-  gro contacts groups --max 50
-  gro ppl groups --json`,
+  gro contacts groups --max 50`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			client, err := newContactsClient(cmd.Context())
@@ -38,22 +36,13 @@ Examples:
 			}
 
 			if len(resp.ContactGroups) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				fmt.Println("No contact groups found.")
 				return nil
 			}
 
-			// Convert to our format
 			parsedGroups := make([]*contacts.ContactGroup, len(resp.ContactGroups))
 			for i, g := range resp.ContactGroups {
 				parsedGroups[i] = contacts.ParseContactGroup(g)
-			}
-
-			if jsonOutput {
-				return printJSON(parsedGroups)
 			}
 
 			fmt.Printf("Found %d contact group(s):\n\n", len(resp.ContactGroups))
@@ -66,7 +55,6 @@ Examples:
 	}
 
 	cmd.Flags().Int64VarP(&maxResults, "max", "m", 30, "Maximum number of groups to return")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
 }

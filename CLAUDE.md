@@ -40,7 +40,7 @@ make install        # Install to /usr/local/bin
 - **Non-destructive by design**: Only allowlisted scopes in `auth.AllScopes`. No destructive API methods (send, delete, trash). Non-destructive modify operations (label, archive, star) are permitted.
 - **Interface-at-consumer**: Each `internal/cmd/{domain}/output.go` defines its client interface.
 - **ClientFactory DI**: Swappable factory for test mock injection.
-- **--json on all leaf commands**: Every leaf subcommand supports `--json/-j`.
+- **Text-only resource leaves (#144)**: Resource-surface leaf commands (under `mail`, `calendar`, `contacts`, `drive`, `me`) emit text only — they must NOT declare `--json/-j`. JSON is reserved for control-plane envelopes outside the domain resource packages: `gro refresh --json` (§4.6) and `gro config show --json` (diagnostic).
 - **Structural enforcement**: `internal/architecture/architecture_test.go` enforces all patterns at CI time.
 
 See `docs/golden-principles.md` for the full set of enforced rules.

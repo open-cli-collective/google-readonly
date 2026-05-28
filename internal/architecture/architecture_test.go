@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,14 +25,6 @@ var domainPackages = []string{"mail", "calendar", "contacts", "drive", "me"}
 
 // apiClientPackages lists the internal API client package directory names.
 var apiClientPackages = []string{"gmail", "calendar", "contacts", "drive", "people"}
-
-// jsonExemptCommands lists leaf commands exempt from the --json flag requirement.
-// Key format: "parent subcommand" (e.g., "mail attachments download").
-// Only add exemptions for commands that output binary file data where JSON is inapplicable.
-var jsonExemptCommands = map[string]bool{
-	"mail attachments download": true, // writes binary attachment files to disk
-	"drive download":            true, // writes binary file data to disk
-}
 
 // domainCommands returns the top-level cobra.Command for each domain package.
 func domainCommands() map[string]*cobra.Command {
@@ -236,9 +229,14 @@ func TestDomainPackagesExportNewCommand(t *testing.T) {
 	}
 }
 
-// TestAllLeafCommandsHaveJSONFlag verifies that every leaf subcommand
-// (commands with no children) declares a --json/-j flag.
-func TestAllLeafCommandsHaveJSONFlag(t *testing.T) {
+// TestResourceLeavesHaveNoJSONFlag verifies the §2 closed-set policy
+// from cli-common/docs/output-and-rendering.md: resource-surface leaf
+// commands (every leaf under mail/calendar/contacts/drive/me) emit text
+// output only. JSON is reserved for control-plane envelopes — today
+// that's `gro refresh --json` and `gro config show --json`, neither of
+// which is in domainCommands() so neither is touched by this walk.
+// Inverted from the pre-#144 TestAllLeafCommandsHaveJSONFlag invariant.
+func TestResourceLeavesHaveNoJSONFlag(t *testing.T) {
 	t.Parallel()
 
 	for name, cmd := range domainCommands() {
@@ -246,19 +244,36 @@ func TestAllLeafCommandsHaveJSONFlag(t *testing.T) {
 			t.Run(strings.TrimSpace(leaf.path), func(t *testing.T) {
 				t.Parallel()
 				key := strings.TrimSpace(leaf.path)
-				if jsonExemptCommands[key] {
-					t.Skipf("exempt from --json requirement")
-				}
-				flag := leaf.cmd.Flags().Lookup("json")
-				if flag == nil {
-					t.Errorf("leaf command %q must have a --json flag (see docs/golden-principles.md)", key)
-					return
-				}
-				if flag.Shorthand != "j" {
-					t.Errorf("leaf command %q --json flag must have shorthand 'j', got %q", key, flag.Shorthand)
+				if flag := leaf.cmd.Flags().Lookup("json"); flag != nil {
+					t.Errorf("resource-surface leaf %q must NOT declare --json (see docs/golden-principles.md §4 + cli-common output-and-rendering §2)", key)
 				}
 			})
 		}
+	}
+}
+
+// TestResourceLeaf_RejectsJSON_EndToEnd is a spot-check complement to the
+// structural walk in TestResourceLeavesHaveNoJSONFlag. It dispatches one
+// representative resource leaf with --json through cobra and asserts the
+// user-visible "unknown flag" error so the end-to-end contract is exercised,
+// not just the static flag set. Closing the closed-set bypass (a new domain
+// added outside domainPackages) still requires updating that list — neither
+// test compensates for that.
+func TestResourceLeaf_RejectsJSON_EndToEnd(t *testing.T) {
+	t.Parallel()
+	cmd := drivecmd.NewCommand()
+	cmd.SetArgs([]string{"drives", "--json"})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("gro drive drives --json should error, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected 'unknown flag' error, got: %v", err)
 	}
 }
 

@@ -27,13 +27,6 @@ func TestDrivesCommand(t *testing.T) {
 		testutil.Error(t, err)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-		testutil.Equal(t, flag.DefValue, "false")
-	})
-
 	t.Run("has refresh flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("refresh")
 		testutil.NotNil(t, flag)

@@ -2,7 +2,6 @@ package mail
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,11 +19,15 @@ func TestDraftCommand_FlagsPresent(t *testing.T) {
 	for _, name := range []string{
 		"to", "cc", "bcc", "from", "subject",
 		"body", "stdin", "file", "plain", "html",
-		"attach", "json", "no-quote",
+		"attach", "no-quote",
 	} {
 		if cmd.Flags().Lookup(name) == nil {
 			t.Errorf("flag %q missing", name)
 		}
+	}
+	// #144: --json removed from resource-surface leaves.
+	if cmd.Flags().Lookup("json") != nil {
+		t.Errorf("draft must NOT declare --json after #144")
 	}
 }
 
@@ -345,29 +348,6 @@ func TestDraftCommand_AttachmentMissingFile(t *testing.T) {
 		// attachment loading is the actual failure point.
 		testutil.Contains(t, err.Error(), "reading attachment")
 		testutil.Contains(t, err.Error(), "/nope/does/not/exist.pdf")
-	})
-}
-
-func TestDraftCommand_JSONOutput(t *testing.T) {
-	mock := &MockGmailClient{
-		CreateDraftFunc: func(_ context.Context, _ gmailapi.DraftMessage) (*gmailapi.DraftResult, error) {
-			return &gmailapi.DraftResult{ID: "d1", MessageID: "m1", ThreadID: "t1"}, nil
-		},
-	}
-	cmd := newDraftCommand()
-	cmd.SetArgs([]string{"--to", "a@x.com", "--subject", "Hi", "--body", "x", "--json"})
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-		var result gmailapi.DraftResult
-		if err := json.Unmarshal([]byte(output), &result); err != nil {
-			t.Fatalf("unmarshal: %v\noutput=%q", err, output)
-		}
-		testutil.Equal(t, result.ID, "d1")
-		testutil.Equal(t, result.MessageID, "m1")
-		testutil.Equal(t, result.ThreadID, "t1")
 	})
 }
 

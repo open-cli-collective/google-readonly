@@ -21,9 +21,6 @@ func TestLabelCommand(t *testing.T) {
 		testutil.NoError(t, err)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		testutil.NotNil(t, cmd.Flags().Lookup("json"))
-	})
 }
 
 func TestLabelCommand_Success(t *testing.T) {

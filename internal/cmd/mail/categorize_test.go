@@ -15,9 +15,6 @@ func TestCategorizeCommand(t *testing.T) {
 		testutil.Error(t, err)
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		testutil.NotNil(t, cmd.Flags().Lookup("json"))
-	})
 }
 
 func TestCategorizeCommand_Success(t *testing.T) {

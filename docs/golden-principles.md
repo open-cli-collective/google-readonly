@@ -26,11 +26,13 @@ Parent commands export `NewCommand()` returning `*cobra.Command`. Subcommands us
 
 **Enforced by:** `TestDomainPackagesExportNewCommand`
 
-## 4. --json on every leaf command
+## 4. Text-only resource leaves (no per-command `--json`)
 
-All leaf subcommands (commands with no children) support `--json/-j` for machine-readable output. Download commands that output binary file data are exempt.
+Per cli-common `docs/output-and-rendering.md` §2, resource-surface leaf commands (every leaf under `mail`, `calendar`, `contacts`, `drive`, `me`) emit text output only. JSON is reserved for control-plane envelopes — today that's `gro refresh --json` (§4.6) and `gro config show --json` (diagnostic). Inverted from the pre-#144 "every leaf must have `--json`" rule.
 
-**Enforced by:** `TestAllLeafCommandsHaveJSONFlag`
+**Control-plane carve-out criteria.** A command qualifies as a carve-out only if it (a) lives outside the domain resource packages (`internal/cmd/{mail,calendar,contacts,drive,me}`), AND (b) emits a control-plane envelope (write confirmation, cache freshness) or diagnostic introspection of CLI state — not a Google API resource. New JSON surfaces should be argued against these criteria before being added.
+
+**Enforced by:** `TestResourceLeavesHaveNoJSONFlag`
 
 ## 5. Non-destructive only
 

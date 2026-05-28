@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/open-cli-collective/google-readonly/internal/keychain"
-	"github.com/open-cli-collective/google-readonly/internal/output"
 	"github.com/open-cli-collective/google-readonly/internal/people"
 )
 
@@ -26,26 +25,6 @@ type Extras struct {
 	GrantedScopes  []string
 	TokenExpiry    string
 	StorageBackend string
-}
-
-// jsonOneLiner is the shape emitted for `gro me --json`.
-type jsonOneLiner struct {
-	ResourceName string `json:"resourceName"`
-	DisplayName  string `json:"displayName"`
-	PrimaryEmail string `json:"primaryEmail"`
-}
-
-// jsonExtended is the shape emitted for `gro me --extended --json`.
-type jsonExtended struct {
-	jsonOneLiner
-	GrantedScopes  []string `json:"grantedScopes,omitempty"`
-	TokenExpiry    string   `json:"tokenExpiry,omitempty"`
-	StorageBackend string   `json:"storageBackend,omitempty"`
-}
-
-// jsonIDOnly is the shape emitted for `gro me --id --json`.
-type jsonIDOnly struct {
-	PrimaryEmail string `json:"primaryEmail"`
 }
 
 // RenderOneLiner writes the canonical `resourceName | displayName | primaryEmail`
@@ -80,37 +59,6 @@ func RenderExtended(w io.Writer, p *people.Profile, e Extras) {
 func RenderID(w io.Writer, p *people.Profile) {
 	em := normalizeField(p.PrimaryEmail)
 	_, _ = fmt.Fprintln(w, em)
-}
-
-// RenderJSON emits one of three JSON shapes depending on (idOnly, extended).
-// It routes through output.JSON so the §1.8 one-time-migration block is
-// spliced in on the first post-migration `gro me --json` (`gro me` is the
-// §445 installer smoke command, so its JSON must carry _migration).
-func RenderJSON(w io.Writer, p *people.Profile, e Extras, idOnly, extended bool) error {
-	switch {
-	case idOnly:
-		// JSON paths consistently emit raw values (empty strings remain
-		// empty), unlike text rendering which uses "-". This keeps
-		// `gro me --json` shapes machine-friendly across all flag combos.
-		return output.JSON(w, jsonIDOnly{PrimaryEmail: p.PrimaryEmail})
-	case extended:
-		return output.JSON(w, jsonExtended{
-			jsonOneLiner: jsonOneLiner{
-				ResourceName: p.ResourceName,
-				DisplayName:  p.DisplayName,
-				PrimaryEmail: p.PrimaryEmail,
-			},
-			GrantedScopes:  e.GrantedScopes,
-			TokenExpiry:    e.TokenExpiry,
-			StorageBackend: e.StorageBackend,
-		})
-	default:
-		return output.JSON(w, jsonOneLiner{
-			ResourceName: p.ResourceName,
-			DisplayName:  p.DisplayName,
-			PrimaryEmail: p.PrimaryEmail,
-		})
-	}
 }
 
 func normalizeField(s string) string {

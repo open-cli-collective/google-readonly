@@ -2,7 +2,6 @@ package mail
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -51,31 +50,6 @@ func TestSearchCommand_Success(t *testing.T) {
 	})
 }
 
-func TestSearchCommand_JSONOutput(t *testing.T) {
-	mock := &MockGmailClient{
-		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
-			return testutil.SampleMessages(1), 0, nil
-		},
-	}
-
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"is:unread", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		// Verify JSON output is valid
-		var messages []*gmailapi.Message
-		err := json.Unmarshal([]byte(output), &messages)
-		testutil.NoError(t, err)
-		testutil.Len(t, messages, 1)
-		testutil.Equal(t, messages[0].ID, "msg_a")
-	})
-}
-
 func TestSearchCommand_NoResults(t *testing.T) {
 	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
@@ -93,29 +67,6 @@ func TestSearchCommand_NoResults(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No messages found")
-	})
-}
-
-func TestSearchCommand_NoResults_JSON(t *testing.T) {
-	mock := &MockGmailClient{
-		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
-			return []*gmailapi.Message{}, 0, nil
-		},
-	}
-
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"nonexistent", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var messages []any
-		err := json.Unmarshal([]byte(output), &messages)
-		testutil.NoError(t, err)
-		testutil.Len(t, messages, 0)
 	})
 }
 
@@ -170,17 +121,6 @@ func TestSearchCommand_IDsOutput(t *testing.T) {
 	})
 }
 
-func TestSearchCommand_IDsAndJSONMutuallyExclusive(t *testing.T) {
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"is:inbox", "--ids", "--json"})
-
-	withMockClient(&MockGmailClient{}, func() {
-		err := cmd.Execute()
-		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "mutually exclusive")
-	})
-}
-
 func TestSearchCommand_SkippedMessages(t *testing.T) {
 	mock := &MockGmailClient{
 		SearchMessagesFunc: func(_ context.Context, _ string, _ int64) ([]*gmailapi.Message, int, error) {
@@ -225,29 +165,6 @@ func TestReadCommand_Success(t *testing.T) {
 	})
 }
 
-func TestReadCommand_JSONOutput(t *testing.T) {
-	mock := &MockGmailClient{
-		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
-			return testutil.SampleMessage("msg123"), nil
-		},
-	}
-
-	cmd := newReadCommand()
-	cmd.SetArgs([]string{"msg123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var msg gmailapi.Message
-		err := json.Unmarshal([]byte(output), &msg)
-		testutil.NoError(t, err)
-		testutil.Equal(t, msg.ID, "msg123")
-	})
-}
-
 func TestReadCommand_NotFound(t *testing.T) {
 	mock := &MockGmailClient{
 		GetMessageFunc: func(_ context.Context, _ string, _ bool) (*gmailapi.Message, error) {
@@ -289,29 +206,6 @@ func TestThreadCommand_Success(t *testing.T) {
 	})
 }
 
-func TestThreadCommand_JSONOutput(t *testing.T) {
-	mock := &MockGmailClient{
-		GetThreadFunc: func(_ context.Context, _ string) ([]*gmailapi.Message, error) {
-			return testutil.SampleMessages(2), nil
-		},
-	}
-
-	cmd := newThreadCommand()
-	cmd.SetArgs([]string{"thread123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var messages []*gmailapi.Message
-		err := json.Unmarshal([]byte(output), &messages)
-		testutil.NoError(t, err)
-		testutil.Len(t, messages, 2)
-	})
-}
-
 func TestLabelsCommand_Success(t *testing.T) {
 	mock := &MockGmailClient{
 		FetchLabelsFunc: func(_ context.Context) error {
@@ -337,55 +231,6 @@ func TestLabelsCommand_Success(t *testing.T) {
 	})
 }
 
-func TestLabelsCommand_JSONOutput(t *testing.T) {
-	mock := &MockGmailClient{
-		FetchLabelsFunc: func(_ context.Context) error {
-			return nil
-		},
-		GetLabelsFunc: func() []*gmail.Label {
-			return testutil.SampleLabels()
-		},
-	}
-
-	cmd := newLabelsCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var labels []Label
-		err := json.Unmarshal([]byte(output), &labels)
-		testutil.NoError(t, err)
-		testutil.Greater(t, len(labels), 0)
-	})
-}
-
-func TestThreadCommand_NoResults_JSON(t *testing.T) {
-	mock := &MockGmailClient{
-		GetThreadFunc: func(_ context.Context, _ string) ([]*gmailapi.Message, error) {
-			return []*gmailapi.Message{}, nil
-		},
-	}
-
-	cmd := newThreadCommand()
-	cmd.SetArgs([]string{"thread123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var messages []any
-		err := json.Unmarshal([]byte(output), &messages)
-		testutil.NoError(t, err)
-		testutil.Len(t, messages, 0)
-	})
-}
-
 func TestLabelsCommand_Empty(t *testing.T) {
 	mock := &MockGmailClient{
 		FetchLabelsFunc: func(_ context.Context) error {
@@ -405,32 +250,6 @@ func TestLabelsCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No labels found")
-	})
-}
-
-func TestLabelsCommand_Empty_JSON(t *testing.T) {
-	mock := &MockGmailClient{
-		FetchLabelsFunc: func(_ context.Context) error {
-			return nil
-		},
-		GetLabelsFunc: func() []*gmail.Label {
-			return []*gmail.Label{}
-		},
-	}
-
-	cmd := newLabelsCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var labels []any
-		err := json.Unmarshal([]byte(output), &labels)
-		testutil.NoError(t, err)
-		testutil.Len(t, labels, 0)
 	})
 }
 
@@ -476,28 +295,5 @@ func TestListAttachmentsCommand_NoAttachments(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No attachments found")
-	})
-}
-
-func TestListAttachmentsCommand_NoAttachments_JSON(t *testing.T) {
-	mock := &MockGmailClient{
-		GetAttachmentsFunc: func(_ context.Context, _ string) ([]*gmailapi.Attachment, error) {
-			return []*gmailapi.Attachment{}, nil
-		},
-	}
-
-	cmd := newListAttachmentsCommand()
-	cmd.SetArgs([]string{"msg123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var attachments []any
-		err := json.Unmarshal([]byte(output), &attachments)
-		testutil.NoError(t, err)
-		testutil.Len(t, attachments, 0)
 	})
 }

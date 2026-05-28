@@ -2,13 +2,11 @@ package contacts
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"google.golang.org/api/people/v1"
 
-	contactsapi "github.com/open-cli-collective/google-readonly/internal/contacts"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
@@ -52,33 +50,6 @@ func TestListCommand_Success(t *testing.T) {
 	})
 }
 
-func TestListCommand_JSONOutput(t *testing.T) {
-	mock := &MockContactsClient{
-		ListContactsFunc: func(_ context.Context, _ string, _ int64) (*people.ListConnectionsResponse, error) {
-			return &people.ListConnectionsResponse{
-				Connections: []*people.Person{
-					testutil.SamplePerson("people/c123"),
-				},
-			}, nil
-		},
-	}
-
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var contacts []*contactsapi.Contact
-		err := json.Unmarshal([]byte(output), &contacts)
-		testutil.NoError(t, err)
-		testutil.Len(t, contacts, 1)
-	})
-}
-
 func TestListCommand_Empty(t *testing.T) {
 	mock := &MockContactsClient{
 		ListContactsFunc: func(_ context.Context, _ string, _ int64) (*people.ListConnectionsResponse, error) {
@@ -97,31 +68,6 @@ func TestListCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No contacts found")
-	})
-}
-
-func TestListCommand_Empty_JSON(t *testing.T) {
-	mock := &MockContactsClient{
-		ListContactsFunc: func(_ context.Context, _ string, _ int64) (*people.ListConnectionsResponse, error) {
-			return &people.ListConnectionsResponse{
-				Connections: []*people.Person{},
-			}, nil
-		},
-	}
-
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var contacts []any
-		err := json.Unmarshal([]byte(output), &contacts)
-		testutil.NoError(t, err)
-		testutil.Len(t, contacts, 0)
 	})
 }
 
@@ -177,33 +123,6 @@ func TestSearchCommand_Success(t *testing.T) {
 	})
 }
 
-func TestSearchCommand_JSONOutput(t *testing.T) {
-	mock := &MockContactsClient{
-		SearchContactsFunc: func(_ context.Context, _ string, _ int64) (*people.SearchResponse, error) {
-			return &people.SearchResponse{
-				Results: []*people.SearchResult{
-					{Person: testutil.SamplePerson("people/c123")},
-				},
-			}, nil
-		},
-	}
-
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"John", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var contacts []*contactsapi.Contact
-		err := json.Unmarshal([]byte(output), &contacts)
-		testutil.NoError(t, err)
-		testutil.Len(t, contacts, 1)
-	})
-}
-
 func TestSearchCommand_NoResults(t *testing.T) {
 	mock := &MockContactsClient{
 		SearchContactsFunc: func(_ context.Context, _ string, _ int64) (*people.SearchResponse, error) {
@@ -223,31 +142,6 @@ func TestSearchCommand_NoResults(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No contacts found")
-	})
-}
-
-func TestSearchCommand_NoResults_JSON(t *testing.T) {
-	mock := &MockContactsClient{
-		SearchContactsFunc: func(_ context.Context, _ string, _ int64) (*people.SearchResponse, error) {
-			return &people.SearchResponse{
-				Results: []*people.SearchResult{},
-			}, nil
-		},
-	}
-
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"nonexistent", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var contacts []any
-		err := json.Unmarshal([]byte(output), &contacts)
-		testutil.NoError(t, err)
-		testutil.Len(t, contacts, 0)
 	})
 }
 
@@ -288,29 +182,6 @@ func TestGetCommand_Success(t *testing.T) {
 		testutil.Contains(t, output, "people/c123")
 		testutil.Contains(t, output, "John Doe")
 		testutil.Contains(t, output, "john@example.com")
-	})
-}
-
-func TestGetCommand_JSONOutput(t *testing.T) {
-	mock := &MockContactsClient{
-		GetContactFunc: func(_ context.Context, _ string) (*people.Person, error) {
-			return testutil.SamplePerson("people/c123"), nil
-		},
-	}
-
-	cmd := newGetCommand()
-	cmd.SetArgs([]string{"people/c123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var contact contactsapi.Contact
-		err := json.Unmarshal([]byte(output), &contact)
-		testutil.NoError(t, err)
-		testutil.Equal(t, contact.ResourceName, "people/c123")
 	})
 }
 
@@ -367,39 +238,6 @@ func TestGroupsCommand_Success(t *testing.T) {
 	})
 }
 
-func TestGroupsCommand_JSONOutput(t *testing.T) {
-	mock := &MockContactsClient{
-		ListContactGroupsFunc: func(_ context.Context, _ string, _ int64) (*people.ListContactGroupsResponse, error) {
-			return &people.ListContactGroupsResponse{
-				ContactGroups: []*people.ContactGroup{
-					{
-						ResourceName: "contactGroups/123",
-						Name:         "Friends",
-						GroupType:    "USER_CONTACT_GROUP",
-						MemberCount:  5,
-					},
-				},
-			}, nil
-		},
-	}
-
-	cmd := newGroupsCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var groups []*contactsapi.ContactGroup
-		err := json.Unmarshal([]byte(output), &groups)
-		testutil.NoError(t, err)
-		testutil.Len(t, groups, 1)
-		testutil.Equal(t, groups[0].Name, "Friends")
-	})
-}
-
 func TestGroupsCommand_Empty(t *testing.T) {
 	mock := &MockContactsClient{
 		ListContactGroupsFunc: func(_ context.Context, _ string, _ int64) (*people.ListContactGroupsResponse, error) {
@@ -418,31 +256,6 @@ func TestGroupsCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No contact groups found")
-	})
-}
-
-func TestGroupsCommand_Empty_JSON(t *testing.T) {
-	mock := &MockContactsClient{
-		ListContactGroupsFunc: func(_ context.Context, _ string, _ int64) (*people.ListContactGroupsResponse, error) {
-			return &people.ListContactGroupsResponse{
-				ContactGroups: []*people.ContactGroup{},
-			}, nil
-		},
-	}
-
-	cmd := newGroupsCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var groups []any
-		err := json.Unmarshal([]byte(output), &groups)
-		testutil.NoError(t, err)
-		testutil.Len(t, groups, 0)
 	})
 }
 
@@ -489,17 +302,6 @@ func TestListCommand_IDsOutput(t *testing.T) {
 	})
 }
 
-func TestListCommand_IDsAndJSONMutuallyExclusive(t *testing.T) {
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--ids", "--json"})
-
-	withMockClient(&MockContactsClient{}, func() {
-		err := cmd.Execute()
-		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "mutually exclusive")
-	})
-}
-
 func TestSearchCommand_IDsOutput(t *testing.T) {
 	mock := &MockContactsClient{
 		SearchContactsFunc: func(_ context.Context, _ string, _ int64) (*people.SearchResponse, error) {
@@ -524,16 +326,5 @@ func TestSearchCommand_IDsOutput(t *testing.T) {
 		testutil.Contains(t, output, "people/c123")
 		testutil.Contains(t, output, "people/c456")
 		testutil.NotContains(t, output, "John Doe")
-	})
-}
-
-func TestSearchCommand_IDsAndJSONMutuallyExclusive(t *testing.T) {
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"John", "--ids", "--json"})
-
-	withMockClient(&MockContactsClient{}, func() {
-		err := cmd.Execute()
-		testutil.Error(t, err)
-		testutil.Contains(t, err.Error(), "mutually exclusive")
 	})
 }

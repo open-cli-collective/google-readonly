@@ -10,10 +10,9 @@ import (
 
 func newMarkReadCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -52,18 +51,17 @@ Examples:
 
 			if dryRun {
 				result.Action = "mark as read"
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.ModifyMessages(ctx, ids, nil, []string{"UNREAD"}); err != nil {
 				return fmt.Errorf("marking messages as read: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")
@@ -73,10 +71,9 @@ Examples:
 
 func newMarkUnreadCommand() *cobra.Command {
 	var (
-		jsonOutput bool
-		dryRun     bool
-		stdin      bool
-		query      string
+		dryRun bool
+		stdin  bool
+		query  string
 	)
 
 	cmd := &cobra.Command{
@@ -114,18 +111,17 @@ Examples:
 
 			if dryRun {
 				result.Action = "mark as unread"
-				return result.Print(jsonOutput)
+				return result.Print()
 			}
 
 			if err := client.ModifyMessages(ctx, ids, []string{"UNREAD"}, nil); err != nil {
 				return fmt.Errorf("marking messages as unread: %w", err)
 			}
 
-			return result.Print(jsonOutput)
+			return result.Print()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 	cmd.Flags().BoolVar(&stdin, "stdin", false, "Read message IDs from stdin")
 	cmd.Flags().StringVar(&query, "query", "", "Search query to resolve message IDs")

@@ -16,8 +16,8 @@ import (
 // "_migration" field and consumed (so it appears exactly once, on the first
 // JSON command after the migration). With no pending block the output is
 // byte-identical to a plain indented Encoder (2-space indent, trailing
-// newline) — existing per-domain printJSON() callers inherit the splice for
-// free via JSONStdout.
+// newline) — the surviving control-plane JSONStdout callers (refresh,
+// config show) inherit the splice for free.
 func JSON(w io.Writer, data any) error {
 	mig, _ := migrationsink.Take()
 	if mig == nil {

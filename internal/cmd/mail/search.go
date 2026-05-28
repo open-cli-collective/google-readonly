@@ -9,7 +9,6 @@ import (
 func newSearchCommand() *cobra.Command {
 	var (
 		maxResults int64
-		jsonOutput bool
 		idsOnly    bool
 	)
 
@@ -21,17 +20,13 @@ func newSearchCommand() *cobra.Command {
 Examples:
   gro mail search "from:alice@example.com"
   gro mail search "subject:meeting" --max 20
-  gro mail search "is:unread" --json
+  gro mail search "is:unread"
   gro mail search "after:2024/01/01 before:2024/02/01"
   gro mail search "is:inbox" --ids | gro mail archive --stdin
 
 For more query operators, see: https://support.google.com/mail/answer/7190`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if idsOnly && jsonOutput {
-				return fmt.Errorf("--ids and --json are mutually exclusive")
-			}
-
 			client, err := newGmailClient(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("creating Gmail client: %w", err)
@@ -54,16 +49,8 @@ For more query operators, see: https://support.google.com/mail/answer/7190`,
 			}
 
 			if len(messages) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				fmt.Println("No messages found.")
 				return nil
-			}
-
-			if jsonOutput {
-				return printJSON(messages)
 			}
 
 			for _, msg := range messages {
@@ -83,7 +70,6 @@ For more query operators, see: https://support.google.com/mail/answer/7190`,
 	}
 
 	cmd.Flags().Int64VarP(&maxResults, "max", "m", 10, "Maximum number of results to return")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 	cmd.Flags().BoolVar(&idsOnly, "ids", false, "Output only message IDs (one per line, for piping)")
 
 	return cmd

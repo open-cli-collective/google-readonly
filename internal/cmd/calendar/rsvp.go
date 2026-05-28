@@ -17,7 +17,6 @@ var validResponses = map[string]string{
 func newRSVPCommand() *cobra.Command {
 	var (
 		calendarID string
-		jsonOutput bool
 		dryRun     bool
 	)
 
@@ -31,7 +30,7 @@ Valid responses: accept, decline, tentative
 Examples:
   gro calendar rsvp abc123 accept
   gro cal rsvp abc123 decline --dry-run
-  gro cal rsvp abc123 tentative --calendar work@group.calendar.google.com --json`,
+  gro cal rsvp abc123 tentative --calendar work@group.calendar.google.com`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			eventID := args[0]
@@ -43,15 +42,6 @@ Examples:
 			}
 
 			if dryRun {
-				result := map[string]any{
-					"action":   fmt.Sprintf("RSVP '%s' to event", apiResponse),
-					"eventId":  eventID,
-					"response": apiResponse,
-					"dryRun":   true,
-				}
-				if jsonOutput {
-					return printJSON(result)
-				}
 				fmt.Printf("[dry-run] Would RSVP '%s' to event %s.\n", apiResponse, eventID)
 				return nil
 			}
@@ -65,22 +55,12 @@ Examples:
 				return fmt.Errorf("updating RSVP: %w", err)
 			}
 
-			result := map[string]any{
-				"action":   fmt.Sprintf("RSVP'd '%s' to event", apiResponse),
-				"eventId":  eventID,
-				"response": apiResponse,
-				"dryRun":   false,
-			}
-			if jsonOutput {
-				return printJSON(result)
-			}
 			fmt.Printf("RSVP'd '%s' to event %s.\n", apiResponse, eventID)
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&calendarID, "calendar", "c", "primary", "Calendar ID containing the event")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 
 	return cmd

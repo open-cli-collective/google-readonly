@@ -13,7 +13,6 @@ type EventListOptions struct {
 	TimeMin      string // RFC3339 format
 	TimeMax      string // RFC3339 format
 	MaxResults   int64
-	JSONOutput   bool
 	Header       string // Header message to print (empty to show count-based header)
 	EmptyMessage string // Message when no events found
 }
@@ -27,10 +26,6 @@ func listAndPrintEvents(ctx context.Context, client CalendarClient, opts EventLi
 	}
 
 	if len(events) == 0 {
-		if opts.JSONOutput {
-			fmt.Println("[]")
-			return nil
-		}
 		if opts.EmptyMessage != "" {
 			fmt.Println(opts.EmptyMessage)
 		} else {
@@ -39,17 +34,11 @@ func listAndPrintEvents(ctx context.Context, client CalendarClient, opts EventLi
 		return nil
 	}
 
-	// Convert to our format
 	parsedEvents := make([]*calendar.Event, len(events))
 	for i, e := range events {
 		parsedEvents[i] = calendar.ParseEvent(e)
 	}
 
-	if opts.JSONOutput {
-		return printJSON(parsedEvents)
-	}
-
-	// Print header
 	if opts.Header != "" {
 		fmt.Printf("%s\n\n", opts.Header)
 	} else {

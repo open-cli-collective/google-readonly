@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/open-cli-collective/google-readonly/internal/drive"
-	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // DriveClient defines the interface for Drive client operations used by drive commands.
@@ -29,9 +28,4 @@ var ClientFactory = func(ctx context.Context) (DriveClient, error) {
 // newDriveClient creates and returns a new Drive client
 func newDriveClient(ctx context.Context) (DriveClient, error) {
 	return ClientFactory(ctx)
-}
-
-// printJSON encodes data as indented JSON to stdout
-func printJSON(data any) error {
-	return output.JSONStdout(data)
 }

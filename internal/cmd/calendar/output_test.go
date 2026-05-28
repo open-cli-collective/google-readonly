@@ -2,7 +2,6 @@ package calendar
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -11,76 +10,6 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
-
-func TestPrintJSON(t *testing.T) {
-	tests := []struct {
-		name     string
-		data     any
-		wantJSON string
-	}{
-		{
-			name: "single event",
-			data: &calendar.Event{
-				ID:      "event123",
-				Summary: "Team Meeting",
-			},
-			wantJSON: `{
-  "id": "event123",
-  "summary": "Team Meeting",
-  "start": null,
-  "end": null,
-  "status": "",
-  "allDay": false
-}
-`,
-		},
-		{
-			name: "event list",
-			data: []*calendar.Event{
-				{ID: "e1", Summary: "Event 1"},
-				{ID: "e2", Summary: "Event 2"},
-			},
-		},
-		{
-			name: "calendar info",
-			data: &calendar.CalendarInfo{
-				ID:      "primary",
-				Summary: "My Calendar",
-				Primary: true,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Capture stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
-			err := printJSON(tt.data)
-			testutil.NoError(t, err)
-
-			w.Close()
-			os.Stdout = oldStdout
-
-			var buf bytes.Buffer
-			io.Copy(&buf, r)
-
-			output := buf.String()
-			testutil.NotEmpty(t, output)
-
-			// Verify it's valid JSON
-			var parsed any
-			err = json.Unmarshal([]byte(output), &parsed)
-			testutil.NoError(t, err)
-
-			if tt.wantJSON != "" {
-				testutil.Equal(t, output, tt.wantJSON)
-			}
-		})
-	}
-}
 
 func TestPrintEvent(t *testing.T) {
 	tests := []struct {

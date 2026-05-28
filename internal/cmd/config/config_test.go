@@ -53,6 +53,12 @@ func TestConfigShowCommand(t *testing.T) {
 	t.Run("has long description", func(t *testing.T) {
 		testutil.NotEmpty(t, cmd.Long)
 	})
+
+	t.Run("declares --json (control-plane carve-out per #144)", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("json")
+		testutil.NotNil(t, flag)
+		testutil.Equal(t, flag.Shorthand, "j")
+	})
 }
 
 func TestConfigTestCommand(t *testing.T) {

@@ -10,7 +10,6 @@ import (
 func newTodayCommand() *cobra.Command {
 	var (
 		calendarID string
-		jsonOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -22,7 +21,6 @@ This is a shortcut for: gro calendar events --from <today> --to <today>
 
 Examples:
   gro calendar today
-  gro cal today --json
   gro cal today --calendar work@group.calendar.google.com`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -39,7 +37,6 @@ Examples:
 				TimeMin:      startOfDay.Format(time.RFC3339),
 				TimeMax:      endOfDayTime.Format(time.RFC3339),
 				MaxResults:   50,
-				JSONOutput:   jsonOutput,
 				Header:       fmt.Sprintf("Today's events (%s):", now.Format("Mon, Jan 2, 2006")),
 				EmptyMessage: "No events today.",
 			})
@@ -47,7 +44,6 @@ Examples:
 	}
 
 	cmd.Flags().StringVarP(&calendarID, "calendar", "c", "primary", "Calendar ID to query")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
 }

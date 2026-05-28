@@ -3,25 +3,20 @@ package bulk
 import (
 	"fmt"
 	"strings"
-
-	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // Result represents the outcome of a bulk operation.
 type Result struct {
-	Action   string   `json:"action"`
-	IDs      []string `json:"ids"`
-	Count    int      `json:"count"`
-	DryRun   bool     `json:"dryRun"`
-	Details  any      `json:"details,omitempty"`
-	ItemNoun string   `json:"-"` // e.g. "message", "file", "contact"; defaults to "message"
+	Action   string
+	IDs      []string
+	Count    int
+	DryRun   bool
+	Details  any
+	ItemNoun string // e.g. "message", "file", "contact"; defaults to "message"
 }
 
-// Print outputs the result as text or JSON.
-func (r *Result) Print(jsonOutput bool) error {
-	if jsonOutput {
-		return output.JSONStdout(r)
-	}
+// Print outputs the result as text.
+func (r *Result) Print() error {
 	noun := r.ItemNoun
 	if noun == "" {
 		noun = "message"

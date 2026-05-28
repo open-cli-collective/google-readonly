@@ -13,7 +13,6 @@ func newEventsCommand() *cobra.Command {
 		maxResults int64
 		from       string
 		to         string
-		jsonOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -30,7 +29,7 @@ Examples:
   gro calendar events
   gro cal events --max 20
   gro cal events --from 2026-01-01 --to 2026-01-31
-  gro calendar events work@group.calendar.google.com --json`,
+  gro calendar events work@group.calendar.google.com`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			calID := calendarID
@@ -71,7 +70,6 @@ Examples:
 				TimeMin:      timeMin,
 				TimeMax:      timeMax,
 				MaxResults:   maxResults,
-				JSONOutput:   jsonOutput,
 				Header:       "", // Will be generated based on count
 				EmptyMessage: "No events found.",
 			})
@@ -82,7 +80,6 @@ Examples:
 	cmd.Flags().Int64VarP(&maxResults, "max", "m", 10, "Maximum number of events to return")
 	cmd.Flags().StringVar(&from, "from", "", "Start date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&to, "to", "", "End date (YYYY-MM-DD)")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
 }

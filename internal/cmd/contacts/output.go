@@ -7,7 +7,6 @@ import (
 	"google.golang.org/api/people/v1"
 
 	"github.com/open-cli-collective/google-readonly/internal/contacts"
-	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // ContactsClient defines the interface for Contacts client operations used by contacts commands.
@@ -31,11 +30,6 @@ var ClientFactory = func(ctx context.Context) (ContactsClient, error) {
 // newContactsClient creates a new contacts client
 func newContactsClient(ctx context.Context) (ContactsClient, error) {
 	return ClientFactory(ctx)
-}
-
-// printJSON outputs data as indented JSON
-func printJSON(data any) error {
-	return output.JSONStdout(data)
 }
 
 // printContact prints a single contact in text format

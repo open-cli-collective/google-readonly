@@ -36,7 +36,6 @@ var colorIDToName = func() map[string]string {
 func newColorCommand() *cobra.Command {
 	var (
 		calendarID string
-		jsonOutput bool
 		dryRun     bool
 	)
 
@@ -58,29 +57,18 @@ Color names: %s
 Examples:
   gro calendar color abc123 tomato
   gro cal color abc123 7
-  gro cal color abc123 sage --dry-run --json`, strings.Join(colorNames, ", ")),
+  gro cal color abc123 sage --dry-run`, strings.Join(colorNames, ", ")),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			eventID := args[0]
 			colorInput := strings.ToLower(args[1])
 
-			// Resolve color input to ID and name
 			colorID, colorName, err := resolveColor(colorInput)
 			if err != nil {
 				return err
 			}
 
 			if dryRun {
-				result := map[string]any{
-					"action":    fmt.Sprintf("set event color to %s", colorName),
-					"eventId":   eventID,
-					"colorId":   colorID,
-					"colorName": colorName,
-					"dryRun":    true,
-				}
-				if jsonOutput {
-					return printJSON(result)
-				}
 				fmt.Printf("[dry-run] Would set event %s color to %s.\n", eventID, colorName)
 				return nil
 			}
@@ -94,23 +82,12 @@ Examples:
 				return fmt.Errorf("setting event color: %w", err)
 			}
 
-			result := map[string]any{
-				"action":    fmt.Sprintf("set event color to %s", colorName),
-				"eventId":   eventID,
-				"colorId":   colorID,
-				"colorName": colorName,
-				"dryRun":    false,
-			}
-			if jsonOutput {
-				return printJSON(result)
-			}
 			fmt.Printf("Set event %s color to %s.\n", eventID, colorName)
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&calendarID, "calendar", "c", "primary", "Calendar ID containing the event")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Preview without making changes")
 
 	return cmd

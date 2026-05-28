@@ -2,22 +2,14 @@ package drive
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/bulk"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestStarCommand(t *testing.T) {
 	cmd := newStarCommand()
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("dry-run")
@@ -75,30 +67,6 @@ func TestStarCommand_DryRun(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "[dry-run] Would star 1 file(s).")
-	})
-}
-
-func TestStarCommand_JSON(t *testing.T) {
-	mock := &MockDriveClient{
-		StarFileFunc: func(_ context.Context, _ string) error {
-			return nil
-		},
-	}
-
-	cmd := newStarCommand()
-	cmd.SetArgs([]string{"file1", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result bulk.Result
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result.Action, "starred")
-		testutil.Equal(t, result.Count, 1)
 	})
 }
 

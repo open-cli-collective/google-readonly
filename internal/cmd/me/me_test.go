@@ -3,7 +3,6 @@ package me
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/open-cli-collective/cli-common/statedirtest"
 
-	"github.com/open-cli-collective/google-readonly/internal/auth"
 	"github.com/open-cli-collective/google-readonly/internal/config"
 	"github.com/open-cli-collective/google-readonly/internal/people"
 )
@@ -117,68 +115,6 @@ func TestRenderExtendedIncludesScopesAndExpiry(t *testing.T) {
 	}
 }
 
-func TestRenderJSONShapes(t *testing.T) {
-	t.Parallel()
-	p := &people.Profile{
-		ResourceName: "people/c1",
-		DisplayName:  "Ada",
-		PrimaryEmail: "ada@example.com",
-	}
-	extras := Extras{GrantedScopes: []string{"scope-a"}, TokenExpiry: "expiry-x", StorageBackend: "keychain"}
-
-	t.Run("default", func(t *testing.T) {
-		var buf bytes.Buffer
-		if err := RenderJSON(&buf, p, Extras{}, false, false); err != nil {
-			t.Fatal(err)
-		}
-		var got jsonOneLiner
-		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-			t.Fatal(err)
-		}
-		if got.ResourceName != "people/c1" || got.DisplayName != "Ada" || got.PrimaryEmail != "ada@example.com" {
-			t.Errorf("unexpected: %+v", got)
-		}
-	})
-
-	t.Run("--id", func(t *testing.T) {
-		var buf bytes.Buffer
-		if err := RenderJSON(&buf, p, Extras{}, true, false); err != nil {
-			t.Fatal(err)
-		}
-		var got jsonIDOnly
-		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-			t.Fatal(err)
-		}
-		if got.PrimaryEmail != "ada@example.com" {
-			t.Errorf("unexpected: %+v", got)
-		}
-		// Make sure the other fields are absent.
-		if strings.Contains(buf.String(), "resourceName") {
-			t.Errorf("--id JSON should not include resourceName, got %s", buf.String())
-		}
-	})
-
-	t.Run("--extended", func(t *testing.T) {
-		var buf bytes.Buffer
-		if err := RenderJSON(&buf, p, extras, false, true); err != nil {
-			t.Fatal(err)
-		}
-		var got jsonExtended
-		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-			t.Fatal(err)
-		}
-		if got.ResourceName != "people/c1" || got.PrimaryEmail != "ada@example.com" {
-			t.Errorf("unexpected: %+v", got)
-		}
-		if len(got.GrantedScopes) != 1 || got.GrantedScopes[0] != "scope-a" {
-			t.Errorf("expected scope-a, got %+v", got.GrantedScopes)
-		}
-		if got.TokenExpiry != "expiry-x" || got.StorageBackend != "keychain" {
-			t.Errorf("unexpected: %+v", got)
-		}
-	})
-}
-
 func TestRunInsufficientScopeRemap(t *testing.T) {
 	// Not Parallel: mutates package-global ClientFactory.
 	withMockClient(t, &mockPeopleClient{
@@ -190,7 +126,7 @@ func TestRunInsufficientScopeRemap(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	err := run(context.Background(), &out, &bytes.Buffer{}, false, false, false)
+	err := run(context.Background(), &out, &bytes.Buffer{}, false, false)
 	if !errors.Is(err, errReauth) {
 		t.Fatalf("expected errReauth, got %v", err)
 	}
@@ -208,7 +144,7 @@ func TestRunServiceDisabledNotRemapped(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	err := run(context.Background(), &out, &bytes.Buffer{}, false, false, false)
+	err := run(context.Background(), &out, &bytes.Buffer{}, false, false)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -232,56 +168,12 @@ func TestRunDefaultPipeOneLiner(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	if err := run(context.Background(), &out, &bytes.Buffer{}, false, false, false); err != nil {
+	if err := run(context.Background(), &out, &bytes.Buffer{}, false, false); err != nil {
 		t.Fatal(err)
 	}
 	want := "people/c1 | Ada | ada@example.com\n"
 	if got := out.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
-	}
-}
-
-// TestRunExtendedJSONEndToEnd ensures that --extended + --json flow through
-// run() correctly: the renderer is tested in isolation by TestRenderJSONShapes,
-// but only this test catches a regression where gatherExtras is skipped when
-// jsonOutput is true.
-func TestRunExtendedJSONEndToEnd(t *testing.T) {
-	// Not Parallel: mutates package-global ClientFactory + env.
-	withConfigDir(t)
-	// Seed config with a known scope record so we can assert the JSON
-	// surface reflects the recorded scopes, not auth.AllScopes (which
-	// would overstate consent).
-	if err := config.SaveConfig(&config.Config{
-		GrantedScopes: auth.AllScopes,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	withMockClient(t, &mockPeopleClient{
-		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
-			return &people.Profile{
-				ResourceName: "people/c1",
-				DisplayName:  "Ada",
-				PrimaryEmail: "ada@example.com",
-			}, nil
-		},
-	})
-	var out, errOut bytes.Buffer
-	if err := run(context.Background(), &out, &errOut, false /*idOnly*/, true /*extended*/, true /*json*/); err != nil {
-		t.Fatalf("run: %v", err)
-	}
-	var got jsonExtended
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatalf("unmarshal: %v\noutput: %s", err, out.String())
-	}
-	if got.PrimaryEmail != "ada@example.com" {
-		t.Errorf("expected ada@example.com, got %+v", got)
-	}
-	// Recorded scopes should propagate through to extended output. This
-	// guards against a regression where gatherExtras is skipped under
-	// jsonOutput.
-	if len(got.GrantedScopes) != len(auth.AllScopes) {
-		t.Errorf("expected %d scopes, got %d: %+v", len(auth.AllScopes), len(got.GrantedScopes), got.GrantedScopes)
 	}
 }
 
@@ -297,7 +189,7 @@ func TestRunIDOnlyEmitsEmail(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	if err := run(context.Background(), &out, &bytes.Buffer{}, true, false, false); err != nil {
+	if err := run(context.Background(), &out, &bytes.Buffer{}, true, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != "ada@example.com\n" {
@@ -339,15 +231,12 @@ func TestNewCommandSilencesCobraErrorOnReauth(t *testing.T) {
 	}
 }
 
-func TestNewCommandHasJSONFlagWithShorthand(t *testing.T) {
+func TestNewCommandNoJSONFlag(t *testing.T) {
+	// #144: resource leaves emit text only; --json was removed from gro me.
 	t.Parallel()
 	cmd := NewCommand()
-	flag := cmd.Flags().Lookup("json")
-	if flag == nil {
-		t.Fatal("expected --json flag")
-	}
-	if flag.Shorthand != "j" {
-		t.Fatalf("expected -j shorthand, got %q", flag.Shorthand)
+	if cmd.Flags().Lookup("json") != nil {
+		t.Fatal("expected no --json flag on gro me (see #144)")
 	}
 }
 
@@ -399,7 +288,7 @@ func TestRunStaleRecordedScopesTriggersReauthMessage(t *testing.T) {
 		},
 	})
 	var out, errOut bytes.Buffer
-	err := run(context.Background(), &out, &errOut, false, false, false)
+	err := run(context.Background(), &out, &errOut, false, false)
 	if !errors.Is(err, errReauth) {
 		t.Fatalf("expected errReauth, got %v", err)
 	}
@@ -421,7 +310,7 @@ func TestRunMissingConfigDoesNotShortCircuit(t *testing.T) {
 		},
 	})
 	var out, errOut bytes.Buffer
-	if err := run(context.Background(), &out, &errOut, false, false, false); err != nil {
+	if err := run(context.Background(), &out, &errOut, false, false); err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
 	if !strings.Contains(out.String(), "ada@example.com") {
@@ -444,7 +333,7 @@ func TestRunEmptyGrantedScopesDoesNotShortCircuit(t *testing.T) {
 		},
 	})
 	var out, errOut bytes.Buffer
-	if err := run(context.Background(), &out, &errOut, false, false, false); err != nil {
+	if err := run(context.Background(), &out, &errOut, false, false); err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
 }

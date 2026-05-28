@@ -2,7 +2,6 @@ package contacts
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"testing"
@@ -10,62 +9,6 @@ import (
 	"github.com/open-cli-collective/google-readonly/internal/contacts"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
-
-func TestPrintJSON(t *testing.T) {
-	tests := []struct {
-		name string
-		data any
-	}{
-		{
-			name: "single contact",
-			data: &contacts.Contact{
-				ResourceName: "people/c123",
-				DisplayName:  "John Doe",
-			},
-		},
-		{
-			name: "contact list",
-			data: []*contacts.Contact{
-				{ResourceName: "people/c1", DisplayName: "Alice"},
-				{ResourceName: "people/c2", DisplayName: "Bob"},
-			},
-		},
-		{
-			name: "contact group",
-			data: &contacts.ContactGroup{
-				ResourceName: "contactGroups/abc",
-				Name:         "Work",
-				MemberCount:  5,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Capture stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
-			err := printJSON(tt.data)
-			testutil.NoError(t, err)
-
-			w.Close()
-			os.Stdout = oldStdout
-
-			var buf bytes.Buffer
-			io.Copy(&buf, r)
-
-			output := buf.String()
-			testutil.NotEmpty(t, output)
-
-			// Verify it's valid JSON
-			var parsed any
-			err = json.Unmarshal([]byte(output), &parsed)
-			testutil.NoError(t, err)
-		})
-	}
-}
 
 func TestPrintContact(t *testing.T) {
 	tests := []struct {

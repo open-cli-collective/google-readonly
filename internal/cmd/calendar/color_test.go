@@ -2,7 +2,6 @@ package calendar
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -11,12 +10,6 @@ import (
 
 func TestColorCommand(t *testing.T) {
 	cmd := newColorCommand()
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("dry-run")
@@ -116,50 +109,6 @@ func TestColorCommand_DryRun(t *testing.T) {
 			testutil.NoError(t, err)
 		})
 		testutil.Contains(t, output, "[dry-run] Would set event event123 color to sage.")
-	})
-}
-
-func TestColorCommand_DryRunJSON(t *testing.T) {
-	cmd := newColorCommand()
-	cmd.SetArgs([]string{"event123", "flamingo", "--dry-run", "--json"})
-
-	withMockClient(&MockCalendarClient{}, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["colorName"], "flamingo")
-		testutil.Equal(t, result["colorId"], "4")
-		testutil.Equal(t, result["dryRun"], true)
-	})
-}
-
-func TestColorCommand_JSON(t *testing.T) {
-	mock := &MockCalendarClient{
-		SetEventColorFunc: func(_ context.Context, _, _, _ string) error {
-			return nil
-		},
-	}
-
-	cmd := newColorCommand()
-	cmd.SetArgs([]string{"event123", "grape", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result map[string]any
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result["colorName"], "grape")
-		testutil.Equal(t, result["colorId"], "3")
-		testutil.Equal(t, result["dryRun"], false)
 	})
 }
 

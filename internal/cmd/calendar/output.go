@@ -7,7 +7,6 @@ import (
 	calendarv3 "google.golang.org/api/calendar/v3"
 
 	"github.com/open-cli-collective/google-readonly/internal/calendar"
-	"github.com/open-cli-collective/google-readonly/internal/output"
 )
 
 // CalendarClient defines the interface for Calendar client operations used by calendar commands.
@@ -28,11 +27,6 @@ var ClientFactory = func(ctx context.Context) (CalendarClient, error) {
 // newCalendarClient creates a new calendar client
 func newCalendarClient(ctx context.Context) (CalendarClient, error) {
 	return ClientFactory(ctx)
-}
-
-// printJSON outputs data as indented JSON
-func printJSON(data any) error {
-	return output.JSONStdout(data)
 }
 
 // printEvent prints a single event in text format

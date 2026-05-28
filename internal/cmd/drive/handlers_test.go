@@ -2,7 +2,6 @@ package drive
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"testing"
@@ -46,29 +45,6 @@ func TestListCommand_Success(t *testing.T) {
 	})
 }
 
-func TestListCommand_JSONOutput(t *testing.T) {
-	mock := &MockDriveClient{
-		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
-			return testutil.SampleDriveFiles(1), nil
-		},
-	}
-
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var files []*driveapi.File
-		err := json.Unmarshal([]byte(output), &files)
-		testutil.NoError(t, err)
-		testutil.Len(t, files, 1)
-	})
-}
-
 func TestListCommand_Empty(t *testing.T) {
 	mock := &MockDriveClient{
 		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
@@ -85,29 +61,6 @@ func TestListCommand_Empty(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No files found")
-	})
-}
-
-func TestListCommand_Empty_JSON(t *testing.T) {
-	mock := &MockDriveClient{
-		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
-			return []*driveapi.File{}, nil
-		},
-	}
-
-	cmd := newListCommand()
-	cmd.SetArgs([]string{"--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var files []any
-		err := json.Unmarshal([]byte(output), &files)
-		testutil.NoError(t, err)
-		testutil.Len(t, files, 0)
 	})
 }
 
@@ -233,29 +186,6 @@ func TestSearchCommand_NameOnly(t *testing.T) {
 	})
 }
 
-func TestSearchCommand_JSONOutput(t *testing.T) {
-	mock := &MockDriveClient{
-		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
-			return testutil.SampleDriveFiles(1), nil
-		},
-	}
-
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"test", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var files []*driveapi.File
-		err := json.Unmarshal([]byte(output), &files)
-		testutil.NoError(t, err)
-		testutil.Len(t, files, 1)
-	})
-}
-
 func TestSearchCommand_NoResults(t *testing.T) {
 	mock := &MockDriveClient{
 		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
@@ -273,29 +203,6 @@ func TestSearchCommand_NoResults(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "No files found")
-	})
-}
-
-func TestSearchCommand_NoResults_JSON(t *testing.T) {
-	mock := &MockDriveClient{
-		ListFilesFunc: func(_ context.Context, _ string, _ int64) ([]*driveapi.File, error) {
-			return []*driveapi.File{}, nil
-		},
-	}
-
-	cmd := newSearchCommand()
-	cmd.SetArgs([]string{"nonexistent", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var files []any
-		err := json.Unmarshal([]byte(output), &files)
-		testutil.NoError(t, err)
-		testutil.Len(t, files, 0)
 	})
 }
 
@@ -336,29 +243,6 @@ func TestGetCommand_Success(t *testing.T) {
 		testutil.Contains(t, output, "file123")
 		testutil.Contains(t, output, "test-document.pdf")
 		testutil.Contains(t, output, "owner@example.com")
-	})
-}
-
-func TestGetCommand_JSONOutput(t *testing.T) {
-	mock := &MockDriveClient{
-		GetFileFunc: func(_ context.Context, _ string) (*driveapi.File, error) {
-			return testutil.SampleDriveFile("file123"), nil
-		},
-	}
-
-	cmd := newGetCommand()
-	cmd.SetArgs([]string{"file123", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var file driveapi.File
-		err := json.Unmarshal([]byte(output), &file)
-		testutil.NoError(t, err)
-		testutil.Equal(t, file.ID, "file123")
 	})
 }
 

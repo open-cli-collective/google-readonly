@@ -64,7 +64,7 @@ Each domain command package (`internal/cmd/{domain}/`) contains:
 | File | Purpose |
 |------|---------|
 | `{domain}.go` | Parent command with `NewCommand()` and `AddCommand()` calls |
-| `output.go` | Client interface, `ClientFactory`, `printJSON()`, text formatters |
+| `output.go` | Client interface, `ClientFactory`, text formatters (no `printJSON()` — see #144) |
 | `{subcommand}.go` | One file per subcommand with `new{Sub}Command()` factory |
 | `mock_test.go` | Mock client with function fields + compile-time interface check |
 | `handlers_test.go` | `withMockClient()`, `withFailingClientFactory()`, integration tests |

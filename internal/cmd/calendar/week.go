@@ -10,7 +10,6 @@ import (
 func newWeekCommand() *cobra.Command {
 	var (
 		calendarID string
-		jsonOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -22,7 +21,6 @@ This is a shortcut for: gro calendar events --from <monday> --to <sunday>
 
 Examples:
   gro calendar week
-  gro cal week --json
   gro cal week --calendar work@group.calendar.google.com`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -39,7 +37,6 @@ Examples:
 				TimeMin:    startOfWeek.Format(time.RFC3339),
 				TimeMax:    endOfWeek.Format(time.RFC3339),
 				MaxResults: 100,
-				JSONOutput: jsonOutput,
 				Header: fmt.Sprintf("This week's events (%s - %s):",
 					startOfWeek.Format("Mon, Jan 2"),
 					endOfWeek.Format("Mon, Jan 2, 2006")),
@@ -49,7 +46,6 @@ Examples:
 	}
 
 	cmd.Flags().StringVarP(&calendarID, "calendar", "c", "primary", "Calendar ID to query")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
 
 	return cmd
 }

@@ -11,16 +11,13 @@ import (
 )
 
 func newGetCommand() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "get <file-id>",
 		Short: "Get file details",
 		Long: `Get detailed metadata for a specific file in Google Drive.
 
 Examples:
-  gro drive get <file-id>        # Show file details
-  gro drive get <file-id> --json # Output as JSON`,
+  gro drive get <file-id>        # Show file details`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newDriveClient(cmd.Context())
@@ -34,16 +31,10 @@ Examples:
 				return fmt.Errorf("getting file %s: %w", fileID, err)
 			}
 
-			if jsonOutput {
-				return printJSON(file)
-			}
-
 			printFileDetails(file)
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output results as JSON")
 
 	return cmd
 }

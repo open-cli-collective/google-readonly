@@ -41,13 +41,6 @@ func TestTreeCommand(t *testing.T) {
 		testutil.Equal(t, flag.DefValue, "false")
 	})
 
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-		testutil.Equal(t, flag.DefValue, "false")
-	})
-
 	t.Run("has short description", func(t *testing.T) {
 		testutil.Contains(t, cmd.Short, "folder structure")
 	})

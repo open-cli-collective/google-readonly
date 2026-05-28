@@ -7,8 +7,6 @@ import (
 )
 
 func newThreadCommand() *cobra.Command {
-	var jsonOutput bool
-
 	cmd := &cobra.Command{
 		Use:   "thread <id>",
 		Short: "Read a full conversation thread",
@@ -20,8 +18,7 @@ Use the search command to find message IDs (the ThreadID field can also
 be used directly).
 
 Examples:
-  gro mail thread 18abc123def456
-  gro mail thread 18abc123def456 --json`,
+  gro mail thread 18abc123def456`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newGmailClient(cmd.Context())
@@ -35,16 +32,8 @@ Examples:
 			}
 
 			if len(messages) == 0 {
-				if jsonOutput {
-					fmt.Println("[]")
-					return nil
-				}
 				fmt.Println("No messages found in thread.")
 				return nil
-			}
-
-			if jsonOutput {
-				return printJSON(messages)
 			}
 
 			fmt.Printf("Thread contains %d message(s)\n\n", len(messages))
@@ -60,8 +49,6 @@ Examples:
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output result as JSON")
 
 	return cmd
 }

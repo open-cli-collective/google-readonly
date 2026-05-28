@@ -2,22 +2,14 @@ package mail
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/bulk"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
 
 func TestArchiveCommand(t *testing.T) {
 	cmd := newArchiveCommand()
-
-	t.Run("has json flag", func(t *testing.T) {
-		flag := cmd.Flags().Lookup("json")
-		testutil.NotNil(t, flag)
-		testutil.Equal(t, flag.Shorthand, "j")
-	})
 
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := cmd.Flags().Lookup("dry-run")
@@ -79,30 +71,6 @@ func TestArchiveCommand_DryRun(t *testing.T) {
 		})
 
 		testutil.Contains(t, output, "[dry-run] Would archive 1 message(s).")
-	})
-}
-
-func TestArchiveCommand_JSON(t *testing.T) {
-	mock := &MockGmailClient{
-		ModifyMessagesFunc: func(_ context.Context, _ []string, _, _ []string) error {
-			return nil
-		},
-	}
-
-	cmd := newArchiveCommand()
-	cmd.SetArgs([]string{"msg1", "--json"})
-
-	withMockClient(mock, func() {
-		output := testutil.CaptureStdout(t, func() {
-			err := cmd.Execute()
-			testutil.NoError(t, err)
-		})
-
-		var result bulk.Result
-		err := json.Unmarshal([]byte(output), &result)
-		testutil.NoError(t, err)
-		testutil.Equal(t, result.Action, "archived")
-		testutil.Equal(t, result.Count, 1)
 	})
 }
 

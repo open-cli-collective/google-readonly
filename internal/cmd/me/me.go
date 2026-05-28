@@ -22,9 +22,8 @@ var errReauth = errors.New("re-authentication required")
 // NewCommand returns the `me` cobra command.
 func NewCommand() *cobra.Command {
 	var (
-		idOnly     bool
-		extended   bool
-		jsonOutput bool
+		idOnly   bool
+		extended bool
 	)
 
 	cmd := &cobra.Command{
@@ -43,10 +42,7 @@ Data comes from the People API people/me endpoint.`,
   gro me --id
 
   # Add granted scopes, token expiry, and storage backend
-  gro me --extended
-
-  # JSON output
-  gro me --json`,
+  gro me --extended`,
 		Args: cobra.NoArgs,
 		// SilenceErrors so errReauth's actionable message (already written to
 		// stderr by run()) isn't shadowed by cobra's "Error: re-authentication
@@ -54,19 +50,18 @@ Data comes from the People API people/me endpoint.`,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), idOnly, extended, jsonOutput)
+			return run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), idOnly, extended)
 		},
 	}
 
 	cmd.Flags().BoolVar(&idOnly, "id", false, "Print only the primary email")
 	cmd.Flags().BoolVar(&extended, "extended", false, "Add granted scopes, token expiry, and storage backend")
-	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Emit JSON")
 	cmd.MarkFlagsMutuallyExclusive("id", "extended")
 
 	return cmd
 }
 
-func run(ctx context.Context, out, errOut io.Writer, idOnly, extended, jsonOutput bool) error {
+func run(ctx context.Context, out, errOut io.Writer, idOnly, extended bool) error {
 	// Loud-and-early stale-scope check (only fires when scopes were recorded).
 	if cfg, err := config.LoadConfigForRuntime(); err == nil {
 		if msg := auth.CheckScopesMigration(cfg.GrantedScopes); msg != "" {
@@ -102,10 +97,6 @@ func run(ctx context.Context, out, errOut io.Writer, idOnly, extended, jsonOutpu
 	if extended {
 		extras = gatherExtras()
 		extras.GrantedScopes = grantedScopes()
-	}
-
-	if jsonOutput {
-		return RenderJSON(out, profile, extras, idOnly, extended)
 	}
 
 	switch {
