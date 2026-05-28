@@ -100,6 +100,29 @@ func TestRefresh_Status_Fresh(t *testing.T) {
 	testutil.Contains(t, got, " | fresh")
 }
 
+func TestRefresh_Status_Stale(t *testing.T) {
+	statedirtest.Hermetic(t)
+
+	c, err := cache.New()
+	testutil.NoError(t, err)
+	testutil.NoError(t, c.SetDrives([]*cache.CachedDrive{{ID: "0A1", Name: "Eng"}}))
+
+	// Advance gro's cache clock past the drives TTL (24h).
+	origNow := cache.NowFnForTest()
+	cache.SetNowFnForTest(func() time.Time { return time.Now().Add(48 * time.Hour) })
+	defer cache.SetNowFnForTest(origNow)
+
+	cmd := newCommandWithDeps((&panickingFactory{}).factory)
+	cmd.SetArgs([]string{"--status"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("--status returned error: %v", err)
+	}
+	testutil.Contains(t, out.String(), " | stale")
+}
+
 func TestRefresh_PositionalArgs(t *testing.T) {
 	statedirtest.Hermetic(t)
 
@@ -169,6 +192,3 @@ func TestRefresh_FactoryConstructionError(t *testing.T) {
 		t.Fatalf("expected error to wrap factoryErr, got %q", err.Error())
 	}
 }
-
-// silence unused-import warning for time when only used transitively elsewhere
-var _ = time.Now

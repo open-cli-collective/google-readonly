@@ -194,3 +194,11 @@ func (c *Cache) GetDir() string {
 
 // nowFn is a testing seam for cache classification.
 var nowFn = func() time.Time { return time.Now() }
+
+// NowFnForTest returns the current nowFn for cross-package test setup
+// (refreshcmd's stale-status test). Production code never uses it.
+func NowFnForTest() func() time.Time { return nowFn }
+
+// SetNowFnForTest swaps the clock used by cache classification. Cross-package
+// test seam only — call with the original to restore.
+func SetNowFnForTest(fn func() time.Time) { nowFn = fn }

@@ -1,9 +1,13 @@
 package drive
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
+	"github.com/open-cli-collective/cli-common/statedirtest"
+
+	"github.com/open-cli-collective/google-readonly/internal/cache"
 	"github.com/open-cli-collective/google-readonly/internal/drive"
 	"github.com/open-cli-collective/google-readonly/internal/testutil"
 )
@@ -50,6 +54,36 @@ func TestDrivesCommand(t *testing.T) {
 		testutil.Contains(t, cmd.Long, "Shared Drives")
 		testutil.Contains(t, cmd.Long, "cache")
 	})
+}
+
+// TestDrivesCommand_RefreshFlagStillForcesFetch pins the deprecation contract:
+// `gro drive drives --refresh` continues to bypass the cache and call the API.
+func TestDrivesCommand_RefreshFlagStillForcesFetch(t *testing.T) {
+	statedirtest.Hermetic(t)
+
+	// Prime the cache with a fresh entry — without --refresh, this would be served.
+	c, err := cache.New()
+	testutil.NoError(t, err)
+	testutil.NoError(t, c.SetDrives([]*cache.CachedDrive{{ID: "cached", Name: "Cached"}}))
+
+	listCalls := 0
+	mock := &MockDriveClient{
+		ListSharedDrivesFunc: func(_ context.Context, _ int64) ([]*drive.SharedDrive, error) {
+			listCalls++
+			return []*drive.SharedDrive{{ID: "live", Name: "Live"}}, nil
+		},
+	}
+	withMockClient(mock, func() {
+		cmd := newDrivesCommand()
+		cmd.SetArgs([]string{"--refresh"})
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("drives --refresh returned error: %v", err)
+		}
+	})
+	testutil.Equal(t, listCalls, 1)
 }
 
 func TestLooksLikeDriveID(t *testing.T) {
