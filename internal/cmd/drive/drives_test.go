@@ -36,6 +36,12 @@ func TestDrivesCommand(t *testing.T) {
 		testutil.Equal(t, flag.DefValue, "false")
 	})
 
+	t.Run("refresh flag is deprecated", func(t *testing.T) {
+		flag := cmd.Flags().Lookup("refresh")
+		testutil.NotNil(t, flag)
+		testutil.Contains(t, flag.Deprecated, "gro refresh drives")
+	})
+
 	t.Run("has short description", func(t *testing.T) {
 		testutil.Contains(t, cmd.Short, "shared drives")
 	})
