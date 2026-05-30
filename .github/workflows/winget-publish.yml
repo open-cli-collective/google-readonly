@@ -1,8 +1,9 @@
 name: Publish to Winget
 
 on:
-  release:
-    types: [published]
+  # Manual escape hatch only. The common-path winget submission is now handled by
+  # the reusable release.yml@v1's own manifest-driven channel job; the old
+  # `release: published` auto-trigger is removed to avoid double-submitting.
   workflow_dispatch:
     inputs:
       version:
