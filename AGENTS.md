@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Claude entrypoint for the google-readonly repository.
+Codex entrypoint for the google-readonly repository.
 
 ## Start Here
 
