@@ -4,7 +4,8 @@ project_name: google-readonly
 
 before:
   hooks:
-    - go mod tidy
+    # a mutating tidy must fail the release, not build from a dirty tree
+    - sh -c "go mod tidy && git diff --exit-code go.mod go.sum"
     - go test ./...
 
 # INT-449: darwin builds with CGO so 99designs/keyring's Keychain backend
@@ -93,13 +94,18 @@ nfpms:
       - src: LICENSE
         dst: /usr/share/licenses/google-readonly/LICENSE
 
-# Homebrew cask with auto-quarantine removal for unsigned binaries
+# Canonical Homebrew cask with auto-quarantine removal for unsigned binaries.
+# skip_upload: true → goreleaser RENDERS the cask into dist/ but does NOT push
+# it; the reusable release workflow's homebrew step is the single atomic tap
+# writer. No `token:` here — the tap token belongs only to that writer, and
+# skip_upload needs none. No url.template: this is a flat-v repo (no tag rename),
+# so goreleaser's default download URL already pins the published tag.
 homebrew_casks:
   - name: google-readonly
+    skip_upload: true
     repository:
       owner: open-cli-collective
       name: homebrew-tap
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/open-cli-collective/google-readonly
     description: "Read-only command-line interface for Google services"
     binaries: [gro]
@@ -133,3 +139,8 @@ changelog:
       order: 1
     - title: Other
       order: 999
+
+release:
+  # idempotent re-runs: a retried release overwrites the same assets instead of
+  # erroring on "asset already exists" (release-preflight hard-requires this).
+  replace_existing_artifacts: true

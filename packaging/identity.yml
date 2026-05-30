@@ -1,0 +1,35 @@
+schema: open-cli-identity/v1
+repo: google-readonly
+binary: gro
+goreleaser_config: .goreleaser.yaml
+tag:
+  prefix: v
+  version_scheme: major_minor_run_patch
+archives:
+  name_template: "gro_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+packages:
+  homebrew:
+    canonical_cask: google-readonly
+  winget: { id: OpenCLICollective.google-readonly }
+  chocolatey: { id: google-readonly }
+  linux: { package_name: google-readonly }
+
+# Faithful port of the darwin Keychain gate: with the backend override unset and
+# a seeded config, the arm64 binary must auto-select the macOS Keychain backend.
+# The reusable release.yml's darwin-gate runs this. gro's JSON control-plane flag
+# is the short `-j` (config show -j) — NOT the global `--output json`, which the
+# output-rendering rollout restricts to a closed set on the other CLIs.
+keychain_probe:
+  env_unset: [GOOGLE_READONLY_KEYRING_BACKEND]
+  seed_config:
+    path: google-readonly/config.yml
+    content: |
+      credential_ref: google-readonly/default
+  command: ["config", "show", "-j"]
+  output: json
+  assertions:
+    .backend: keychain
+    .backend_source: auto
+    .credential_ref: google-readonly/default
+
+version_file: version.txt
