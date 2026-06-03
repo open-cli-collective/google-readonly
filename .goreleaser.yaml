@@ -101,7 +101,8 @@ nfpms:
       - src: LICENSE
         dst: /usr/share/licenses/google-readonly/LICENSE
 
-# Canonical Homebrew cask with auto-quarantine removal for unsigned binaries.
+# Canonical Homebrew cask with auto-quarantine removal for non-notarized binaries
+# (the darwin binary is code-signed per cli-common distribution.md §2A, not notarized).
 # skip_upload: true → goreleaser RENDERS the cask into dist/ but does NOT push
 # it; the reusable release workflow's homebrew step is the single atomic tap
 # writer. No `token:` here — the tap token belongs only to that writer, and
