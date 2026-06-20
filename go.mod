@@ -4,10 +4,11 @@ go 1.26
 
 require (
 	github.com/atotto/clipboard v0.1.4
+	github.com/byteness/keyring v1.11.0
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/muesli/termenv v0.16.0
-	github.com/open-cli-collective/cli-common v0.3.2
+	github.com/open-cli-collective/cli-common v0.4.1-0.20260620115552-351effa2004b
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/spf13/cobra v1.8.0
 	github.com/yuin/goldmark v1.8.2
@@ -27,7 +28,6 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/byteness/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/byteness/go-libsecret v0.0.0-20260108215642-107379d3dee0 // indirect
-	github.com/byteness/keyring v1.11.0 // indirect
 	github.com/byteness/percent v0.2.2 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
