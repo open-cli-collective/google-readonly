@@ -213,6 +213,30 @@ config > auto). With the default ref, `set-credential`
 runs the one-time legacy migration first so a pre-existing `token.json` cannot
 later collide; an explicit `--ref` never migrates.
 
+### Selecting an account per invocation (concurrent multi-account use)
+
+`set-credential` can store tokens for several accounts under distinct credential
+refs (`<service>/<profile>`), but by default every command reads the single
+active `credential_ref` from `config.yml`. To let concurrent processes each
+target a *different* account without racing on that shared file, **any** command
+accepts a per-invocation credential ref, resolved with the same precedence shape
+as `--backend`:
+
+`--ref <service>/<profile>` flag > `GOOGLE_READONLY_CREDENTIAL_REF` env > `config.yml` `credential_ref`
+
+```bash
+# Two mailboxes in parallel, each fully self-contained — no config.yml rewrite:
+gro mail search "is:unread" --ref google-readonly/work &
+gro mail search "is:unread" --ref google-readonly/personal &
+
+# Or via the environment, to wrap a whole process:
+GOOGLE_READONLY_CREDENTIAL_REF=google-readonly/work gro calendar today
+```
+
+An explicit `--ref`/env override targets an already-provisioned profile, so it
+never runs the one-time legacy `token.json` migration (that only ever applies to
+the configured/default ref).
+
 ## Commands
 
 ### Configuration Commands

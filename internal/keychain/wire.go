@@ -28,3 +28,32 @@ func GetBackendFlagOverride() (value string, flagSet bool) {
 	defer backendMu.RUnlock()
 	return backendFlagValue, backendFlagWasSet
 }
+
+var (
+	credRefMu         sync.RWMutex
+	credRefFlagValue  string
+	credRefFlagWasSet bool
+)
+
+// SetCredentialRefOverride records the user-supplied --ref flag for the next
+// keychain.Open* call. Called by root.WireCredentialRefSelection at
+// PersistentPreRunE time. Mirrors SetBackendFlagOverride: a persistent flag
+// can't be threaded through the parameterless keychain.Open() the read
+// commands call, so it is recorded here and read back at the single
+// resolution site (open). flagSet matches cobra's pflag.Flag.Changed — true
+// when the user passed --ref on the command line, regardless of value.
+func SetCredentialRefOverride(value string, flagSet bool) {
+	credRefMu.Lock()
+	defer credRefMu.Unlock()
+	credRefFlagValue = value
+	credRefFlagWasSet = flagSet
+}
+
+// GetCredentialRefOverride returns the current --ref override and whether it
+// was set. The flag-set vs unset distinction lets an explicit empty value be
+// told apart from "no flag".
+func GetCredentialRefOverride() (value string, flagSet bool) {
+	credRefMu.RLock()
+	defer credRefMu.RUnlock()
+	return credRefFlagValue, credRefFlagWasSet
+}

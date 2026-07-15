@@ -104,6 +104,8 @@ OAuth tokens are per-user access secrets and live only through `cli-common/creds
 
 Non-secret config uses the OS-native config directory via `cli-common/statedir`. Current config fields include `credential_ref`, `oauth_client_path`, `granted_scopes`, and `keyring.backend`.
 
+The active `credential_ref` can be overridden per invocation — precedence `--ref` flag > `GOOGLE_READONLY_CREDENTIAL_REF` env > `config.yml` — so concurrent processes can target different accounts without racing on the shared config file. This mirrors the `--backend` selection machinery: the persistent flag is recorded by `root.WireCredentialRefSelection` and applied at the single `keychain.open` resolution site (which suppresses the one-time legacy migration whenever an override is present, since migration only ever targets the configured ref).
+
 Secret ingress belongs in setup and credential-management commands only. For the shared rules, use `working-with-secrets.md`, `working-with-state.md`, and `scriptability.md` from `cli-common`.
 
 ## Testing Notes

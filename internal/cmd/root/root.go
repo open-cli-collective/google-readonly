@@ -32,6 +32,11 @@ var (
 	noColor bool
 )
 
+// credentialRefFlagName is the global per-invocation credential-ref selector.
+// It shares its name with `set-credential`'s own write-target --ref (a local
+// flag that shadows this persistent one for that command only).
+const credentialRefFlagName = "ref"
+
 var rootCmd = &cobra.Command{
 	Use:   "gro",
 	Short: "A non-destructive CLI for Google services",
@@ -52,7 +57,10 @@ This will guide you through OAuth setup for Google API access.`,
 		if noColor {
 			lipgloss.DefaultRenderer().SetColorProfile(termenv.Ascii)
 		}
-		return WireBackendSelection(cmd)
+		if err := WireBackendSelection(cmd); err != nil {
+			return err
+		}
+		return WireCredentialRefSelection(cmd)
 	},
 }
 
@@ -79,6 +87,32 @@ func WireBackendSelection(cmd *cobra.Command) error {
 		return fmt.Errorf("--%s: %w", cccredstore.BackendFlagName, err)
 	}
 	keychain.SetBackendFlagOverride(value, changed)
+	return nil
+}
+
+// WireCredentialRefSelection records the user-supplied --ref flag for the next
+// keychain.Open* call and validates its <service>/<profile> shape up front so a
+// bad value fails with a clear "--ref" error before any keyring work. The
+// resolved precedence (--ref flag > <SERVICE>_CREDENTIAL_REF env > config
+// credential_ref) is applied at keychain.open; this hook only records the flag.
+//
+// Like WireBackendSelection, it is exported because cobra does NOT chain
+// PersistentPreRunE — a subcommand that defines its own must call this
+// explicitly. Reads via cmd.Flag() so persistent-flag inheritance works from
+// any subcommand path.
+func WireCredentialRefSelection(cmd *cobra.Command) error {
+	f := cmd.Flag(credentialRefFlagName)
+	if f == nil {
+		return nil
+	}
+	value := f.Value.String()
+	changed := f.Changed
+	if changed && value != "" {
+		if _, _, err := cccredstore.ParseRef(value); err != nil {
+			return fmt.Errorf("--%s: %w", credentialRefFlagName, err)
+		}
+	}
+	keychain.SetCredentialRefOverride(value, changed)
 	return nil
 }
 
@@ -117,6 +151,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output for debugging")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().String(cccredstore.BackendFlagName, "", cccredstore.BackendFlagUsage())
+	rootCmd.PersistentFlags().String(credentialRefFlagName, "", fmt.Sprintf(
+		"Credential ref <service>/<profile> for this invocation, so concurrent commands "+
+			"can target different accounts without racing on config.yml "+
+			"(precedence: --%s flag > %s env > config credential_ref)",
+		credentialRefFlagName, keychain.CredentialRefEnvVar()))
 
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())
