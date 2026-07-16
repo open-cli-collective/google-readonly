@@ -1,6 +1,10 @@
 package keychain
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/open-cli-collective/google-readonly/internal/config"
+)
 
 // resetCredRefOverride keeps the package-level --ref override clean across
 // tests so a leaked value can't tilt the next.
@@ -58,6 +62,56 @@ func TestEffectiveRef_Precedence(t *testing.T) {
 		ref, ov := effectiveRef(cfgRef)
 		if ref != cfgRef || ov {
 			t.Errorf("got (%q,%v), want (%q,false) — empty --ref must fall through", ref, ov, cfgRef)
+		}
+	})
+}
+
+// TestApplyCredentialRefOverride proves the safety-critical part open() relies
+// on: a present override swaps cfg.CredentialRef AND forces runMigration=false
+// (so the one-time legacy migration never runs against an arbitrary
+// --ref/env-selected profile), while no override leaves both untouched. This is
+// the open()-side coverage the pure effectiveRef/wiring tests don't provide.
+func TestApplyCredentialRefOverride(t *testing.T) {
+	const cfgRef = "google-readonly/cfg"
+
+	t.Run("no override: cfg untouched, runMigration passthrough", func(t *testing.T) {
+		resetCredRefOverride(t)
+		t.Setenv(CredentialRefEnvVar(), "")
+		cfg := &config.Config{CredentialRef: cfgRef}
+		if rm := applyCredentialRefOverride(cfg, true); !rm {
+			t.Errorf("runMigration = %v, want true (passthrough)", rm)
+		}
+		if cfg.CredentialRef != cfgRef {
+			t.Errorf("cfg.CredentialRef = %q, want unchanged %q", cfg.CredentialRef, cfgRef)
+		}
+		// passthrough must preserve a false caller value too (OpenNoMigrate path)
+		if rm := applyCredentialRefOverride(cfg, false); rm {
+			t.Errorf("runMigration = %v, want false (passthrough of caller's false)", rm)
+		}
+	})
+
+	t.Run("flag override: cfg swapped, migration suppressed", func(t *testing.T) {
+		resetCredRefOverride(t)
+		t.Setenv(CredentialRefEnvVar(), "")
+		SetCredentialRefOverride("google-readonly/flag", true)
+		cfg := &config.Config{CredentialRef: cfgRef}
+		if rm := applyCredentialRefOverride(cfg, true); rm {
+			t.Errorf("runMigration = %v, want false (override must suppress migration)", rm)
+		}
+		if cfg.CredentialRef != "google-readonly/flag" {
+			t.Errorf("cfg.CredentialRef = %q, want google-readonly/flag", cfg.CredentialRef)
+		}
+	})
+
+	t.Run("env override: cfg swapped, migration suppressed", func(t *testing.T) {
+		resetCredRefOverride(t)
+		t.Setenv(CredentialRefEnvVar(), "google-readonly/env")
+		cfg := &config.Config{CredentialRef: cfgRef}
+		if rm := applyCredentialRefOverride(cfg, true); rm {
+			t.Errorf("runMigration = %v, want false (env override must suppress migration)", rm)
+		}
+		if cfg.CredentialRef != "google-readonly/env" {
+			t.Errorf("cfg.CredentialRef = %q, want google-readonly/env", cfg.CredentialRef)
 		}
 	})
 }

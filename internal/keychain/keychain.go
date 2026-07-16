@@ -73,18 +73,28 @@ func open(overwrite, runMigration bool) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A per-invocation --ref flag or <SERVICE>_CREDENTIAL_REF env selects the
-	// credential ref for this process (precedence: flag > env > config), so
-	// concurrent processes can each target a different account without racing
-	// on the shared config.yml. An explicit override also suppresses the
-	// one-time §1.8 migration: it only ever targets the configured/default ref
-	// (running it against an arbitrary ref could write the default's legacy
-	// data under the wrong service/profile — the same reason OpenRef skips it).
+	runMigration = applyCredentialRefOverride(cfg, runMigration)
+	return openWith(cfg, overwrite, runMigration)
+}
+
+// applyCredentialRefOverride applies the per-invocation credential-ref override
+// to cfg in place and returns the effective runMigration decision. A
+// --ref flag or <SERVICE>_CREDENTIAL_REF env (precedence: flag > env > config)
+// selects the ref for this process, so concurrent processes can each target a
+// different account without racing on the shared config.yml. A present override
+// also FORCES runMigration=false: the one-time §1.8 migration only ever targets
+// the configured/default ref (running it against an arbitrary ref could write
+// the default's legacy data under the wrong service/profile — the same reason
+// OpenRef skips it). With no override, cfg is untouched and the caller's
+// runMigration is returned unchanged. Split out of open() so this
+// safety-critical swap+suppression is directly testable without
+// config.LoadConfigForRuntime or a real keyring.
+func applyCredentialRefOverride(cfg *config.Config, runMigration bool) bool {
 	if ref, overridden := effectiveRef(cfg.CredentialRef); overridden {
 		cfg.CredentialRef = ref
-		runMigration = false
+		return false
 	}
-	return openWith(cfg, overwrite, runMigration)
+	return runMigration
 }
 
 // CredentialRefEnvVar is the per-invocation credential-ref override env var
