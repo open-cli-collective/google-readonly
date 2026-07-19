@@ -1,32 +1,42 @@
 # Adding a New Google API Domain
 
-This checklist covers adding a new Google API (e.g., Google Tasks, Google Sheets) to gro. The structural tests in `internal/architecture/architecture_test.go` automatically enforce steps marked with [enforced].
+This checklist covers adding a new Google API (e.g., Google Tasks, Google
+Sheets) to gro. Because gro is now a thin CLI on
+[`google-cli-common`](https://github.com/open-cli-collective/google-cli-common),
+adding a domain spans two modules: the reusable **API client** goes in
+google-cli-common (so grw and any future sibling can use it too), while the
+**command surface**, **scope registration**, and **structural-test wiring** stay
+here. Structural tests in `internal/architecture/architecture_test.go`
+automatically enforce steps marked [enforced].
 
 ## Checklist
 
-### 1. Add the OAuth scope
+### 1. Add the OAuth scope (this repo)
 
-In `internal/auth/auth.go`, add the readonly scope to `AllScopes`:
+In `internal/appidentity/appidentity.go`, add the readonly scope to `Scopes`
+(and a human description to `ScopeDescriptions`):
+
 ```go
-var AllScopes = []string{
-    gmail.GmailReadonlyScope,
-    calendar.CalendarReadonlyScope,
-    people.ContactsReadonlyScope,
-    drive.DriveReadonlyScope,
+var Scopes = []string{
+    gmail.GmailModifyScope,
+    // ...
     tasks.TasksReadonlyScope, // new
 }
 ```
 
-[enforced] Only `*ReadonlyScope` constants are permitted.
+[enforced] `TestAllScopesAreNonDestructive` requires every scope in
+`appidentity.Scopes` to be on the non-destructive allowlist. gro must never
+request a send/delete/settings scope.
 
-### 2. Create the API client package
+### 2. Create the API client package (google-cli-common)
 
-Create `internal/{domain}/` with:
+In the google-cli-common repo, create `{domain}/` with:
 - `client.go` — `Client` struct, `NewClient(ctx context.Context) (*Client, error)`, methods
 - Data model files as needed
 - `*_test.go` — Unit tests for parsing and data models
 
-The constructor must follow the established pattern:
+The constructor follows the established pattern (auth lives in common):
+
 ```go
 func NewClient(ctx context.Context) (*Client, error) {
     client, err := auth.GetHTTPClient(ctx)
@@ -41,74 +51,69 @@ func NewClient(ctx context.Context) (*Client, error) {
 }
 ```
 
-[enforced] This package must NOT import any `internal/cmd/` package.
+Release a new google-cli-common version once the client lands, and bump the
+`require` in gro's `go.mod` to it.
 
-### 3. Create the command package
+### 3. Create the command package (this repo)
 
 Create `internal/cmd/{domain}/` with these files:
 
 **`output.go`** — [enforced] Must contain:
 - An exported interface ending in `Client` (e.g., `TasksClient`)
-- A `ClientFactory` variable
-- A `newXClient()` wrapper function
-- Domain-specific text-rendering helpers (e.g., `printTask`, `printTaskSummary`)
+- A `ClientFactory` variable whose default calls the google-cli-common client:
+  ```go
+  var ClientFactory = func(ctx context.Context) (TasksClient, error) {
+      return tasks.NewClient(ctx) // tasks = google-cli-common/tasks
+  }
+  ```
+- Domain-specific text-rendering helpers
 
-> Do **not** add a package-local `printJSON()` helper. Per golden principle §4 (#144), resource-surface leaves emit text only. The `internal/output` package is reserved for control-plane envelopes (`refresh --json`, `config show --json`).
+> Do **not** add a package-local `printJSON()`. Per golden principle §4 (#144),
+> resource-surface leaves emit text only.
 
-**`{domain}.go`** — [enforced] Must contain:
-- An exported `NewCommand()` function returning `*cobra.Command`
-- `AddCommand()` calls for all subcommands
+**`{domain}.go`** — [enforced] An exported `NewCommand()` returning
+`*cobra.Command`, with `AddCommand()` calls for all subcommands.
 
-**Each subcommand file** — [enforced] Resource-surface leaves emit text only — they must NOT declare `--json/-j`. The structural test `TestResourceLeavesHaveNoJSONFlag` catches accidental re-introduction. Each leaf file contains:
-- Unexported `new{Sub}Command()` factory
-- Text rendering via the domain's printers from `output.go`
+**Each subcommand file** — [enforced] Resource-surface leaves emit text only;
+they must NOT declare `--json/-j` (`TestResourceLeavesHaveNoJSONFlag`).
+
+**`main_test.go`** — a `TestMain` that registers gro's identity so config/
+keychain paths resolve in tests:
+
+```go
+func TestMain(m *testing.M) {
+    config.Register(appidentity.Identity())
+    os.Exit(m.Run())
+}
+```
 
 ### 4. Create test infrastructure
 
-**`mock_test.go`** — Function-field mock with compile-time interface check:
-```go
-type MockTasksClient struct {
-    ListTasksFunc func(ctx context.Context, ...) (...)
-}
+**`mock_test.go`** — Function-field mock with a compile-time interface check.
+**`handlers_test.go`** — `withMockClient` / `withFailingClientFactory` using the
+centralized `testutil.WithFactory` (from google-cli-common). Capture output with
+`testutil.CaptureStdout`.
 
-var _ TasksClient = (*MockTasksClient)(nil)
-```
+### 5. Add test fixtures (google-cli-common)
 
-**`handlers_test.go`** — Test helpers using centralized utilities:
-```go
-func withMockClient(mock TasksClient, f func()) {
-    testutil.WithFactory(&ClientFactory, func(_ context.Context) (TasksClient, error) {
-        return mock, nil
-    }, f)
-}
+In google-cli-common's `testutil/fixtures.go`, add `SampleX()` functions for the
+new API types.
 
-func withFailingClientFactory(f func()) {
-    testutil.WithFactory(&ClientFactory, func(_ context.Context) (TasksClient, error) {
-        return nil, errors.New("connection failed")
-    }, f)
-}
-```
-
-Use `testutil.CaptureStdout(t, func() { ... })` for output capture.
-
-### 5. Add test fixtures
-
-In `internal/testutil/fixtures.go`, add `SampleX()` functions for the new API types.
-
-### 6. Register the domain command
+### 6. Register the domain command (this repo)
 
 In `internal/cmd/root/root.go`, add:
+
 ```go
-cmd.AddCommand(tasks.NewCommand())
+rootCmd.AddCommand(tasks.NewCommand())
 ```
 
-### 7. Update structural test registration
+### 7. Update structural test registration (this repo)
 
-In `internal/architecture/architecture_test.go`, add the new domain to:
-- `domainPackages` slice (e.g., `"tasks"`)
-- `apiClientPackages` slice (e.g., `"tasks"`)
-- `domainCommands()` map
+In `internal/architecture/architecture_test.go`, add the new domain to the
+`domainPackages` slice and the `domainCommands()` map.
 
 ### 8. Verify
 
-Run `make check`. The structural tests will catch any missing patterns.
+Run `make check`. The structural tests catch any missing patterns. If a new
+google-cli-common client was added, make sure `go.mod` requires the version that
+contains it.

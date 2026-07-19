@@ -6,8 +6,16 @@ This is the repo-local source for working on `gro`. It contains google-readonly-
 
 Binary: `gro`
 Module: `github.com/open-cli-collective/google-readonly`
-Entrypoint: `cmd/gro/main.go`
+Entrypoint: `cmd/gro/main.go` (registers `appidentity.Identity()` via `config.Register`, then runs the root command)
 Root command: `internal/cmd/root`
+
+`gro` is a thin CLI on the shared
+[`google-cli-common`](https://github.com/open-cli-collective/google-cli-common)
+module, which provides the OAuth flow, the Google API clients, credential/config
+state, and the shared command packages (mail/init/config/setcred/refresh + root
+scaffolding). This repo owns gro's identity (`internal/appidentity`), its own
+domain commands (`internal/cmd/{calendar,contacts,drive,me}`), and its structural
+tests. See `docs/architecture.md`.
 
 `gro` is a non-destructive command-line interface for Google services. It supports read access plus non-destructive organization operations such as labeling, archiving, starring, marking read or unread, RSVP/color operations, group membership, and drafts that are never sent automatically. No send, delete, trash, or destructive file/contact/event operations should be exposed.
 
@@ -88,7 +96,7 @@ make install
 
 ## Core Constraints
 
-- OAuth scopes live in `auth.AllScopes` and must remain on the non-destructive allowlist enforced by structural tests.
+- OAuth scopes live in `appidentity.Scopes` (registered via `config.Register` in `main`) and must remain on the non-destructive allowlist enforced by structural tests.
 - Production code must not call destructive Google API methods such as send, trash, untrash, or batch delete.
 - Each `internal/cmd/{domain}` package defines its own client interface in `output.go`.
 - Each domain command package exposes a `ClientFactory` variable for test injection.
@@ -110,16 +118,17 @@ Secret ingress belongs in setup and credential-management commands only. For the
 
 ## Testing Notes
 
-Run repo sanity with `make check`. Structural tests live in `internal/architecture/architecture_test.go`; fixtures and assertions live in `internal/testutil`.
+Run repo sanity with `make check`. Structural tests live in `internal/architecture/architecture_test.go`; fixtures and assertions live in `google-cli-common/testutil` (shared with grw).
 
 Mock clients use function fields plus compile-time interface checks. Test helpers such as `testutil.WithFactory`, `testutil.CaptureStdout`, `testutil.Equal`, and `testutil.NoError` are the default local patterns.
 
 ## Dependencies
 
+- `github.com/open-cli-collective/google-cli-common` — the shared Google layer: OAuth flow, API clients (Gmail/Calendar/Contacts/Drive/People), credential/config/cache state, rendering/bulk helpers, and the shared command packages. Bump its `require` version when consuming new common features.
 - `github.com/spf13/cobra` for the command surface.
-- `golang.org/x/oauth2` for OAuth2 client behavior.
-- `google.golang.org/api/*` for Gmail, Calendar, People, and Drive APIs.
-- `github.com/open-cli-collective/cli-common` for credential storage and state directory behavior.
+- `golang.org/x/oauth2` for OAuth2 client behavior (via google-cli-common).
+- `google.golang.org/api/*` for the Gmail, Calendar, People, and Drive APIs (via google-cli-common; used directly here only for OAuth scope constants in `appidentity`).
+- `github.com/open-cli-collective/cli-common` for credential storage and state directory behavior (via google-cli-common).
 - `gopkg.in/yaml.v3` for `config.yml`.
 
 ## Common Issues
