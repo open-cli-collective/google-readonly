@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -355,5 +356,62 @@ func TestNoDestructiveAPIMethodsInProductionCode(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("walking source tree: %v", err)
+	}
+}
+
+// commonClientPackages are the google-cli-common API client packages gro relies
+// on. gro's non-destructive guarantee depends on these staying non-destructive
+// even though they now live in a separate module (the destructive Gmail surface
+// belongs to grw, never to the shared clients).
+var commonClientPackages = []string{"gmail", "calendar", "contacts", "drive", "people"}
+
+// TestSharedGoogleClientsAreNonDestructive extends the non-destructive guarantee
+// across the module boundary. TestNoDestructiveAPIMethodsInProductionCode only
+// walks this repo, but the Google API clients gro drives now live in the pinned
+// google-cli-common module. This test resolves that module in the local module
+// cache and scans its client packages for the same forbidden destructive
+// methods, so a future common release that introduces one (e.g. via a shared
+// batch helper) fails gro's CI the moment gro bumps to it — instead of silently
+// shipping. Keeps the guarantee code-enforced, not prose-only.
+func TestSharedGoogleClientsAreNonDestructive(t *testing.T) {
+	t.Parallel()
+
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}",
+		"github.com/open-cli-collective/google-cli-common").Output()
+	if err != nil {
+		t.Fatalf("resolving google-cli-common module dir: %v", err)
+	}
+	commonDir := strings.TrimSpace(string(out))
+	if commonDir == "" {
+		t.Fatal("empty google-cli-common module dir")
+	}
+
+	// Same forbidden set as the in-repo scan. .BatchModify( stays allowed
+	// (bulk labeling/archiving).
+	forbiddenPatterns := []string{".Send(", ".Trash(", ".Untrash(", ".BatchDelete("}
+
+	for _, pkg := range commonClientPackages {
+		dir := filepath.Join(commonDir, pkg)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("reading shared client package %s: %v", dir, err)
+		}
+		for _, entry := range entries {
+			name := entry.Name()
+			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			data, readErr := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // path from resolved module cache
+			if readErr != nil {
+				t.Errorf("reading %s/%s: %v", pkg, name, readErr)
+				continue
+			}
+			content := string(data)
+			for _, pattern := range forbiddenPatterns {
+				if strings.Contains(content, pattern) {
+					t.Errorf("shared client google-cli-common/%s/%s contains forbidden destructive API method %q — the clients gro depends on must stay non-destructive (the destructive surface belongs to grw)", pkg, name, pattern)
+				}
+			}
+		}
 	}
 }

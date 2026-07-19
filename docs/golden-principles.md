@@ -38,9 +38,9 @@ The `mail` leaves come from the shared `google-cli-common/mailcmd` package (comp
 
 ## 5. Non-destructive only
 
-All OAuth scopes in `appidentity.Scopes` must appear in the non-destructive allowlist. No destructive API methods (`.Send()`, `.Trash()`, `.BatchDelete()`, etc.) in gro's production code. Non-destructive modify methods like `.BatchModify()` (used for labeling/archiving) are permitted. The shared `google-cli-common/gmail` client is likewise non-destructive; the destructive Gmail surface lives only in grw (google-readwrite).
+All OAuth scopes in `appidentity.Scopes` must appear in the non-destructive allowlist. No destructive API methods (`.Send()`, `.Trash()`, `.BatchDelete()`, etc.) in gro's production code. Non-destructive modify methods like `.BatchModify()` (used for labeling/archiving) are permitted. The shared `google-cli-common` API clients gro depends on are held to the same bar — the destructive Gmail surface lives only in grw (google-readwrite), never in the shared clients.
 
-**Enforced by:** `TestAllScopesAreNonDestructive`, `TestNoDestructiveAPIMethodsInProductionCode`
+**Enforced by:** `TestAllScopesAreNonDestructive` (scopes), `TestNoDestructiveAPIMethodsInProductionCode` (gro's own tree), and `TestSharedGoogleClientsAreNonDestructive` (scans the pinned `google-cli-common` client packages in the module cache, so a future common release adding a destructive call fails gro's CI when gro bumps to it).
 
 ## 6. Dependency direction
 
