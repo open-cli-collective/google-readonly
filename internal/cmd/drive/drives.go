@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/cache"
-	"github.com/open-cli-collective/google-readonly/internal/drive"
+	"github.com/open-cli-collective/google-cli-common/cache"
+	"github.com/open-cli-collective/google-cli-common/drive"
 )
 
 func newDrivesCommand() *cobra.Command {

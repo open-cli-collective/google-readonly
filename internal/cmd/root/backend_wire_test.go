@@ -9,7 +9,7 @@ import (
 
 	cccredstore "github.com/open-cli-collective/cli-common/credstore"
 
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
+	"github.com/open-cli-collective/google-cli-common/keychain"
 )
 
 const serviceName = "google-readonly"

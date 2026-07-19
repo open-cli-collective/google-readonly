@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/calendar"
+	"github.com/open-cli-collective/google-cli-common/calendar"
 )
 
 func newGetCommand() *cobra.Command {

@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/drive"
-	"github.com/open-cli-collective/google-readonly/internal/format"
+	"github.com/open-cli-collective/google-cli-common/drive"
+	"github.com/open-cli-collective/google-cli-common/format"
 )
 
 func newGetCommand() *cobra.Command {

@@ -3,7 +3,7 @@ package drive
 import (
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestDownloadCommand(t *testing.T) {

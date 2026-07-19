@@ -15,15 +15,16 @@ import (
 	"github.com/open-cli-collective/cli-common/credstore"
 	"golang.org/x/oauth2"
 
-	cfgcmd "github.com/open-cli-collective/google-readonly/internal/cmd/config"
+	"github.com/open-cli-collective/google-cli-common/config"
+	cfgcmd "github.com/open-cli-collective/google-cli-common/configcmd"
+	"github.com/open-cli-collective/google-cli-common/credtest"
+	"github.com/open-cli-collective/google-cli-common/keychain"
+	"github.com/open-cli-collective/google-cli-common/migrationsink"
+	"github.com/open-cli-collective/google-cli-common/output"
+	"github.com/open-cli-collective/google-cli-common/people"
+	"github.com/open-cli-collective/google-cli-common/setcred"
+
 	mecmd "github.com/open-cli-collective/google-readonly/internal/cmd/me"
-	"github.com/open-cli-collective/google-readonly/internal/cmd/setcred"
-	"github.com/open-cli-collective/google-readonly/internal/config"
-	"github.com/open-cli-collective/google-readonly/internal/credtest"
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
-	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
-	"github.com/open-cli-collective/google-readonly/internal/output"
-	"github.com/open-cli-collective/google-readonly/internal/people"
 )
 
 // fakePeople is a no-network mecmd.PeopleClient for the me no-leak test.

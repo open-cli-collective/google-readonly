@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestAddToGroupCommand_Success(t *testing.T) {

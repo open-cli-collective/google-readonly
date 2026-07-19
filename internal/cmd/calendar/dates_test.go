@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestParseDate(t *testing.T) {

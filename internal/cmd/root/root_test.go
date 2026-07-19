@@ -14,8 +14,9 @@ import (
 
 	"github.com/open-cli-collective/cli-common/credstore"
 
-	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/migrationsink"
+	"github.com/open-cli-collective/google-cli-common/rootutil"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestRootCommand(t *testing.T) {
@@ -81,7 +82,7 @@ func TestRunRootFlushesMigrationNoticeOnError(t *testing.T) {
 		done <- buf.String()
 	}()
 
-	err := runRoot(context.Background())
+	err := rootutil.RunWithMigrationNotice(context.Background(), rootCmd)
 
 	os.Stderr = orig
 	_ = w.Close()

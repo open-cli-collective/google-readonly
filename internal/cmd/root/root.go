@@ -6,36 +6,26 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 
-	cccredstore "github.com/open-cli-collective/cli-common/credstore"
+	config "github.com/open-cli-collective/google-cli-common/configcmd"
+	"github.com/open-cli-collective/google-cli-common/initcmd"
+	mail "github.com/open-cli-collective/google-cli-common/mailcmd"
+	"github.com/open-cli-collective/google-cli-common/refreshcmd"
+	"github.com/open-cli-collective/google-cli-common/rootutil"
+	"github.com/open-cli-collective/google-cli-common/setcred"
+	"github.com/open-cli-collective/google-cli-common/version"
 
 	"github.com/open-cli-collective/google-readonly/internal/cmd/calendar"
-	"github.com/open-cli-collective/google-readonly/internal/cmd/config"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/contacts"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/drive"
-	"github.com/open-cli-collective/google-readonly/internal/cmd/initcmd"
-	"github.com/open-cli-collective/google-readonly/internal/cmd/mail"
 	"github.com/open-cli-collective/google-readonly/internal/cmd/me"
-	"github.com/open-cli-collective/google-readonly/internal/cmd/refreshcmd"
-	"github.com/open-cli-collective/google-readonly/internal/cmd/setcred"
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
-	"github.com/open-cli-collective/google-readonly/internal/log"
-	"github.com/open-cli-collective/google-readonly/internal/migrationsink"
-	"github.com/open-cli-collective/google-readonly/internal/version"
 )
 
 var (
 	verbose bool
 	noColor bool
 )
-
-// credentialRefFlagName is the global per-invocation credential-ref selector.
-// It shares its name with `set-credential`'s own write-target --ref (a local
-// flag that shadows this persistent one for that command only).
-const credentialRefFlagName = "ref"
 
 var rootCmd = &cobra.Command{
 	Use:   "gro",
@@ -53,67 +43,22 @@ To get started, run:
 This will guide you through OAuth setup for Google API access.`,
 	Version: version.Version,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		log.Verbose = verbose
-		if noColor {
-			lipgloss.DefaultRenderer().SetColorProfile(termenv.Ascii)
-		}
-		if err := WireBackendSelection(cmd); err != nil {
-			return err
-		}
-		return WireCredentialRefSelection(cmd)
+		return rootutil.ApplyGlobalFlags(cmd, verbose, noColor)
 	},
 }
 
-// WireBackendSelection validates the user-supplied --backend flag and
-// records it for the next keychain.Open* call. Cobra-layer only — it
-// does NOT load config; openWith binds the flag pair against
-// cfg.Keyring.Backend at the single credstore.Open call site.
-//
-// Exported so a subcommand that defines its own PersistentPreRunE can
-// call it explicitly: cobra does NOT chain PersistentPreRunE, so a
-// shadowing subcommand silently loses the wiring without this hook.
-// gro has no shadowers today; the regression test guards the pattern.
-//
-// Reads via cmd.Flag() so persistent-flag inheritance works from any
-// subcommand path.
+// WireBackendSelection is a thin wrapper over rootutil so a subcommand that
+// defines its own PersistentPreRunE can call it explicitly (cobra does NOT
+// chain PersistentPreRunE). Retained on the root package for the regression
+// tests that guard the shadowing pattern.
 func WireBackendSelection(cmd *cobra.Command) error {
-	var value string
-	var changed bool
-	if bf := cmd.Flag(cccredstore.BackendFlagName); bf != nil {
-		value = bf.Value.String()
-		changed = bf.Changed
-	}
-	if err := cccredstore.BindBackendFlag(&cccredstore.Options{}, value, changed, ""); err != nil {
-		return fmt.Errorf("--%s: %w", cccredstore.BackendFlagName, err)
-	}
-	keychain.SetBackendFlagOverride(value, changed)
-	return nil
+	return rootutil.WireBackendSelection(cmd)
 }
 
-// WireCredentialRefSelection records the user-supplied --ref flag for the next
-// keychain.Open* call and validates its <service>/<profile> shape up front so a
-// bad value fails with a clear "--ref" error before any keyring work. The
-// resolved precedence (--ref flag > <SERVICE>_CREDENTIAL_REF env > config
-// credential_ref) is applied at keychain.open; this hook only records the flag.
-//
-// Like WireBackendSelection, it is exported because cobra does NOT chain
-// PersistentPreRunE — a subcommand that defines its own must call this
-// explicitly. Reads via cmd.Flag() so persistent-flag inheritance works from
-// any subcommand path.
+// WireCredentialRefSelection is a thin wrapper over rootutil (see
+// WireBackendSelection).
 func WireCredentialRefSelection(cmd *cobra.Command) error {
-	f := cmd.Flag(credentialRefFlagName)
-	if f == nil {
-		return nil
-	}
-	value := f.Value.String()
-	changed := f.Changed
-	if changed && value != "" {
-		if _, _, err := cccredstore.ParseRef(value); err != nil {
-			return fmt.Errorf("--%s: %w", credentialRefFlagName, err)
-		}
-	}
-	keychain.SetCredentialRefOverride(value, changed)
-	return nil
+	return rootutil.WireCredentialRefSelection(cmd)
 }
 
 // Execute runs the root command with a background context
@@ -122,40 +67,21 @@ func Execute() {
 }
 
 // ExecuteContext runs the root command with the given context. os.Exit stays
-// strictly AFTER runRoot returns so runRoot's deferred FlushMigrationNotice
-// is never skipped by the exit (it would be if the defer lived here).
+// strictly AFTER RunWithMigrationNotice returns so its deferred migration flush
+// is never skipped by the exit.
 func ExecuteContext(ctx context.Context) {
-	if err := runRoot(ctx); err != nil {
+	if err := rootutil.RunWithMigrationNotice(ctx, rootCmd); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-// runRoot owns the deferred §1.8 migration-notice flush. The defer fires on
-// success AND error, before any os.Exit — the reliable "finally" hook
-// (Cobra's PersistentPostRunE is skipped on a RunE error, which would lose
-// the signal if the one-time migration succeeded but the command then
-// failed). A JSON command consumes the record via output.JSON, so this is a
-// no-op for it; everything else gets the human stderr line. Stderr never
-// corrupts a --json stdout body.
-func runRoot(ctx context.Context) error {
-	defer migrationsink.FlushMigrationNotice(os.Stderr)
-	return rootCmd.ExecuteContext(ctx)
 }
 
 func init() {
 	// Set custom version template to include commit and build date
 	rootCmd.SetVersionTemplate("gro " + version.Info() + "\n")
 
-	// Global flags
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output for debugging")
-	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
-	rootCmd.PersistentFlags().String(cccredstore.BackendFlagName, "", cccredstore.BackendFlagUsage())
-	rootCmd.PersistentFlags().String(credentialRefFlagName, "", fmt.Sprintf(
-		"Credential ref <service>/<profile> for this invocation, so concurrent commands "+
-			"can target different accounts without racing on config.yml "+
-			"(precedence: --%s flag > %s env > config credential_ref)",
-		credentialRefFlagName, keychain.CredentialRefEnvVar()))
+	// Global flags (verbose, no-color, backend, ref)
+	rootutil.AddGlobalFlags(rootCmd, &verbose, &noColor)
 
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())

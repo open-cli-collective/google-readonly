@@ -6,7 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
+	"github.com/open-cli-collective/google-cli-common/keychain"
+	"github.com/open-cli-collective/google-cli-common/rootutil"
 )
 
 // TestWireCredentialRefSelection_FlagSet proves a --ref on a real command
@@ -46,8 +47,8 @@ func TestWireCredentialRefSelection_FlagInvalid(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "--"+credentialRefFlagName) {
-		t.Errorf("error should mention --%s: %v", credentialRefFlagName, err)
+	if !strings.Contains(err.Error(), "--"+rootutil.CredentialRefFlagName) {
+		t.Errorf("error should mention --%s: %v", rootutil.CredentialRefFlagName, err)
 	}
 }
 
@@ -86,9 +87,9 @@ func TestWireCredentialRefSelection_ShadowingSubcommand(t *testing.T) {
 // canonical persistent one. A regression that dropped set-credential's local
 // flag (or that made a read command shadow --ref) would flip these.
 func TestCredentialRef_SetCredentialShadowsPersistent(t *testing.T) {
-	canonical := rootCmd.PersistentFlags().Lookup(credentialRefFlagName)
+	canonical := rootCmd.PersistentFlags().Lookup(rootutil.CredentialRefFlagName)
 	if canonical == nil {
-		t.Fatalf("root persistent flag --%s not registered", credentialRefFlagName)
+		t.Fatalf("root persistent flag --%s not registered", rootutil.CredentialRefFlagName)
 	}
 
 	var sc *cobra.Command
@@ -101,17 +102,17 @@ func TestCredentialRef_SetCredentialShadowsPersistent(t *testing.T) {
 	if sc == nil {
 		t.Fatal("set-credential command not registered on rootCmd")
 	}
-	if got := sc.Flag(credentialRefFlagName); got == nil {
-		t.Fatalf("set-credential has no --%s", credentialRefFlagName)
+	if got := sc.Flag(rootutil.CredentialRefFlagName); got == nil {
+		t.Fatalf("set-credential has no --%s", rootutil.CredentialRefFlagName)
 	} else if got == canonical {
-		t.Errorf("set-credential --%s resolved to the persistent flag; expected its own local shadow", credentialRefFlagName)
+		t.Errorf("set-credential --%s resolved to the persistent flag; expected its own local shadow", rootutil.CredentialRefFlagName)
 	}
 
 	// A read command (no local --ref) must inherit the canonical persistent flag.
 	me := newProbeCmd("probe-ref-inherit")
 	rootCmd.AddCommand(me)
 	defer removeChild(t, me)
-	if got := me.Flag(credentialRefFlagName); got != canonical {
-		t.Errorf("read command --%s = %p, want canonical %p (unexpected shadow)", credentialRefFlagName, got, canonical)
+	if got := me.Flag(rootutil.CredentialRefFlagName); got != canonical {
+		t.Errorf("read command --%s = %p, want canonical %p (unexpected shadow)", rootutil.CredentialRefFlagName, got, canonical)
 	}
 }

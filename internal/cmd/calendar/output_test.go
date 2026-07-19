@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/calendar"
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/calendar"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestPrintEvent(t *testing.T) {

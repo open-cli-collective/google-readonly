@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/bulk"
+	"github.com/open-cli-collective/google-cli-common/bulk"
 )
 
 // starredGroupResourceName is the system contact group for starred contacts.

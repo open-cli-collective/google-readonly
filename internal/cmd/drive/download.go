@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/config"
-	"github.com/open-cli-collective/google-readonly/internal/drive"
-	formatpkg "github.com/open-cli-collective/google-readonly/internal/format"
+	"github.com/open-cli-collective/google-cli-common/config"
+	"github.com/open-cli-collective/google-cli-common/drive"
+	formatpkg "github.com/open-cli-collective/google-cli-common/format"
 )
 
 func newDownloadCommand() *cobra.Command {

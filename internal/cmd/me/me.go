@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/api/googleapi"
 
-	"github.com/open-cli-collective/google-readonly/internal/auth"
-	"github.com/open-cli-collective/google-readonly/internal/config"
-	"github.com/open-cli-collective/google-readonly/internal/people"
+	"github.com/open-cli-collective/google-cli-common/auth"
+	"github.com/open-cli-collective/google-cli-common/config"
+	"github.com/open-cli-collective/google-cli-common/people"
 )
 
 // errReauth is the well-known error returned when the user must re-run `gro init`.

@@ -3,7 +3,7 @@ package drive
 import (
 	"context"
 
-	driveapi "github.com/open-cli-collective/google-readonly/internal/drive"
+	driveapi "github.com/open-cli-collective/google-cli-common/drive"
 )
 
 // MockDriveClient is a configurable mock for DriveClient.

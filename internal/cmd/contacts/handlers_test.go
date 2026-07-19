@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/api/people/v1"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 // withMockClient sets up a mock client factory for tests

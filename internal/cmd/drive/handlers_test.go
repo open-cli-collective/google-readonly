@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	driveapi "github.com/open-cli-collective/google-readonly/internal/drive"
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	driveapi "github.com/open-cli-collective/google-cli-common/drive"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 // withMockClient sets up a mock client factory for tests

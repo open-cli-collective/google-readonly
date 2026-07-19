@@ -3,7 +3,7 @@ package contacts
 import (
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestContactsCommand(t *testing.T) {

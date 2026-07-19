@@ -11,8 +11,8 @@ import (
 
 	"github.com/open-cli-collective/cli-common/statedirtest"
 
-	"github.com/open-cli-collective/google-readonly/internal/config"
-	"github.com/open-cli-collective/google-readonly/internal/people"
+	"github.com/open-cli-collective/google-cli-common/config"
+	"github.com/open-cli-collective/google-cli-common/people"
 )
 
 // mockPeopleClient is a stub for the exported PeopleClient interface.

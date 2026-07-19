@@ -3,7 +3,7 @@ package drive
 import (
 	"context"
 
-	"github.com/open-cli-collective/google-readonly/internal/drive"
+	"github.com/open-cli-collective/google-cli-common/drive"
 )
 
 // DriveClient defines the interface for Drive client operations used by drive commands.

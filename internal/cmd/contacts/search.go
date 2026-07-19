@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-cli-collective/google-readonly/internal/contacts"
+	"github.com/open-cli-collective/google-cli-common/contacts"
 )
 
 func newSearchCommand() *cobra.Command {

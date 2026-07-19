@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-cli-collective/google-readonly/internal/drive"
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/drive"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestTreeCommand(t *testing.T) {

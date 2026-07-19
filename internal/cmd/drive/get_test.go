@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-cli-collective/google-readonly/internal/drive"
-	"github.com/open-cli-collective/google-readonly/internal/testutil"
+	"github.com/open-cli-collective/google-cli-common/drive"
+	"github.com/open-cli-collective/google-cli-common/testutil"
 )
 
 func TestGetCommand(t *testing.T) {

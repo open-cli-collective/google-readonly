@@ -6,7 +6,7 @@ import (
 
 	calendarv3 "google.golang.org/api/calendar/v3"
 
-	"github.com/open-cli-collective/google-readonly/internal/calendar"
+	"github.com/open-cli-collective/google-cli-common/calendar"
 )
 
 // CalendarClient defines the interface for Calendar client operations used by calendar commands.

@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/api/people/v1"
 
-	"github.com/open-cli-collective/google-readonly/internal/contacts"
+	"github.com/open-cli-collective/google-cli-common/contacts"
 )
 
 // ContactsClient defines the interface for Contacts client operations used by contacts commands.

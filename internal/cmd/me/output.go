@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/open-cli-collective/google-readonly/internal/keychain"
-	"github.com/open-cli-collective/google-readonly/internal/people"
+	"github.com/open-cli-collective/google-cli-common/keychain"
+	"github.com/open-cli-collective/google-cli-common/people"
 )
 
 // PeopleClient defines the interface for People client operations used by the me command.
