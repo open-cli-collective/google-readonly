@@ -282,11 +282,13 @@ gro mail search "is:unread"
 gro mail search "from:someone@example.com" --max 20
 gro mail search "is:starred" --ids          # Output IDs only (for piping)
 
-# Read a message
+# Read a message (terminal quoted reply history is elided by default)
 gro mail read <message-id>
+gro mail read <message-id> --include-quoted-reply-bodies
 
-# View conversation thread
+# View conversation thread (terminal quoted reply history is elided by default)
 gro mail thread <thread-id>
+gro mail thread <thread-id> --include-quoted-reply-bodies
 
 # List labels
 gro mail labels
