@@ -42,9 +42,9 @@ builds:
           - "CC=xcrun clang -arch arm64"
     ldflags:
       - -s -w
-      - -X github.com/open-cli-collective/google-readonly/internal/version.Version={{.Version}}
-      - -X github.com/open-cli-collective/google-readonly/internal/version.Commit={{.Commit}}
-      - -X github.com/open-cli-collective/google-readonly/internal/version.Date={{.Date}}
+      - -X github.com/open-cli-collective/google-cli-common/version.Version={{.Version}}
+      - -X github.com/open-cli-collective/google-cli-common/version.Commit={{.Commit}}
+      - -X github.com/open-cli-collective/google-cli-common/version.Date={{.Date}}
     # macOS code-signing — stable DR so Keychain "Always Allow" survives brew upgrade
     # (cli-common distribution.md §2A). Logic + identity live in open-cli-collective/.github
     # (macos-codesign-setup), which exports CODESIGN_DARWIN_SCRIPT (absolute). Unset in
@@ -67,9 +67,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/open-cli-collective/google-readonly/internal/version.Version={{.Version}}
-      - -X github.com/open-cli-collective/google-readonly/internal/version.Commit={{.Commit}}
-      - -X github.com/open-cli-collective/google-readonly/internal/version.Date={{.Date}}
+      - -X github.com/open-cli-collective/google-cli-common/version.Version={{.Version}}
+      - -X github.com/open-cli-collective/google-cli-common/version.Commit={{.Commit}}
+      - -X github.com/open-cli-collective/google-cli-common/version.Date={{.Date}}
 
 archives:
   - formats:

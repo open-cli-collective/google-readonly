@@ -3,9 +3,9 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -ldflags "-s -w \
-	-X github.com/open-cli-collective/google-readonly/internal/version.Version=$(VERSION) \
-	-X github.com/open-cli-collective/google-readonly/internal/version.Commit=$(COMMIT) \
-	-X github.com/open-cli-collective/google-readonly/internal/version.Date=$(DATE)"
+	-X github.com/open-cli-collective/google-cli-common/version.Version=$(VERSION) \
+	-X github.com/open-cli-collective/google-cli-common/version.Commit=$(COMMIT) \
+	-X github.com/open-cli-collective/google-cli-common/version.Date=$(DATE)"
 
 DIST_DIR = dist
 
