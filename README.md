@@ -221,6 +221,42 @@ config > auto). With the default ref, `set-credential`
 runs the one-time legacy migration first so a pre-existing `token.json` cannot
 later collide; an explicit `--ref` never migrates.
 
+### Profiles: how gro handles multiple Google accounts
+
+Every stored OAuth token lives under a **profile** in the OS keyring, addressed
+as `google-readonly/<profile>`. Out of the box there is one profile named
+`default` — the name is just the family-wide convention for "the first one",
+not a special mechanism. Which profile commands use is an explicit, inspectable
+binding: the `credential_ref` in `config.yml`.
+
+The important properties of this model:
+
+- **Profiles are independent.** One profile's token expiring or being revoked
+  never affects another. If a command fails with an auth error, the error
+  names the failing profile — other profiles may still be healthy.
+- **The active binding is visible and deliberate.** `gro profiles list` shows
+  every stored profile, which account each holds, and which one is active
+  (plus where that selection came from: `config.yml`, `--ref`, or the
+  environment). `gro profiles use <name>` switches it.
+- **Adding an account never overwrites one.** `gro init --profile <name>`
+  authenticates a NEW named profile alongside the existing ones and leaves
+  the active binding untouched.
+
+```bash
+# What accounts do I have, and do their tokens still work?
+gro profiles list
+gro profiles list --check     # live-verifies each token: ok / expired / error
+
+# Add a second account without touching the first:
+gro init --profile work
+
+# Switch the default account for subsequent commands:
+gro profiles use work
+```
+
+Name profiles after what they are for (`work`, `personal`, `club`) — profile
+names allow letters, digits, `-`, and `_`.
+
 ### Selecting an account per invocation (concurrent multi-account use)
 
 `set-credential` can store tokens for several accounts under distinct credential
