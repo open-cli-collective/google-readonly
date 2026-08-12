@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/open-cli-collective/google-cli-common/gmail"
 	"github.com/open-cli-collective/google-cli-common/keychain"
 	"github.com/open-cli-collective/google-cli-common/people"
 )
@@ -18,6 +19,24 @@ type PeopleClient interface {
 // ClientFactory is the function used to create People clients. Override in tests to inject mocks.
 var ClientFactory = func(ctx context.Context) (PeopleClient, error) {
 	return people.NewClient(ctx)
+}
+
+// GmailEmailFactory resolves the authenticated account's email address via
+// the Gmail profile. It backs the fallback for People's missing email (see
+// run): gro requests userinfo.profile but deliberately not userinfo.email,
+// so people/me carries no email address on most tokens — while the Gmail
+// profile always knows it under the always-granted gmail.modify scope.
+// Override in tests to inject mocks.
+var GmailEmailFactory = func(ctx context.Context) (string, error) {
+	c, err := gmail.NewClient(ctx)
+	if err != nil {
+		return "", err
+	}
+	p, err := c.GetProfile(ctx)
+	if err != nil {
+		return "", err
+	}
+	return p.EmailAddress, nil
 }
 
 // Extras is the data shown by --extended that doesn't come from People.

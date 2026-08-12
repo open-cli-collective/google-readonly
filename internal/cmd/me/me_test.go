@@ -35,6 +35,15 @@ func withMockClient(t *testing.T, c PeopleClient) {
 	t.Cleanup(func() { ClientFactory = orig })
 }
 
+// withMockGmailEmail swaps GmailEmailFactory for the test and restores it on
+// cleanup.
+func withMockGmailEmail(t *testing.T, f func(ctx context.Context) (string, error)) {
+	t.Helper()
+	orig := GmailEmailFactory
+	GmailEmailFactory = f
+	t.Cleanup(func() { GmailEmailFactory = orig })
+}
+
 func TestRenderOneLinerHappyPath(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
@@ -174,6 +183,97 @@ func TestRunDefaultPipeOneLiner(t *testing.T) {
 	want := "people/c1 | Ada | ada@example.com\n"
 	if got := out.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// TestRunFallsBackToGmailEmail is the regression test for the blank-email
+// one-liner: gro requests userinfo.profile but not userinfo.email, so
+// people/me returns no email and `gro me` printed "-" where `config test`
+// printed the address. The Gmail-profile fallback must fill it in.
+func TestRunFallsBackToGmailEmail(t *testing.T) {
+	// Not Parallel: mutates package-global ClientFactory + GmailEmailFactory.
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{
+				ResourceName: "people/c1",
+				DisplayName:  "Ada",
+				PrimaryEmail: "", // what people/me returns without userinfo.email
+			}, nil
+		},
+	})
+	withMockGmailEmail(t, func(_ context.Context) (string, error) {
+		return "ada@example.com", nil
+	})
+	var out bytes.Buffer
+	if err := run(context.Background(), &out, &bytes.Buffer{}, false, false); err != nil {
+		t.Fatal(err)
+	}
+	want := "people/c1 | Ada | ada@example.com\n"
+	if got := out.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// TestRunFallbackFailureLeavesEmailBlank proves a Gmail hiccup degrades to
+// the old "-" rendering instead of failing `me` — the People data is still
+// worth showing.
+func TestRunFallbackFailureLeavesEmailBlank(t *testing.T) {
+	// Not Parallel: mutates package-global ClientFactory + GmailEmailFactory.
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada"}, nil
+		},
+	})
+	withMockGmailEmail(t, func(_ context.Context) (string, error) {
+		return "", errors.New("gmail unavailable")
+	})
+	var out bytes.Buffer
+	if err := run(context.Background(), &out, &bytes.Buffer{}, false, false); err != nil {
+		t.Fatal(err)
+	}
+	want := "people/c1 | Ada | -\n"
+	if got := out.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// TestRunNoFallbackWhenEmailPresent proves the extra Gmail call is skipped
+// when People already supplied the email.
+func TestRunNoFallbackWhenEmailPresent(t *testing.T) {
+	// Not Parallel: mutates package-global ClientFactory + GmailEmailFactory.
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada", PrimaryEmail: "ada@example.com"}, nil
+		},
+	})
+	withMockGmailEmail(t, func(_ context.Context) (string, error) {
+		t.Error("GmailEmailFactory must not be called when People supplied the email")
+		return "", nil
+	})
+	var out bytes.Buffer
+	if err := run(context.Background(), &out, &bytes.Buffer{}, false, false); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestRunIDOnlyFallsBackToGmailEmail covers the scripting surface: `gro me
+// --id` printing "-" is worse than useless in a pipeline.
+func TestRunIDOnlyFallsBackToGmailEmail(t *testing.T) {
+	// Not Parallel: mutates package-global ClientFactory + GmailEmailFactory.
+	withMockClient(t, &mockPeopleClient{
+		GetMeFunc: func(_ context.Context) (*people.Profile, error) {
+			return &people.Profile{ResourceName: "people/c1", DisplayName: "Ada"}, nil
+		},
+	})
+	withMockGmailEmail(t, func(_ context.Context) (string, error) {
+		return "ada@example.com", nil
+	})
+	var out bytes.Buffer
+	if err := run(context.Background(), &out, &bytes.Buffer{}, true, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "ada@example.com\n" {
+		t.Fatalf("got %q, want 'ada@example.com\\n'", got)
 	}
 }
 

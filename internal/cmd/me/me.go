@@ -91,6 +91,22 @@ func run(ctx context.Context, out, errOut io.Writer, idOnly, extended bool) erro
 		return fmt.Errorf("getting current user: %w", err)
 	}
 
+	// People's people/me only returns the account's own email when the token
+	// carries an email-bearing scope; gro requests userinfo.profile but not
+	// userinfo.email, so PrimaryEmail is blank on most tokens — while `config
+	// test` (Gmail profile) happily prints the address. `me` is the canonical
+	// identity surface, so fall back to the Gmail profile (gmail.modify is
+	// always granted) rather than rendering "-" where the email belongs.
+	// Best-effort: a fallback failure leaves the field blank instead of
+	// failing `me` — the People data is still worth showing. Adding the
+	// userinfo.email scope instead would force every existing user through a
+	// re-auth for data we can already read.
+	if profile.PrimaryEmail == "" {
+		if email, gerr := GmailEmailFactory(ctx); gerr == nil {
+			profile.PrimaryEmail = email
+		}
+	}
+
 	// Read token expiry AFTER the API call so any refresh by
 	// PersistentTokenSource is reflected.
 	var extras Extras
