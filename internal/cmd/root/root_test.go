@@ -47,6 +47,7 @@ func TestRootCommand(t *testing.T) {
 		}
 		testutil.SliceContains(t, names, "init")
 		testutil.SliceContains(t, names, "config")
+		testutil.SliceContains(t, names, "profiles")
 		testutil.SliceContains(t, names, "mail")
 		testutil.SliceContains(t, names, "calendar")
 		testutil.SliceContains(t, names, "contacts")

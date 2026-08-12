@@ -11,6 +11,7 @@ import (
 	config "github.com/open-cli-collective/google-cli-common/configcmd"
 	"github.com/open-cli-collective/google-cli-common/initcmd"
 	mail "github.com/open-cli-collective/google-cli-common/mailcmd"
+	"github.com/open-cli-collective/google-cli-common/profilescmd"
 	"github.com/open-cli-collective/google-cli-common/refreshcmd"
 	"github.com/open-cli-collective/google-cli-common/rootutil"
 	"github.com/open-cli-collective/google-cli-common/setcred"
@@ -86,6 +87,7 @@ func init() {
 	// Register commands
 	rootCmd.AddCommand(initcmd.NewCommand())
 	rootCmd.AddCommand(config.NewCommand())
+	rootCmd.AddCommand(profilescmd.NewCommand())
 	rootCmd.AddCommand(setcred.NewCmd())
 	rootCmd.AddCommand(me.NewCommand())
 	rootCmd.AddCommand(mail.NewCommand())

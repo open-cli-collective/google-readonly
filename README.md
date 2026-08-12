@@ -277,6 +277,11 @@ gro -v <command>
 All Gmail commands are under `gro mail`:
 
 ```bash
+# List recent inbox messages
+gro mail list
+gro mail list --max 25
+gro mail list --ids                         # Output IDs only (for piping)
+
 # Search messages
 gro mail search "is:unread"
 gro mail search "from:someone@example.com" --max 20
@@ -547,6 +552,18 @@ removed without removing anything.
 
 ```
 Usage: gro config clear [--all] [--dry-run]
+```
+
+### gro mail list
+
+List the most recent inbox messages (equivalent to `gro mail search "in:inbox"`).
+
+```
+Usage: gro mail list [flags]
+
+Flags:
+  -m, --max int    Maximum number of results (default 10)
+      --ids        Output only message IDs (one per line, for piping)
 ```
 
 ### gro mail search

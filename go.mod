@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/muesli/termenv v0.16.0
-	github.com/open-cli-collective/cli-common v0.4.1
+	github.com/open-cli-collective/cli-common v0.5.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/api v0.289.0
@@ -66,7 +66,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/noamcohen97/touchid-go v0.3.0 // indirect
-	github.com/open-cli-collective/google-cli-common v0.2.0
+	github.com/open-cli-collective/google-cli-common v0.3.0
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
