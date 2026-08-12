@@ -149,6 +149,14 @@ After creating the OAuth credentials in step 2 (or 3), run:
 gro init
 ```
 
+Before touching anything, init names the profile (and account) it is about to
+(re)authenticate. To add ANOTHER Google account later without overwriting the
+first one, authenticate it as a new named profile:
+
+```bash
+gro init --profile work
+```
+
 The wizard will:
 
 1. **Ingest credentials.json.** Pick one of three options when prompted:
@@ -254,6 +262,16 @@ gro me --id
 # Adds granted scopes, token expiry, and storage backend
 gro me --extended
 
+
+# List credential profiles (accounts) and their token state
+gro profiles list
+gro profiles list --check   # live-verify each token
+
+# Switch the active profile
+gro profiles use work
+
+# Add another account as a new named profile
+gro init --profile work
 
 # Check configuration status
 gro config show
@@ -514,6 +532,7 @@ Flags:
       --credentials-file string   Path to a downloaded OAuth client JSON (bypasses the wizard)
       --no-browser                Don't try to open the consent URL in a browser
       --no-verify                 Skip connectivity verification after setup
+      --profile string            Authenticate a NEW named profile (stored as google-readonly/<name>) without touching the active profile
 ```
 
 ### gro me
@@ -526,6 +545,32 @@ Usage: gro me [flags]
 Flags:
       --id         Print only the primary email (scriptable)
       --extended   Add granted scopes, token expiry, and storage backend
+```
+
+### gro profiles list
+
+List every credential profile stored in the OS keyring: the account email each
+holds (as last verified), whether a token is present, and which profile is
+active (marked `*`, with where the selection came from).
+
+```
+Usage: gro profiles list [flags]
+
+Flags:
+  -j, --json    Emit JSON
+      --check   Live-verify each profile's token against the API
+                (ok / expired or revoked / error, one API call per profile)
+```
+
+### gro profiles use
+
+Switch the active profile (writes `credential_ref` in `config.yml`). Accepts a
+bare profile name or a full `google-readonly/<profile>` ref. Never touches
+stored tokens; switching to a profile with no token warns and points at
+`gro init`.
+
+```
+Usage: gro profiles use <profile>
 ```
 
 ### gro config show
