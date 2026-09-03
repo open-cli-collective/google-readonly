@@ -1,3 +1,5 @@
+> **Archived.** `gro` now lives in [open-cli-collective/google-cli](https://github.com/open-cli-collective/google-cli) alongside its read-write sibling `grw`. Releases, packages, and issues continue there, and existing installs keep upgrading through the same package names (`google-readonly` on Homebrew, Chocolatey, and WinGet).
+
 # google-readonly
 
 A non-destructive command-line interface for Google services. Search, read, and organize Gmail messages, calendar events, contacts, and Drive files. Supports labeling, archiving, starring, RSVP, and group management. No send, delete, or trash operations are possible.
